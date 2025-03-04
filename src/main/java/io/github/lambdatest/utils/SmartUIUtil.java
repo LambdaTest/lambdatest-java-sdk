@@ -98,7 +98,9 @@ public class SmartUIUtil {
                 Arrays.asList("iPhone 14",
                         "Galaxy S24"),
                 true,
-                "portrait"
+                "portrait",
+                "test123",
+                "default"
         );
         buildConfig.setMobile(mobile);
         buildConfig.setScrollTime(8);
