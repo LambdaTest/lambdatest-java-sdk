@@ -93,7 +93,7 @@ public class SmartUIUtil {
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         BuildConfig buildConfig = new BuildConfig();
-        createBuildRequest.setBuildName("smartui-"+ UUID.randomUUID()git a);
+        createBuildRequest.setBuildName("smartui-"+ UUID.randomUUID());
         MobileConfig mobile = new MobileConfig(
                 Arrays.asList("iPhone 14",
                         "Galaxy S24"),
