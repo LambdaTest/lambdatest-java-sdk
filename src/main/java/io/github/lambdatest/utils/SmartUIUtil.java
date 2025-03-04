@@ -1,16 +1,12 @@
 package io.github.lambdatest.utils;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Logger;
 
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
-
-import java.util.Map;
 
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
@@ -97,6 +93,7 @@ public class SmartUIUtil {
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         BuildConfig buildConfig = new BuildConfig();
+        createBuildRequest.setBuildName("smartui-"+ UUID.randomUUID()git a);
         MobileConfig mobile = new MobileConfig(
                 Arrays.asList("iPhone 14",
                         "Galaxy S24"),
