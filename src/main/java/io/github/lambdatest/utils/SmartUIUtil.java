@@ -112,7 +112,6 @@ public class SmartUIUtil {
         createBuildRequest.setProjectToken(projectToken);
 
         String createBuildJson = gson.toJson(createBuildRequest);
-
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson);
         BuildData buildData = gson.fromJson(createBuildResponse, BuildData.class);
         if (Objects.isNull(buildData)) {
@@ -138,7 +137,6 @@ public class SmartUIUtil {
             httpClient.stopBuild(buildId);
         }
         catch (Exception e){
-            log.warning("Failed to stop the build for buildId :"+ buildId);
             throw new RuntimeException(Constants.Errors.STOP_BUILD_FAILED);
         }
     }
