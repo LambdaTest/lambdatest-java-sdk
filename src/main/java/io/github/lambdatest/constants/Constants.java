@@ -9,13 +9,19 @@ public interface Constants {
   interface SmartUIRoutes {
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
-    public static final String SMARTUI_SNPASHOT_ROUTE = "/snapshot";
+    public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";
+    public static final String SMARTUI_AUTH_ROUTE = "/token/verify";
+    public static final String SMARTUI_CREATE_BUILD = "/build";
+    public static final String SMARTUI_FINALISE_BUILD_ROUTE = "/build";
+    public static final String SMARTUI_UPLOAD_SCREENSHOT_ROUTE = "/screenshot";
+    
   }
 
   //Request methods
   interface RequestMethods {
     public static final String POST = "POST";
     public static final String GET = "GET";
+    public static final String DELETE = "DELETE";
   }
 
   //Logger colors
@@ -48,5 +54,8 @@ public interface Constants {
     public static final String POST_SNAPSHOT_FAILED = "Post snapshot failed: %s";
     public static final String INVALID_RESPONSE_DATA = "Invalid response from fetchDOMSerializer";
     public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed %s";
+    public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";
+    public static final String USER_AUTH_ERROR = "User authentication failed";
+    public static final String STOP_BUILD_FAILED = "Failed to stop build";
   }
 }
