@@ -144,11 +144,7 @@ public class HttpClientUtil {
     }
 
     public void stopBuild(String buildId) throws IOException {
-        try {
             request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + "?buildId=" + buildId, Constants.RequestMethods.DELETE, null);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public String uploadScreenshot(String uploadScreenshotRequest) throws IOException {

@@ -85,7 +85,7 @@ public class SmartUIUtil {
         }
     }
 
-    public BuildData build(String projectToken) throws IOException {
+    public BuildData build(String projectToken, String deviceName, String os) throws IOException {
         boolean isAuthenticatedUser = httpClient.isUserAuthenticated(projectToken);
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
@@ -99,8 +99,8 @@ public class SmartUIUtil {
                         "Galaxy S24"),
                 true,
                 "portrait",
-                "test123",
-                "default"
+                deviceName,
+                os
         );
         buildConfig.setMobile(mobile);
         buildConfig.setScrollTime(8);

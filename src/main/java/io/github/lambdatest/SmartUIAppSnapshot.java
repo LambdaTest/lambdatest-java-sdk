@@ -49,10 +49,13 @@ public class SmartUIAppSnapshot {
         log.info("Smart-UI server is running ...");
 
         BuildData createBuildResponse = null;
+        String os = platformName + platformVersion;
         try {
-             createBuildResponse = smartUIUtil.build(projectToken);
+             createBuildResponse = smartUIUtil.build(projectToken, deviceName,os);
+             log.info("Created build, received response: "+ createBuildResponse);
         } catch (Exception e) {
             log.severe("Couldn't create build due to Exception: " + e.getMessage());
+            throw new IllegalStateException("Couldn't create build due to error: "+ e.getMessage());
         }
 
         TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
@@ -63,7 +66,7 @@ public class SmartUIAppSnapshot {
         uploadSnapshotRequest.setScreenshotName(screenshotName);
         uploadSnapshotRequest.setScreenshot(screenshot);
         uploadSnapshotRequest.setProjectToken(projectToken);
-        uploadSnapshotRequest.setOs(platformName + platformVersion);
+        uploadSnapshotRequest.setOs(os);
         uploadSnapshotRequest.setDeviceName(deviceName);
 //      Need to check :    uploadSnapshotRequest.setResolution("all");
 
@@ -73,12 +76,13 @@ public class SmartUIAppSnapshot {
         }
 
         String uploadRequest = gson.toJson(uploadSnapshotRequest);
-        log.info("Adding upload for request :"+ uploadRequest);
+        log.info("Adding upload for request: "+ uploadRequest);
 
         try{
         smartUIUtil.uploadScreenshot(uploadRequest);
         } catch (Exception e){
-            log.severe("Error in uploading screenshot :"+ e.getMessage());
+            log.severe("Error in uploading screenshot : "+ e.getMessage());
+            throw  new RuntimeException("Error in uploading screenshot : "+ e.getMessage());
         }
 
         try {
@@ -86,6 +90,7 @@ public class SmartUIAppSnapshot {
             log.info("Session ended for token: "+projectToken);
         } catch (Exception e) {
             log.severe("Couldn't stop the build due to an exception: " + e.getMessage());
+            throw new RuntimeException(" Exception occurred in stopping build: "+ e.getMessage());
         }
     }
 }
