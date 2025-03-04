@@ -89,7 +89,8 @@ public class SmartUIAppSnapshot {
 
     public void stop() {
         try {
-            if (buildData != null) {
+            if (this.buildData != null) {
+                log.info("Stopping session for buildId: "+ buildData.getBuildId());
                 smartUIUtil.stop(buildData.getBuildId());
                 log.info("Session ended for token: " + projectToken);
             }
