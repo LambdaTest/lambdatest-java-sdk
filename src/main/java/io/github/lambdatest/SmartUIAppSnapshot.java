@@ -49,7 +49,6 @@ public class SmartUIAppSnapshot {
         log.info("Project token set as :"+ projectToken);
         this.projectToken = projectToken;
         Objects.requireNonNull(options).put("projectToken", projectToken);
-        Objects.requireNonNull(options).put("deviceName", deviceName);
 
         boolean isServerUp = util.isSmartUIRunning();
         if (!isServerUp) {
@@ -61,6 +60,7 @@ public class SmartUIAppSnapshot {
         try {
             this.buildData = util.build(projectToken, appiumDriver, options);
             log.info("Created build, received response :" + this.buildData);
+            Objects.requireNonNull(options).put("buildName", this.buildData.getName());
         } catch (Exception e) {
             log.severe("Couldn't create build due to Exception: " + e.getMessage());
             throw new IllegalStateException("Couldn't create build due to error: " + e.getMessage());
