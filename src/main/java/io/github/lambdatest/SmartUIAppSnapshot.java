@@ -8,7 +8,6 @@ import io.github.lambdatest.utils.SmartUIUtil;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import com.google.gson.Gson;
-import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.io.File;
 import java.util.Map;
@@ -28,7 +27,7 @@ public class SmartUIAppSnapshot {
         this.gson = new Gson();
     }
 
-    public void open(AppiumDriver appiumDriver, String screenshotName, Map<String, Object> options) {
+    public void start(AppiumDriver appiumDriver, String screenshotName, Map<String, Object> options) {
         if (Objects.isNull(appiumDriver)) {
             throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
         }
@@ -39,30 +38,31 @@ public class SmartUIAppSnapshot {
 
         this.projectToken = smartUIUtil.getProjectToken(options);
         boolean isServerUp = smartUIUtil.isSmartUIRunning();
-        if(!isServerUp){
-            log.severe("Error in authenticating user with projectToken: "+ projectToken);
+        if (!isServerUp) {
+            log.severe("Error in authenticating user with projectToken: " + projectToken);
             throw new IllegalArgumentException(Constants.Errors.SMARTUI_NOT_RUNNING);
         }
-    }
-
-    public void build(String deviceName, String os) {
+        //Authenticate user for projectToken and create build for User's session
         try {
-            this.buildData = smartUIUtil.build(projectToken, deviceName, os);
-            log.info("Created build, received response: " + buildData);
+            this.buildData = smartUIUtil.build(projectToken, appiumDriver);
+            log.info("Created build, received response :" + this.buildData);
         } catch (Exception e) {
             log.severe("Couldn't create build due to Exception: " + e.getMessage());
             throw new IllegalStateException("Couldn't create build due to error: " + e.getMessage());
         }
     }
 
-    public void smartuiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, String deviceName, String os) {
+    public void smartuiAppSnapshot(AppiumDriver appiumDriver, String screenshotName) {
         try {
-            // Capture Screenshot
+            String deviceName = appiumDriver.getCapabilities().getCapability("deviceName").toString();
+            String platformName = appiumDriver.getCapabilities().getCapability("platformName").toString();
+            String platformVersion = appiumDriver.getCapabilities().getCapability("platformVersion").toString();
+            String os = platformName + platformVersion;
+
             TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
             File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
             log.info("Screenshot captured: " + screenshotName);
 
-            // Prepare Upload Request
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setScreenshot(screenshot);
@@ -90,7 +90,7 @@ public class SmartUIAppSnapshot {
     public void stop() {
         try {
             if (this.buildData != null) {
-                log.info("Stopping session for buildId: "+ buildData.getBuildId());
+                log.info("Stopping session for buildId: " + buildData.getBuildId());
                 smartUIUtil.stop(buildData.getBuildId());
                 log.info("Session ended for token: " + projectToken);
             }

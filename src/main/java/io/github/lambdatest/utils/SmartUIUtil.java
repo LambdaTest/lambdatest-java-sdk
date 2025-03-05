@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Logger;
 
+import io.appium.java_client.AppiumDriver;
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
@@ -85,11 +86,15 @@ public class SmartUIUtil {
         }
     }
 
-    public BuildData build(String projectToken, String deviceName, String os) throws IOException {
-        boolean isAuthenticatedUser = httpClient.isUserAuthenticated(projectToken);
+    public BuildData build(String projectToken, AppiumDriver driver) throws Exception {
+        boolean isAuthenticatedUser = isUserAuthenticated(projectToken);
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
         }
+        String deviceName = driver.getCapabilities().getCapability("deviceName").toString();
+        String platformName = driver.getCapabilities().getCapability("platformName").toString();
+        String platformVersion = driver.getCapabilities().getCapability("platformVersion").toString();
+        String os = platformName+platformVersion;
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         BuildConfig buildConfig = new BuildConfig();
@@ -105,7 +110,7 @@ public class SmartUIUtil {
         buildConfig.setMobile(mobile);
         buildConfig.setScrollTime(8);
         buildConfig.setEnableJavaScript(false);
-        buildConfig.setWaitForPageRender(1000);
+        buildConfig.setWaitForPageRender(3000);
         buildConfig.setWaitForTimeout(1000);
         createBuildRequest.setBuildConfig(buildConfig);
         createBuildRequest.setProjectToken(projectToken);
