@@ -1,6 +1,6 @@
 package io.github.lambdatest.utils;
 
-import java.io.IOException;
+
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -8,10 +8,11 @@ import io.appium.java_client.AppiumDriver;
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
+import org.openqa.selenium.Capabilities;
 
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
-    private Logger log;
+    private final Logger log;
     Gson gson = new Gson();
 
     public SmartUIUtil() {
@@ -73,41 +74,50 @@ public class SmartUIUtil {
         }
     }
 
-    public void uploadScreenshot(String uploadScreenshotRequest) {
+    public void uploadScreenshot(String uploadScreenshotRequest) throws Exception {
         try{
             String uploadScreenshotResponse = httpClient.uploadScreenshot(uploadScreenshotRequest);
             UploadSnapshotResponse uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if(Objects.isNull(uploadAPIResponse))
-                throw new RuntimeException("Failed to upload screenshot to SmartUI");
+                throw new IllegalStateException("Failed to upload screenshot to SmartUI");
         }
         catch (Exception e){
-            log.severe("Exception occurred during uploading screenshot :" + e.toString());
-            throw new RuntimeException("Couldn't upload image to SmartUI because of error :"+ e.getMessage());
+            throw new Exception("Couldn't upload image to SmartUI because of error :"+ e.getMessage());
         }
     }
 
-    public BuildData build(String projectToken, AppiumDriver driver) throws Exception {
+    public BuildData build(String projectToken, AppiumDriver driver, Map<String, Object> options) throws Exception {
         boolean isAuthenticatedUser = isUserAuthenticated(projectToken);
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
         }
-        String deviceName = driver.getCapabilities().getCapability("deviceName").toString();
-        String platformName = driver.getCapabilities().getCapability("platformName").toString();
-        String platformVersion = driver.getCapabilities().getCapability("platformVersion").toString();
-        String os = platformName+platformVersion;
+
+//        Capabilities capabilities = driver.getCapabilities();
+//        Map<String, Object> capabilitiesMap = capabilities.asMap();
+//        String deviceName= null;
+//        String os = null;
+//        if (capabilitiesMap != null && capabilitiesMap.containsKey("deviceName") && capabilitiesMap.containsKey("platformName") && capabilitiesMap.containsKey("platformVersion")) {
+//             deviceName = capabilitiesMap.get("deviceName").toString();
+//            String platformName = capabilitiesMap.get("platformName").toString();
+//            String platformVersion = capabilitiesMap.get("platformVersion").toString();
+//             os = platformName+platformVersion;}
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         BuildConfig buildConfig = new BuildConfig();
-        createBuildRequest.setBuildName("smartui-"+ UUID.randomUUID());
-        MobileConfig mobile = new MobileConfig(
-                Arrays.asList("iPhone 14",
-                        "Galaxy S24"),
-                true,
-                "portrait",
-                deviceName,
-                os
-        );
-        buildConfig.setMobile(mobile);
+
+        if (options != null && options.containsKey("buildName")) {
+            Object buildNameValue = options.get("buildName");
+
+            // Check if value is non-null and a valid String
+            if (buildNameValue instanceof String && !((String) buildNameValue).trim().isEmpty()) {
+                createBuildRequest.setBuildName((String) buildNameValue);
+            } else {
+                createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8));
+            }
+        } else {
+            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8)); //Setting buildName for case when user hasn't given
+        }
+
         buildConfig.setScrollTime(8);
         buildConfig.setEnableJavaScript(false);
         buildConfig.setWaitForPageRender(3000);
@@ -124,24 +134,12 @@ public class SmartUIUtil {
         return buildData;
     }
 
-    public String getProjectToken(Map<String, Object> options) {
-        String envProjectToken = System.getenv("PROJECT_TOKEN");
-        if(envProjectToken != null && !envProjectToken.trim().isEmpty())
-            return envProjectToken.trim();
-        return Optional.ofNullable(options)
-                .map(opts -> options.get("projectToken"))
-                .map(Object::toString)
-                .map(String::trim)
-                .filter(token -> !token.isEmpty())
-                .orElseThrow(() -> new IllegalArgumentException(Constants.Errors.PROJECT_TOKEN_UNSET));
-    }
-
-    public void stop(String buildId) {
+    public void stop(String buildId) throws IllegalArgumentException{
         try{
             httpClient.stopBuild(buildId);
         }
         catch (Exception e){
-            throw new RuntimeException(Constants.Errors.STOP_BUILD_FAILED);
+            throw new IllegalArgumentException(Constants.Errors.STOP_BUILD_FAILED);
         }
     }
 }
