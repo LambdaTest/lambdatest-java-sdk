@@ -8,7 +8,6 @@ import io.appium.java_client.AppiumDriver;
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
-import org.openqa.selenium.Capabilities;
 
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
@@ -74,50 +73,42 @@ public class SmartUIUtil {
         }
     }
 
-    public void uploadScreenshot(String uploadScreenshotRequest) throws Exception {
+    public UploadSnapshotResponse uploadScreenshot(String uploadScreenshotRequest) throws Exception {
+        UploadSnapshotResponse uploadAPIResponse= new UploadSnapshotResponse();
         try{
             String uploadScreenshotResponse = httpClient.uploadScreenshot(uploadScreenshotRequest);
-            UploadSnapshotResponse uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
+             uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if(Objects.isNull(uploadAPIResponse))
                 throw new IllegalStateException("Failed to upload screenshot to SmartUI");
         }
         catch (Exception e){
             throw new Exception("Couldn't upload image to SmartUI because of error :"+ e.getMessage());
         }
+        return  uploadAPIResponse;
     }
 
-    public BuildData build(String projectToken, AppiumDriver driver, Map<String, Object> options) throws Exception {
+    public BuildData build(String projectToken, AppiumDriver driver, Map<String, String> options) throws Exception {
         boolean isAuthenticatedUser = isUserAuthenticated(projectToken);
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
         }
 
-//        Capabilities capabilities = driver.getCapabilities();
-//        Map<String, Object> capabilitiesMap = capabilities.asMap();
-//        String deviceName= null;
-//        String os = null;
-//        if (capabilitiesMap != null && capabilitiesMap.containsKey("deviceName") && capabilitiesMap.containsKey("platformName") && capabilitiesMap.containsKey("platformVersion")) {
-//             deviceName = capabilitiesMap.get("deviceName").toString();
-//            String platformName = capabilitiesMap.get("platformName").toString();
-//            String platformVersion = capabilitiesMap.get("platformVersion").toString();
-//             os = platformName+platformVersion;}
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         BuildConfig buildConfig = new BuildConfig();
 
         if (options != null && options.containsKey("buildName")) {
-            Object buildNameValue = options.get("buildName");
+            String buildNameValue = options.get("buildName");
 
             // Check if value is non-null and a valid String
-            if (buildNameValue instanceof String && !((String) buildNameValue).trim().isEmpty()) {
-                createBuildRequest.setBuildName((String) buildNameValue);
+            if (buildNameValue != null && !buildNameValue.trim().isEmpty()) {
+                createBuildRequest.setBuildName(buildNameValue);
             } else {
                 createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8));
             }
         } else {
-            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8)); //Setting buildName for case when user hasn't given
+            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8)); //Setting buildName for case when user hasn't given options
         }
-
         buildConfig.setScrollTime(8);
         buildConfig.setEnableJavaScript(false);
         buildConfig.setWaitForPageRender(3000);

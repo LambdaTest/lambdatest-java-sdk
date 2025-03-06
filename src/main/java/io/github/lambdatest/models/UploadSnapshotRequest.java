@@ -1,6 +1,7 @@
 package io.github.lambdatest.models;
 
 import java.io.File;
+import java.util.Map;
 
 public class UploadSnapshotRequest {
     private File screenshot;
@@ -51,8 +52,9 @@ public class UploadSnapshotRequest {
         return os;
     }
 
-    public void setOs(String os) {
-        this.os = os;
+    public void setOs(Map<String, Object> deviceOption) {
+        this.os = (deviceOption.get("platformName") == null ? "" : (String) deviceOption.get("platformName")) +
+                (deviceOption.get("platformVersion") == null ? "" : (String) deviceOption.get("platformVersion"));
     }
 
     public String getResolution() {

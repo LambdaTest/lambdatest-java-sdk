@@ -17,11 +17,8 @@ import java.util.logging.Logger;
 public class PerfectoSmartUiNative {
     private AppiumDriver driver;
     private SmartUIAppSnapshot smartUIAppSnapshot = new SmartUIAppSnapshot();
-    private SmartUIUtil smartUIUtil = new SmartUIUtil();
-    private final Logger log;
-
-    private final String SMARTUI_PROJECT_TOKEN = System.getenv("PROJECT_TOKEN");
-
+    private final SmartUIUtil smartUIUtil = new SmartUIUtil();
+    private Logger log;
 
     // Default constructor
     public PerfectoSmartUiNative() {
@@ -29,20 +26,22 @@ public class PerfectoSmartUiNative {
     }
     // Parameterized constructor
     public PerfectoSmartUiNative(AppiumDriver driver,SmartUIAppSnapshot smartUIAppSnapshot, SmartUIUtil smartUIUtil) {
-        this();
         this.driver = driver;
         this.smartUIAppSnapshot = smartUIAppSnapshot;
-        this.smartUIUtil = smartUIUtil;
     }
 
     @BeforeTest
     public void setup() throws Exception {
-        DesiredCapabilities cap = new DesiredCapabilities();
 
+        Map<String, String> option = new HashMap<>();
+        option.put("projectToken", "<lambdatest-token>");
+        option.put("buildName", "testBuild");
+        DesiredCapabilities cap = new DesiredCapabilities();
         cap.setCapability("enableAppiumBehavior", true);
         cap.setCapability("model", "Galaxy S24");
         cap.setCapability("platformVersion", "14");
         cap.setCapability("platformName", Platform.ANDROID.name());
+        cap.setCapability("ltOptions", option);
 
 
         try {
@@ -57,29 +56,44 @@ public class PerfectoSmartUiNative {
 
     @Test
     public void appiumTest() throws Exception {
-        if (Objects.isNull(driver)) {
-            throw new IllegalStateException("Driver not initialized!");
-        }
-        if(Objects.isNull(smartUIUtil) || Objects.isNull(smartUIAppSnapshot)){
-            throw new IllegalStateException("Terminating session for "+ driver.getCapabilities());
+
+        Map<String, String> options = new HashMap<>();
+        Object capabilityObj = driver.getCapabilities().getCapability("ltOptions");
+
+        if (Objects.nonNull(capabilityObj) && capabilityObj instanceof Map) {
+            Map<?, ?> capabilityMap = (Map<?, ?>) capabilityObj;
+
+            // Extract projectToken if it exists
+            if (capabilityMap.containsKey("projectToken") && capabilityMap.get("projectToken") instanceof String) {
+                String projectToken = ((String) capabilityMap.get("projectToken")).trim();
+                options.put("projectToken", projectToken);
+            }
+
+            // Extract buildName if it exists
+            if (capabilityMap.containsKey("buildName") && capabilityMap.get("buildName") instanceof String) {
+                String buildName = (String) ((String) capabilityMap.get("buildName")).trim();
+                options.put("buildName", buildName);
+            }
         }
 
-        // Start SmartUI Visual Testing
         try{
-        smartUIAppSnapshot.start(driver,  new HashMap<>());}
+            smartUIAppSnapshot.start(driver, options);}
         catch (Exception e){
-            log.severe("Exception in starting smartUiAppSnapshot: "+ e.getMessage());
+            log.severe("Exception in starting smartUiApp: "+ e.getMessage());
             return;
         }
 
         // Capture and upload visual snapshot
-        smartUIAppSnapshot.smartUiAppSnapshot(driver, "home_screen", new HashMap<>());
+        smartUIAppSnapshot.smartUiAppSnapshot(driver, "home_screen", options);
 
         // More actions...
         // e.g., Navigate,to another UI
-        smartUIAppSnapshot.smartUiAppSnapshot(driver, "after_navigation", new HashMap<>());
+        smartUIAppSnapshot.smartUiAppSnapshot(driver, "after_navigation", options);
 
-        smartUIAppSnapshot.stop();
+        try{
+            smartUIAppSnapshot.stop();} catch (Exception e){
+            log.severe("Stop Smart UI failed" + " due to "+ e.getMessage());
+        }
     }
 
     @AfterTest
@@ -90,4 +104,3 @@ public class PerfectoSmartUiNative {
         }
     }
 }
-
