@@ -15,16 +15,30 @@ import java.util.stream.Collectors;
 public class GitUtils {
 
     public static GitInfo getGitInfo(Map<String, String> envVars) {
+        //Check if git repo, exit graciously if not
+        boolean isGit = isGitRepo();
+        if(!isGit)
+            throw new IllegalStateException("Git Repo is needed to run this test");
         String gitInfoFilePath = envVars.get("SMARTUI_GIT_INFO_FILEPATH");
 
         // If Git info file exists, read from it
         if (gitInfoFilePath != null) {
             return readGitInfoFromFile(gitInfoFilePath, envVars);
         }
-
         // Otherwise, fetch Git info from Git commands
         else{
         return fetchGitInfoFromCommands(envVars);
+        }
+    }
+    private static boolean isGitRepo() {
+        try {
+            Process process = Runtime.getRuntime().exec("git status");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            while(reader.readLine() != null) {}
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (IOException | InterruptedException e) {
+            return false;
         }
     }
 

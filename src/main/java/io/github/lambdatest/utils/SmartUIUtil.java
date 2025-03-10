@@ -104,6 +104,7 @@ public class SmartUIUtil {
             // Check if value is non-null and a valid String
             if (buildNameValue != null && !buildNameValue.trim().isEmpty()) {
                 createBuildRequest.setBuildName(buildNameValue);
+                log.info("Build name set from options: " + buildNameValue);
             } else {
                 createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8));
             }

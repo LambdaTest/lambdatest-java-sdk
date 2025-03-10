@@ -51,7 +51,11 @@ public class SmartUIAppSnapshot {
         log.info("Device name retrieved: " + this.deviceName);
         log.info("Platform retrieved: " + this.platform);
         Map<String, String> envVars = System.getenv();
-        GitInfo git = GitUtils.getGitInfo(envVars);
+        GitInfo git = null;
+        try{
+            git = GitUtils.getGitInfo(envVars); } catch (Exception e){
+            log.severe("Couldnt find git info due to: "+ e.getMessage());
+        }
 
         // Authenticate user and create a build
         try {
