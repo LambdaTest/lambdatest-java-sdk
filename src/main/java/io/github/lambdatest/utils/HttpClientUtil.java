@@ -1,5 +1,9 @@
 package io.github.lambdatest.utils;
 
+
+import com.google.gson.*;
+import io.github.lambdatest.models.BuildData;
+import io.github.lambdatest.models.UploadSnapshotRequest;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -7,19 +11,21 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import io.github.lambdatest.constants.Constants;
+
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
-
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.JsonElement;
 
 
 public class HttpClientUtil {
@@ -37,9 +43,7 @@ public class HttpClientUtil {
         } else if (Constants.RequestMethods.GET.equalsIgnoreCase(method)) {
             return get(url);
         }
-        else if(Constants.RequestMethods.DELETE.equalsIgnoreCase(method)) {
-            return delete(url);
-        }else {
+        else {
             throw new IllegalArgumentException("Unsupported HTTP method: " + method);
         }
     }
@@ -53,24 +57,35 @@ public class HttpClientUtil {
         }
     }
 
-    private String delete(String url) throws IOException {
+    private String delete(String url,Map<String, String> headers) throws IOException {
+
         HttpDelete request = new HttpDelete(url);
-        try(CloseableHttpResponse response = httpClient.execute(request)) {
+        if (headers != null && headers.containsKey("projectToken")) {
+            String projectToken = headers.get("projectToken").trim();
+            if (!projectToken.isEmpty()) {
+                request.setHeader("projectToken", projectToken);
+            }
+        }
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
             checkResponseStatus(response);
             HttpEntity entity = response.getEntity();
             return entity != null ? EntityUtils.toString(entity) : null;
         }
+        catch (Exception e){
+        log.warning("Exception occured in delete "+ e.getMessage());}
+        return "Success";
     }
 
     private String post(String url, String data) throws IOException {
         HttpPost request = new HttpPost(url);
         request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
         request.setHeader("Content-type", "application/json");
-    
+
+
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             HttpEntity entity = response.getEntity();
             String responseString = entity != null ? EntityUtils.toString(entity) : null;
-    
+
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == HttpStatus.SC_OK) {
                 // Request was successful
@@ -96,7 +111,49 @@ public class HttpClientUtil {
             }
         }
     }
-    
+
+    private String postWithHeader(String url, String data, Map<String, String> headers) throws IOException {
+        HttpPost request = new HttpPost(url);
+        request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
+        request.setHeader("Content-Type", "application/json");
+
+        if (Objects.nonNull(headers) && headers.containsKey("projectToken")) {
+            request.setHeader("projectToken", headers.get("projectToken").trim());
+        }
+
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            HttpEntity entity = response.getEntity();
+            String responseString = entity != null ? EntityUtils.toString(entity) : null;
+
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == HttpStatus.SC_OK) {
+                return responseString;
+            } else {
+                // Try to extract error message
+                try {
+                    if(Objects.nonNull(responseString)){
+                        JsonElement element;
+                        element = JsonParser.parseString(responseString);
+                        if (element.isJsonObject()) {
+                            JsonObject jsonResponse = element.getAsJsonObject();
+                            if (jsonResponse.has("error") && jsonResponse.get("error").isJsonObject()) {
+                                JsonObject errorObject = jsonResponse.getAsJsonObject("error");
+                                if (errorObject.has("message")) {
+                                    String errorMessage = errorObject.get("message").getAsString();
+                                    log.severe(String.format("Error in POST request " + errorMessage));
+                                }
+                            }
+                        }
+                    }
+                } catch (JsonSyntaxException e) {
+                    throw new IOException("Failed to parse error response: " + responseString, e);
+                }
+                throw new IOException("Unexpected status code: " + statusCode);
+            }
+        }
+    }
+
+
     private void checkResponseStatus(HttpResponse response) throws IOException {
         int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode != HttpStatus.SC_OK) {
@@ -105,7 +162,8 @@ public class HttpClientUtil {
     }
 
     public boolean isUserAuthenticated(String projectToken) throws IOException {
-        String url = SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
+        String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
+        log.info(url);
         HttpGet request = new HttpGet(url);
         request.setHeader("projectToken", projectToken);
 
@@ -139,15 +197,59 @@ public class HttpClientUtil {
     }
 
 
-    public String createSmartUIBuild(String createBuildRequest) throws IOException {
-        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD, Constants.RequestMethods.POST, createBuildRequest);
+    public String createSmartUIBuild(String createBuildRequest, Map<String,String> headers) throws IOException {
+        return postWithHeader("https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,  createBuildRequest, headers);
     }
 
-    public void stopBuild(String buildId) throws IOException {
-            request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + "?buildId=" + buildId, Constants.RequestMethods.DELETE, null);
+    public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
+        String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId;
+        log.info(url);
+
+        if (headers != null && headers.containsKey("projectToken")) {
+            String projectToken = headers.get("projectToken").trim();
+            if (!projectToken.isEmpty()) {
+                headers.put("projectToken", projectToken);
+            }
+        }
+        String response = delete(url, headers);
+        log.info("Response of stop Build: "+ response + "for buildId" + buildId);
     }
 
-    public String uploadScreenshot(String uploadScreenshotRequest) throws IOException {
-        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE, Constants.RequestMethods.POST, uploadScreenshotRequest);
+    public String uploadScreenshot(String url, File screenshot , UploadSnapshotRequest uploadScreenshotRequest, BuildData data) throws IOException {
+
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost uploadRequest = new HttpPost(url);
+            uploadRequest.setHeader("projectToken", uploadScreenshotRequest.getProjectToken());
+
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.setMode(HttpMultipartMode.STRICT);
+
+            builder.addBinaryBody("screenshot", screenshot, ContentType.IMAGE_PNG, screenshot.getName());
+            builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
+            builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
+            builder.addTextBody("screenshotName", uploadScreenshotRequest.getScreenshotName());
+            builder.addTextBody("browser", uploadScreenshotRequest.getBrowserName());
+            builder.addTextBody("viewport", "default");
+            if(data.getBaseline()){
+                builder.addTextBody("baseline", "true");
+            }
+            else {
+                builder.addTextBody("baseline", "false");
+            }
+
+            HttpEntity multipart = builder.build();
+            uploadRequest.setEntity(multipart);
+
+            try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+                System.out.println("Response Code: " + response.getStatusLine().getStatusCode());
+                String responseBody = EntityUtils.toString(response.getEntity());
+                System.out.println("Response Body: " + responseBody);
+                return responseBody;
+            }
+        }
+         catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "Success";
     }
 }

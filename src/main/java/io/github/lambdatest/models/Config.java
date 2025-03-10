@@ -1,6 +1,6 @@
 package io.github.lambdatest.models;
 
-public class BuildConfig {
+public class Config {
     private MobileConfig mobile;
     private Integer waitForPageRender;
     private Integer waitForTimeout;
@@ -8,11 +8,11 @@ public class BuildConfig {
     private Integer scrollTime;
 
     // Default Constructor
-    public BuildConfig() {
+    public Config() {
     }
 
     // All-Arguments Constructor
-    public BuildConfig(MobileConfig mobile, Integer waitForPageRender, Integer waitForTimeout, Boolean enableJavaScript, Integer scrollTime) {
+    public Config(MobileConfig mobile, Integer waitForPageRender, Integer waitForTimeout, Boolean enableJavaScript, Integer scrollTime) {
         this.mobile = mobile;
         this.waitForPageRender = waitForPageRender;
         this.waitForTimeout = waitForTimeout;

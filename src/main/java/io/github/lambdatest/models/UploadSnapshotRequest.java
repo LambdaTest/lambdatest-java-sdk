@@ -1,68 +1,58 @@
 package io.github.lambdatest.models;
 
-import java.io.File;
-import java.util.Map;
+import java.util.Objects;
 
 public class UploadSnapshotRequest {
-    private File screenshot;
-    private String deviceName;
-    private String os;  // os field added
-    private String resolution;
+    private String browserName;
+    private String os;
+    private String viewport;
     private String projectToken;
     private String buildId;
     private String buildName;
     private String screenshotName;
+    private String deviceName;
 
     // Default constructor
     public UploadSnapshotRequest() {
     }
 
     // All Args constructor
-    public UploadSnapshotRequest(File screenshot, String deviceName, String os, String resolution,
+    public UploadSnapshotRequest(String screenshot, String browserName, String os, String viewport,
                                  String projectToken, String buildId, String buildName,
-                                 String screenshotName) {
-        this.screenshot = screenshot;
-        this.deviceName = deviceName;
-        this.os = os;  // initialize os
-        this.resolution = resolution;
+                                 String screenshotName, String deviceName) {
+        this.browserName = browserName;
+        this.os = os;
+        this.viewport = viewport;
         this.projectToken = projectToken;
         this.buildId = buildId;
         this.buildName = buildName;
         this.screenshotName = screenshotName;
+        this.deviceName = deviceName;
     }
 
     // Getters and setters
-    public File getScreenshot() {
-        return screenshot;
+    public String getBrowserName() {
+        return browserName;
     }
 
-    public void setScreenshot(File screenshot) {
-        this.screenshot = screenshot;
-    }
-
-    public String getDeviceName() {
-        return deviceName;
-    }
-
-    public void setDeviceName(String deviceName) {
-        this.deviceName = deviceName;
+    public void setBrowserName(String browserName) {
+        this.browserName = browserName;
     }
 
     public String getOs() {
         return os;
     }
 
-    public void setOs(Map<String, Object> deviceOption) {
-        this.os = (deviceOption.get("platformName") == null ? "" : (String) deviceOption.get("platformName")) +
-                (deviceOption.get("platformVersion") == null ? "" : (String) deviceOption.get("platformVersion"));
+    public void setOs(String os) {
+        this.os = Objects.requireNonNull(os, "");
     }
 
-    public String getResolution() {
-        return resolution;
+    public String getViewport() {
+        return viewport;
     }
 
-    public void setResolution(String resolution) {
-        this.resolution = resolution;
+    public void setViewport(String viewport) {
+        this.viewport = viewport;
     }
 
     public String getProjectToken() {
@@ -95,5 +85,13 @@ public class UploadSnapshotRequest {
 
     public void setScreenshotName(String screenshotName) {
         this.screenshotName = screenshotName;
+    }
+
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    public void setDeviceName(String deviceName) {
+        this.deviceName = deviceName;
     }
 }

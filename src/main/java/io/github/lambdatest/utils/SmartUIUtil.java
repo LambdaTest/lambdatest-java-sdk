@@ -1,10 +1,10 @@
 package io.github.lambdatest.utils;
 
 
+import java.io.File;
 import java.util.*;
 import java.util.logging.Logger;
 
-import io.appium.java_client.AppiumDriver;
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
@@ -73,10 +73,11 @@ public class SmartUIUtil {
         }
     }
 
-    public UploadSnapshotResponse uploadScreenshot(String uploadScreenshotRequest) throws Exception {
+    public UploadSnapshotResponse uploadScreenshot(File screenshotFile, UploadSnapshotRequest uploadScreenshotRequest, BuildData buildData) throws Exception {
         UploadSnapshotResponse uploadAPIResponse= new UploadSnapshotResponse();
         try{
-            String uploadScreenshotResponse = httpClient.uploadScreenshot(uploadScreenshotRequest);
+            String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
+            String uploadScreenshotResponse = httpClient.uploadScreenshot(url,screenshotFile,uploadScreenshotRequest, buildData);
              uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if(Objects.isNull(uploadAPIResponse))
                 throw new IllegalStateException("Failed to upload screenshot to SmartUI");
@@ -87,7 +88,7 @@ public class SmartUIUtil {
         return  uploadAPIResponse;
     }
 
-    public BuildData build(String projectToken, AppiumDriver driver, Map<String, String> options) throws Exception {
+    public BuildResponse build(GitInfo git ,String projectToken, Map<String, String> options) throws Exception {
         boolean isAuthenticatedUser = isUserAuthenticated(projectToken);
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
@@ -95,7 +96,7 @@ public class SmartUIUtil {
 
         //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
-        BuildConfig buildConfig = new BuildConfig();
+        Config config = new Config();
 
         if (options != null && options.containsKey("buildName")) {
             String buildNameValue = options.get("buildName");
@@ -109,28 +110,35 @@ public class SmartUIUtil {
         } else {
             createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8)); //Setting buildName for case when user hasn't given options
         }
-        buildConfig.setScrollTime(8);
-        buildConfig.setEnableJavaScript(false);
-        buildConfig.setWaitForPageRender(3000);
-        buildConfig.setWaitForTimeout(1000);
-        createBuildRequest.setBuildConfig(buildConfig);
-        createBuildRequest.setProjectToken(projectToken);
-
+        config.setScrollTime(8);
+        config.setEnableJavaScript(false);
+        config.setWaitForPageRender(3000);
+        config.setWaitForTimeout(1000);
+        createBuildRequest.setBuildConfig(config);
+        createBuildRequest.setGit(git);
         String createBuildJson = gson.toJson(createBuildRequest);
-        String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson);
-        BuildData buildData = gson.fromJson(createBuildResponse, BuildData.class);
+
+        Map<String,String> header = new HashMap<>() ;
+        header.put("projectToken", projectToken);
+
+        String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
+        log.info("createBuildResponse : "+ createBuildResponse);
+
+        BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
         if (Objects.isNull(buildData)) {
             throw new RuntimeException("Build not created for projectToken: "+ projectToken);
         }
         return buildData;
     }
 
-    public void stop(String buildId) throws IllegalArgumentException{
+    public void stopBuild(String buildId, String projectToken) throws Exception{
         try{
-            httpClient.stopBuild(buildId);
+            Map<String,String> headers = new HashMap<>();
+            headers.put("projectToken", projectToken);
+            httpClient.stopBuild(buildId, headers);
         }
         catch (Exception e){
-            throw new IllegalArgumentException(Constants.Errors.STOP_BUILD_FAILED);
+            throw new Exception("Couldnt stop the build due to: "+ e.getMessage());
         }
     }
 }

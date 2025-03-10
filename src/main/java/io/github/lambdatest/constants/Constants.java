@@ -12,7 +12,7 @@ public interface Constants {
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";
     public static final String SMARTUI_AUTH_ROUTE = "/token/verify";
     public static final String SMARTUI_CREATE_BUILD = "/build";
-    public static final String SMARTUI_FINALISE_BUILD_ROUTE = "/build";
+    public static final String SMARTUI_FINALISE_BUILD_ROUTE = "/build?buildId=";
     public static final String SMARTUI_UPLOAD_SCREENSHOT_ROUTE = "/screenshot";
     
   }
@@ -52,6 +52,7 @@ public interface Constants {
     public static final String MISSING_HTML_KEY = "DOM map is null or missing 'html' key.";
     public static final String FETCH_DOM_FAILED = "fetch DOMSerializer failed";
     public static final String POST_SNAPSHOT_FAILED = "Post snapshot failed: %s";
+    public static final String UPLOAD_SNAPSHOT_FAILED = "Upload snapshot failed: ";
     public static final String INVALID_RESPONSE_DATA = "Invalid response from fetchDOMSerializer";
     public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed %s";
     public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";

@@ -1,36 +1,41 @@
 package io.github.lambdatest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class CreateBuildRequest {
     private String buildName;
-    private String projectToken;
-    private BuildConfig buildConfig;
-    //private Boolean isStartExec;
-    //private Git git;
+    private Config config;
+    private GitInfo git;
 
     public CreateBuildRequest() {}
 
-    public CreateBuildRequest(String projectToken, BuildConfig buildConfig, Boolean isStartExec, String buildName) {
-        this.projectToken = projectToken;
-        this.buildConfig = buildConfig;
+    public CreateBuildRequest(Config config, String buildName, GitInfo git) {
+        this.config = config;
         this.buildName = buildName;
-        //this.isStartExec = isStartExec;
-        //this.git = git;
+        this.git = git;
     }
 
-    public String getProjectToken() {
-        return projectToken;
+    public String getBuildName() {
+        return buildName;
     }
-    public String getBuildName() { return  buildName; }
 
-    public void setProjectToken(String projectToken) {
-        this.projectToken = projectToken;
+    public void setBuildName(String buildName) {
+        this.buildName = buildName;
     }
-    public  void setBuildName(String buildName) { this.buildName = buildName; }
 
-    public BuildConfig getBuildConfig() {
-        return buildConfig;
+    public Config getBuildConfig() {
+        return config;
     }
-    public void setBuildConfig(BuildConfig buildConfig) {
-        this.buildConfig = buildConfig;
+
+    public void setBuildConfig(Config config) {
+        this.config = config;
+    }
+
+    public GitInfo getGit() {
+        return git;
+    }
+
+    public void setGit(GitInfo git) {
+        this.git = git;
     }
 }
