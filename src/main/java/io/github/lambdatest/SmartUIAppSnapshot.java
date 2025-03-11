@@ -102,6 +102,10 @@ public class SmartUIAppSnapshot {
             log.info("Device name retrieved from driver capabilities: " + deviceName);
             this.deviceName = deviceNameFromCap;
 
+            Objects.isNull(this.deviceName){
+                throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
+            }
+
             Object platformNameObj = appiumDriver.getCapabilities().getCapability("platformName");
             Object platformVersionObj = appiumDriver.getCapabilities().getCapability("platformVersion");
             String platformName = "" , platformVersion = "";
@@ -143,7 +147,7 @@ public class SmartUIAppSnapshot {
             String w = String.valueOf(width);
             String h = String.valueOf(height);
             uploadSnapshotRequest.setViewport(w +"x"+ h);
-            if(uploadSnapshotRequest.getOs().contains("iOS")){
+            if(uploadSnapshotRequest.getOs().equalsIgnoreCase().contains("iOS")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
