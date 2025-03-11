@@ -36,7 +36,12 @@ public class SmartUIAppSnapshot {
         if (options == null) {
             throw new IllegalArgumentException(Constants.Errors.NULL_OPTIONS_OBJECT);
         }
-
+        try{
+            this.projectToken = getProjectToken(options);
+            log.info("Project token set as: " + this.projectToken);
+        } catch (Exception e){
+            log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
+        }
         try {
             this.deviceName = getDeviceName(options);
             this.platform = getPlatform(options);
