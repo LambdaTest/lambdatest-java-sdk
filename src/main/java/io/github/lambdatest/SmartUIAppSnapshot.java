@@ -143,7 +143,7 @@ public class SmartUIAppSnapshot {
             String w = String.valueOf(width);
             String h = String.valueOf(height);
             uploadSnapshotRequest.setViewport(w +"x"+ h);
-            if(uploadSnapshotRequest.getDeviceName().contains("iPhone")){
+            if(uploadSnapshotRequest.getOs().contains("iOS")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
