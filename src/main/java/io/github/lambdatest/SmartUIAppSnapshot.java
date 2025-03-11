@@ -46,6 +46,9 @@ public class SmartUIAppSnapshot {
         }
         log.info("Device name retrieved: " + this.deviceName);
         log.info("Platform retrieved: " + this.platform);
+        if(Objects.isNull(this.deviceName) || Objects.isNull(this.platform)) {
+            throw new IllegalArgumentException("Missing mandatory parameters Device Name or Platform");
+        }
         Map<String, String> envVars = System.getenv();
         GitInfo git = GitUtils.getGitInfo(envVars);
         // Authenticate user and create a build
@@ -102,10 +105,6 @@ public class SmartUIAppSnapshot {
             log.info("Device name retrieved from driver capabilities: " + deviceName);
             this.deviceName = deviceNameFromCap;
 
-            Objects.isNull(this.deviceName){
-                throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
-            }
-
             Object platformNameObj = appiumDriver.getCapabilities().getCapability("platformName");
             Object platformVersionObj = appiumDriver.getCapabilities().getCapability("platformVersion");
             String platformName = "" , platformVersion = "";
@@ -147,7 +146,7 @@ public class SmartUIAppSnapshot {
             String w = String.valueOf(width);
             String h = String.valueOf(height);
             uploadSnapshotRequest.setViewport(w +"x"+ h);
-            if(uploadSnapshotRequest.getOs().equalsIgnoreCase().contains("iOS")){
+            if(uploadSnapshotRequest.getOs().toLowerCase().contains("ios")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
