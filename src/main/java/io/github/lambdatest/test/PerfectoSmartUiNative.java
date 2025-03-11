@@ -77,7 +77,7 @@ public class PerfectoSmartUiNative {
         }
 
         try{
-            smartUIAppSnapshot.start(driver, options);}
+            smartUIAppSnapshot.start(options);}
         catch (Exception e){
             log.severe("Exception in starting smartUiApp: "+ e.getMessage());
             return;
