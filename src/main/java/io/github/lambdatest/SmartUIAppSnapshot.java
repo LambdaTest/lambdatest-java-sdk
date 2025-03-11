@@ -31,31 +31,28 @@ public class SmartUIAppSnapshot {
         this.gson = new Gson();
     }
 
-    public void start(AppiumDriver appiumDriver, Map<String, String> options) {
-        if (Objects.isNull(appiumDriver)) {
-            throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
+
+    public void start(Map<String, String> options) {
+        if (options == null) {
+            throw new IllegalArgumentException(Constants.Errors.NULL_OPTIONS_OBJECT);
         }
 
-        this.projectToken = getProjectToken(options);
-        log.info("Project token set as: " + this.projectToken);
-        this.deviceName = getDeviceName(options);
-        try{
-            this.platform = getPlatform(options, appiumDriver, this.deviceName);
-        } catch (Exception e){
-            log.severe("Couldnt set platform due to error :"+ e.getMessage());
+        try {
+            this.deviceName = getDeviceName(options);
+            this.platform = getPlatform(options);
+        } catch (Exception e) {
+            log.severe("Couldn't set device name or platform due to error: " + e.getMessage());
+            throw e;
         }
         log.info("Device name retrieved: " + this.deviceName);
         log.info("Platform retrieved: " + this.platform);
-        if(Objects.isNull(this.deviceName) || Objects.isNull(this.platform)) {
-            throw new IllegalArgumentException("Missing mandatory parameters Device Name or Platform");
-        }
         Map<String, String> envVars = System.getenv();
         GitInfo git = GitUtils.getGitInfo(envVars);
         // Authenticate user and create a build
         try {
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
-            log.info("Build data set: " + this.buildData);
+            log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : "+ this.buildData.getName());
             options.put("buildName", this.buildData.getName());
         } catch(Exception e) {
             log.severe("Couldn't create build: " + e.getMessage());
@@ -82,42 +79,22 @@ public class SmartUIAppSnapshot {
             String name = options.get("deviceName").trim();
             if (!name.isEmpty()) {
                 return name;
+            } else {
+                log.info("Device name provided in options is empty.");
             }
-            else{
-                log.info("Device name provided in options is empty, falling back to driver capabilities.");}
         }
-        return deviceName;
+        throw new IllegalArgumentException("Device Name is a mandatory parameter.");
     }
 
-    private String getPlatform(Map<String, String> options,  AppiumDriver appiumDriver, String deviceName) {
-        String platForm = "";
-        if (deviceName != null && !deviceName.isEmpty()) {
-            if (options != null && options.containsKey("platform")) {
-                platForm =  options.get("platform").trim();
-                log.info("Platform retrieved from options: " + options.get("platform").trim());
+    private String getPlatform(Map<String, String> options) {
+        if (options != null && options.containsKey("platform")) {
+            String platform = options.get("platform").trim();
+            if (!platform.isEmpty()) {
+                log.info("Platform retrieved from options: " + platform);
+                return platform;
             }
         }
-        else {
-            Object deviceNameObj = appiumDriver.getCapabilities().getCapability("deviceName");
-            if(Objects.isNull(deviceNameObj))
-                throw new NullPointerException("Device Name is a mandatory parameter.");
-            String deviceNameFromCap = (String)  deviceNameObj;
-            log.info("Device name retrieved from driver capabilities: " + deviceName);
-            this.deviceName = deviceNameFromCap;
-
-            Object platformNameObj = appiumDriver.getCapabilities().getCapability("platformName");
-            Object platformVersionObj = appiumDriver.getCapabilities().getCapability("platformVersion");
-            String platformName = "" , platformVersion = "";
-            if (platForm.isEmpty() && platformNameObj != null && platformVersionObj != null) {
-                platformName = (platformNameObj instanceof String) ? (String) platformNameObj : "";
-                platformVersion = (platformVersionObj instanceof String) ? (String)  platformVersionObj : "";
-            } else {
-                log.info("Missing mandatory parameter platform");
-            }
-            platForm = platformName + platformVersion;
-            log.info("Platform retrieved from driver capabilities: " + platForm);
-        }
-        return platForm;
+        throw new IllegalArgumentException("Platform is a mandatory parameter.");
     }
 
     public void smartUiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) {
@@ -171,7 +148,7 @@ public class SmartUIAppSnapshot {
                     util.stopBuild(this.buildData.getBuildId(),  projectToken);
                     log.info("Session ended for token: " + projectToken);}
                 else {
-                    log.info("Build ID not found for stopBuild: "+ projectToken);
+                    log.info("Build ID not found to stop build for "+ projectToken);
                 }
             }
         } catch (Exception e) {

@@ -93,23 +93,22 @@ public class SmartUIUtil {
         if(!isAuthenticatedUser){
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
         }
-
-        //Create build request
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
         Config config = new Config();
-
         if (options != null && options.containsKey("buildName")) {
-            String buildNameValue = options.get("buildName");
+            String buildNameStr = options.get("buildName");
 
             // Check if value is non-null and a valid String
-            if (buildNameValue != null && !buildNameValue.trim().isEmpty()) {
-                createBuildRequest.setBuildName(buildNameValue);
-                log.info("Build name set from options: " + buildNameValue);
+            if (buildNameStr != null && !buildNameStr.trim().isEmpty()) {
+                createBuildRequest.setBuildName(buildNameStr);
+                log.info("Build name set from options: " + buildNameStr);
             } else {
-                createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8));
+                buildNameStr = "smartui-" + UUID.randomUUID().toString().substring(0, 10);
+                createBuildRequest.setBuildName(buildNameStr);
+                log.info("Build name set from system: " + buildNameStr);
             }
         } else {
-            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 8)); //Setting buildName for case when user hasn't given options
+            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10)); //Setting buildName for case when user hasn't given options
         }
         config.setScrollTime(8);
         config.setEnableJavaScript(false);
@@ -123,8 +122,6 @@ public class SmartUIUtil {
         header.put("projectToken", projectToken);
 
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
-        log.info("createBuildResponse : "+ createBuildResponse);
-
         BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
         if (Objects.isNull(buildData)) {
             throw new RuntimeException("Build not created for projectToken: "+ projectToken);
@@ -139,7 +136,7 @@ public class SmartUIUtil {
             httpClient.stopBuild(buildId, headers);
         }
         catch (Exception e){
-            throw new Exception("Couldnt stop the build due to: "+ e.getMessage());
+            throw new Exception(Constants.Errors.STOP_BUILD_FAILED +" due to: " + e.getMessage());
         }
     }
 }
