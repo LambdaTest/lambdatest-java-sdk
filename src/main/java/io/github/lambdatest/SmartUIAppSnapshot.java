@@ -1,15 +1,15 @@
 package io.github.lambdatest;
 
 
+import com.google.gson.Gson;
 import io.appium.java_client.AppiumDriver;
-import org.openqa.selenium.Dimension;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.*;
 import io.github.lambdatest.utils.GitUtils;
 import io.github.lambdatest.utils.SmartUIUtil;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
-import com.google.gson.Gson;
 
 import java.io.File;
 import java.util.Map;
@@ -38,11 +38,7 @@ public class SmartUIAppSnapshot {
 
         this.projectToken = getProjectToken(options);
         log.info("Project token set as: " + this.projectToken);
-        try{
         this.deviceName = getDeviceName(options);
-        } catch (Exception e){
-            log.severe("Couldnt set device name due to error :"+ e.getMessage());
-        }
         try{
             this.platform = getPlatform(options, appiumDriver, this.deviceName);
         } catch (Exception e){
@@ -51,19 +47,14 @@ public class SmartUIAppSnapshot {
         log.info("Device name retrieved: " + this.deviceName);
         log.info("Platform retrieved: " + this.platform);
         Map<String, String> envVars = System.getenv();
-        GitInfo git = null;
-        try{
-            git = GitUtils.getGitInfo(envVars); } catch (Exception e){
-            log.severe("Couldnt find git info due to: "+ e.getMessage());
-        }
-
+        GitInfo git = GitUtils.getGitInfo(envVars);
         // Authenticate user and create a build
         try {
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
             log.info("Build data set: " + this.buildData);
             options.put("buildName", this.buildData.getName());
-        } catch (Exception e) {
+        } catch(Exception e) {
             log.severe("Couldn't create build: " + e.getMessage());
             throw new IllegalStateException("Couldn't create build: " + e.getMessage());
         }
@@ -83,14 +74,14 @@ public class SmartUIAppSnapshot {
         throw new IllegalArgumentException(Constants.Errors.PROJECT_TOKEN_UNSET);
     }
 
-    private String getDeviceName(Map<String, String> options) {
+    private String getDeviceName(Map<String, String> options){
         if (options != null && options.containsKey("deviceName")) {
             String name = options.get("deviceName").trim();
             if (!name.isEmpty()) {
                 return name;
             }
             else{
-            log.info("Device name provided in options is empty, falling back to driver capabilities.");}
+                log.info("Device name provided in options is empty, falling back to driver capabilities.");}
         }
         return deviceName;
     }
@@ -114,12 +105,11 @@ public class SmartUIAppSnapshot {
             Object platformNameObj = appiumDriver.getCapabilities().getCapability("platformName");
             Object platformVersionObj = appiumDriver.getCapabilities().getCapability("platformVersion");
             String platformName = "" , platformVersion = "";
-            if (platformNameObj != null && platformVersionObj != null) {
-                platformName = (platformNameObj instanceof String) ? (String) platformNameObj : "default";
-                platformVersion = (platformVersionObj instanceof String) ? (String)  platformVersionObj : "0";
+            if (platForm.isEmpty() && platformNameObj != null && platformVersionObj != null) {
+                platformName = (platformNameObj instanceof String) ? (String) platformNameObj : "";
+                platformVersion = (platformVersionObj instanceof String) ? (String)  platformVersionObj : "";
             } else {
-                log.info("Missing mandatory parameter " + "platformName and platformVersion");
-                throw new NullPointerException("platformName Name and platformVersion is a mandatory parameter.");
+                log.info("Missing mandatory parameter platform");
             }
             platForm = platformName + platformVersion;
             log.info("Platform retrieved from driver capabilities: " + platForm);
@@ -152,8 +142,12 @@ public class SmartUIAppSnapshot {
             uploadSnapshotRequest.setDeviceName(this.deviceName);
             String w = String.valueOf(width);
             String h = String.valueOf(height);
-            uploadSnapshotRequest.setViewport(w + "x" + h);
-            uploadSnapshotRequest.setBrowserName("chrome");
+            uploadSnapshotRequest.setViewport(w +"x"+ h);
+            if(uploadSnapshotRequest.getDeviceName().contains("iPhone")){
+                uploadSnapshotRequest.setBrowserName("safari");
+            }
+            else {
+                uploadSnapshotRequest.setBrowserName("chrome");}
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
                 uploadSnapshotRequest.setBuildName(buildData.getName());

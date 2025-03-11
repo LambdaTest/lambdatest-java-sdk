@@ -10,17 +10,15 @@ import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class GitUtils {
 
     public static GitInfo getGitInfo(Map<String, String> envVars) {
-        //Check if git repo, exit graciously if not
-        boolean isGit = isGitRepo();
-        if(!isGit)
-            throw new IllegalStateException("Git Repo is needed to run this test");
-        String gitInfoFilePath = envVars.get("SMARTUI_GIT_INFO_FILEPATH");
 
+        String gitInfoFilePath = envVars.get("SMARTUI_GIT_INFO_FILEPATH");
         // If Git info file exists, read from it
         if (gitInfoFilePath != null) {
             return readGitInfoFromFile(gitInfoFilePath, envVars);
