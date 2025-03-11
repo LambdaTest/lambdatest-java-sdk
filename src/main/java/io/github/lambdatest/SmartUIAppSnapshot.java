@@ -49,8 +49,6 @@ public class SmartUIAppSnapshot {
             log.severe("Couldn't set device name or platform due to error: " + e.getMessage());
             throw e;
         }
-        log.info("Device name retrieved: " + this.deviceName);
-        log.info("Platform retrieved: " + this.platform);
         Map<String, String> envVars = System.getenv();
         GitInfo git = GitUtils.getGitInfo(envVars);
         // Authenticate user and create a build
@@ -123,8 +121,8 @@ public class SmartUIAppSnapshot {
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
-            uploadSnapshotRequest.setOs(this.platform);
-            uploadSnapshotRequest.setDeviceName(this.deviceName);
+            uploadSnapshotRequest.setOs(options.get("platform"));
+            uploadSnapshotRequest.setDeviceName(options.get("deviceName"));
             String w = String.valueOf(width);
             String h = String.valueOf(height);
             uploadSnapshotRequest.setViewport(w +"x"+ h);
