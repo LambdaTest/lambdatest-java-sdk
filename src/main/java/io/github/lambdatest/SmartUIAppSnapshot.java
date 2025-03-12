@@ -98,7 +98,7 @@ public class SmartUIAppSnapshot {
                 throw new IllegalStateException(Constants.Errors.DEVICE_NAME_NULL);
             }
             if(Objects.isNull(platform) && platform.isEmpty()){
-                if(deviceName.startsWith("i")){
+                if(deviceName.startsWith("i") || deviceName.startsWith("I")){
                     platform =  "iOS";
                 }
                 else {
@@ -106,7 +106,7 @@ public class SmartUIAppSnapshot {
                 }
             }
             uploadSnapshotRequest.setOs(platform);
-            uploadSnapshotRequest.setDeviceName(deviceName +"-" +platform);
+            uploadSnapshotRequest.setDeviceName(deviceName +"-" platform);
             log.info("In Upload Req - Device name is set to :"+ deviceName);
             log.info("In Upload Req - Platform is set to :"+ platform);
             if(platform.equalsIgnoreCase("ios")){
