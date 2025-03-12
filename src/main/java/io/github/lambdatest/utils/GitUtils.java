@@ -2,6 +2,7 @@ package io.github.lambdatest.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.lambdatest.models.GitInfo;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,6 +16,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class GitUtils {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(GitUtils.class);
 
     public static GitInfo getGitInfo(Map<String, String> envVars) {
 
@@ -26,17 +28,6 @@ public class GitUtils {
         // Otherwise, fetch Git info from Git commands
         else{
         return fetchGitInfoFromCommands(envVars);
-        }
-    }
-    private static boolean isGitRepo() {
-        try {
-            Process process = Runtime.getRuntime().exec("git status");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            while(reader.readLine() != null) {}
-            int exitCode = process.waitFor();
-            return exitCode == 0;
-        } catch (IOException | InterruptedException e) {
-            return false;
         }
     }
 
@@ -55,7 +46,8 @@ public class GitUtils {
                     envVars.getOrDefault("BASELINE_BRANCH", "")
             );
         } catch (IOException e) {
-            throw new RuntimeException("Error reading Git info file: " + e.getMessage(), e);
+          log.info("Error reading Git info file: " + e.getMessage());
+            return null;
         }
     }
 

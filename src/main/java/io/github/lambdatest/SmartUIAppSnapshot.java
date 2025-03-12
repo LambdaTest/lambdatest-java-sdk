@@ -109,7 +109,7 @@ public class SmartUIAppSnapshot {
             uploadSnapshotRequest.setDeviceName(deviceName+"-"+platform);
             log.info("In Upload Req - Device name is set to :"+ deviceName);
             log.info("In Upload Req - Platform is set to :"+ platform);
-            if(platform.equalsIgnoreCase("ios")){
+            if(platform.toLowerCase().contains("ios")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
