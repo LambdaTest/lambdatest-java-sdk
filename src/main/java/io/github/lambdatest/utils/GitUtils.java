@@ -63,7 +63,7 @@ public class GitUtils {
         List<String> outputLines = executeCommand(command);
 
         if (outputLines.isEmpty()) {
-            throw new RuntimeException("Git command returned empty output.");
+            return null;
         }
 
         String[] res = String.join("\n", outputLines).split(splitCharacter);
