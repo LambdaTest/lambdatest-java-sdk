@@ -74,11 +74,11 @@ public class SmartUIAppSnapshot {
         try {
             if (Objects.isNull(appiumDriver)) {
                 log.severe(Constants.Errors.SELENIUM_DRIVER_NULL +" during take snapshot");
-                return;
+                throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
             }
             if(Objects.isNull(screenshotName)){
                 log.info(Constants.Errors.SNAPSHOT_NAME_NULL);
-                return;
+                throw new IllegalArgumentException(Constants.Errors.SNAPSHOT_NAME_NULL);
             }
 
             TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
@@ -107,11 +107,14 @@ public class SmartUIAppSnapshot {
             }
             uploadSnapshotRequest.setOs(platform);
             uploadSnapshotRequest.setDeviceName(deviceName +"-" +platform);
+            log.info("In Upload Req - Device name is set to :"+ deviceName);
+            log.info("In Upload Req - Platform is set to :"+ platform);
             if(platform.equalsIgnoreCase("ios")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
                 uploadSnapshotRequest.setBrowserName("chrome");}
+            log.info("In Upload Req - Browser name is set to :"+ uploadSnapshotRequest.getBrowserName());
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
                 log.info("In Upload Req - Build id set to :"+ buildData.getBuildId());
