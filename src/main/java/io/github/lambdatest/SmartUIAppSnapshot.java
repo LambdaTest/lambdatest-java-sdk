@@ -106,7 +106,7 @@ public class SmartUIAppSnapshot {
                 }
             }
             uploadSnapshotRequest.setOs(platform);
-            uploadSnapshotRequest.setDeviceName(deviceName +"-" platform);
+            uploadSnapshotRequest.setDeviceName(deviceName+"-"+platform);
             log.info("In Upload Req - Device name is set to :"+ deviceName);
             log.info("In Upload Req - Platform is set to :"+ platform);
             if(platform.equalsIgnoreCase("ios")){
