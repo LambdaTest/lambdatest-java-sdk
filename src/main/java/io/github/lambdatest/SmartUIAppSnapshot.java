@@ -111,22 +111,22 @@ public class SmartUIAppSnapshot {
                 return;
             }
 
-            Dimension viewport = appiumDriver.manage().window().getSize();
-            int width = viewport.getWidth();
-            int height = viewport.getHeight();
-
             TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
             File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
             log.info("Screenshot captured: " + screenshotName);
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
+            String platform = "", deviceName="";
+            if(options != null && options.containsKey("platform")){
+                platform = options.get("platform").trim();
+            }
+            if(options != null && options.containsKey("deviceName")){
+                deviceName = options.get("deviceName").trim();
+            }
             uploadSnapshotRequest.setOs(options.get("platform"));
-            uploadSnapshotRequest.setDeviceName(options.get("deviceName"));
-            String w = String.valueOf(width);
-            String h = String.valueOf(height);
-            uploadSnapshotRequest.setViewport(w +"x"+ h);
-            if(uploadSnapshotRequest.getOs().toLowerCase().contains("ios")){
+            uploadSnapshotRequest.setDeviceName(deviceName +" " +platform);
+            if(uploadSnapshotRequest.getOs().equalsIgnoreCase("ios")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {

@@ -231,7 +231,7 @@ public class HttpClientUtil {
             builder.addTextBody("browser", uploadScreenshotRequest.getBrowserName());
             builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
-            builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
+//            builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
             if(data.getBaseline()){
                 builder.addTextBody("baseline", "true");
             }
