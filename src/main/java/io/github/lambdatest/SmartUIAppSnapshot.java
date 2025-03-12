@@ -94,10 +94,10 @@ public class SmartUIAppSnapshot {
             if(options != null && options.containsKey("deviceName")){
                 deviceName = options.get("deviceName").trim();
             }
-            if(Objects.isNull(deviceName) && deviceName.isEmpty()){
+            if(Objects.isNull(deviceName) || deviceName.isEmpty()){
                 throw new IllegalStateException(Constants.Errors.DEVICE_NAME_NULL);
             }
-            if(Objects.isNull(platform) && platform.isEmpty()){
+            if(Objects.isNull(platform) || platform.isEmpty()){
                 if(deviceName.startsWith("i") || deviceName.startsWith("I")){
                     platform =  "iOS";
                 }
