@@ -76,7 +76,7 @@ public class SmartUIUtil {
     public UploadSnapshotResponse uploadScreenshot(File screenshotFile, UploadSnapshotRequest uploadScreenshotRequest, BuildData buildData) throws Exception {
         UploadSnapshotResponse uploadAPIResponse= new UploadSnapshotResponse();
         try{
-            String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
+            String url = Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
             String uploadScreenshotResponse = httpClient.uploadScreenshot(url,screenshotFile,uploadScreenshotRequest, buildData);
              uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if(Objects.isNull(uploadAPIResponse))

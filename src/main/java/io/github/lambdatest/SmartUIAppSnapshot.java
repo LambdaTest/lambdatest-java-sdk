@@ -21,8 +21,7 @@ public class SmartUIAppSnapshot {
     private final SmartUIUtil util;
     private final Gson gson;
     private String projectToken;
-    private String deviceName;
-    private String platform;
+
     private BuildData buildData;
 
     public SmartUIAppSnapshot() {
@@ -41,13 +40,6 @@ public class SmartUIAppSnapshot {
             log.info("Project token set as: " + this.projectToken);
         } catch (Exception e){
             log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
-        }
-        try {
-            this.deviceName = getDeviceName(options);
-            this.platform = getPlatform(options);
-        } catch (Exception e) {
-            log.severe("Couldn't set device name or platform due to error: " + e.getMessage());
-            throw e;
         }
         Map<String, String> envVars = System.getenv();
         GitInfo git = GitUtils.getGitInfo(envVars);
@@ -77,28 +69,6 @@ public class SmartUIAppSnapshot {
         throw new IllegalArgumentException(Constants.Errors.PROJECT_TOKEN_UNSET);
     }
 
-    private String getDeviceName(Map<String, String> options){
-        if (options != null && options.containsKey("deviceName")) {
-            String name = options.get("deviceName").trim();
-            if (!name.isEmpty()) {
-                return name;
-            } else {
-                log.info("Device name provided in options is empty.");
-            }
-        }
-        throw new IllegalArgumentException("Device Name is a mandatory parameter.");
-    }
-
-    private String getPlatform(Map<String, String> options) {
-        if (options != null && options.containsKey("platform")) {
-            String platform = options.get("platform").trim();
-            if (!platform.isEmpty()) {
-                log.info("Platform retrieved from options: " + platform);
-                return platform;
-            }
-        }
-        throw new IllegalArgumentException("Platform is a mandatory parameter.");
-    }
 
     public void smartUiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) {
         try {
@@ -124,22 +94,35 @@ public class SmartUIAppSnapshot {
             if(options != null && options.containsKey("deviceName")){
                 deviceName = options.get("deviceName").trim();
             }
-            uploadSnapshotRequest.setOs(options.get("platform"));
-            uploadSnapshotRequest.setDeviceName(deviceName +" " +platform);
-            if(uploadSnapshotRequest.getOs().equalsIgnoreCase("ios")){
+            if(Objects.isNull(deviceName) && deviceName.isEmpty()){
+                throw new IllegalStateException(Constants.Errors.DEVICE_NAME_NULL);
+            }
+            if(Objects.isNull(platform) && platform.isEmpty()){
+                if(deviceName.startsWith("i")){
+                    platform =  "iOS";
+                }
+                else {
+                    platform = "Android";
+                }
+            }
+            uploadSnapshotRequest.setOs(platform);
+            uploadSnapshotRequest.setDeviceName(deviceName +"-" +platform);
+            if(platform.equalsIgnoreCase("ios")){
                 uploadSnapshotRequest.setBrowserName("safari");
             }
             else {
                 uploadSnapshotRequest.setBrowserName("chrome");}
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
+                log.info("In Upload Req - Build id set to :"+ buildData.getBuildId());
                 uploadSnapshotRequest.setBuildName(buildData.getName());
+                log.info("In Upload Req - Build name set to :"+ buildData.getName());
             }
             //Upload Screenshot API call
             UploadSnapshotResponse uploadSnapshotResponse = util.uploadScreenshot(screenshot,uploadSnapshotRequest, this.buildData);
-            log.info("For uploading: " + uploadSnapshotRequest.getScreenshotName() + "received response: "+ uploadSnapshotResponse.getData());
+            log.info("For uploading: " + uploadSnapshotRequest.getScreenshotName() + " received response: "+ uploadSnapshotResponse.getData());
         } catch (Exception e) {
-            log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED +" due to: " +e.getMessage());
+            log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " +e.getMessage());
         }
     }
 

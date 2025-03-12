@@ -162,9 +162,8 @@ public class HttpClientUtil {
     }
 
     public boolean isUserAuthenticated(String projectToken) throws IOException {
-        String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
-        log.info(url);
-        HttpGet request = new HttpGet(url);
+        HttpGet request = new HttpGet(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE
+        );
         request.setHeader("projectToken", projectToken);
 
         try(CloseableHttpResponse response = httpClient.execute(request)){
@@ -198,12 +197,10 @@ public class HttpClientUtil {
 
 
     public String createSmartUIBuild(String createBuildRequest, Map<String,String> headers) throws IOException {
-        return postWithHeader("https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,  createBuildRequest, headers);
+        return postWithHeader(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,  createBuildRequest, headers);
     }
 
     public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
-        String url = "https://stage-api.lambdatestinternal.com/visualui/1.0" + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId;
-        log.info(url);
 
         if (headers != null && headers.containsKey("projectToken")) {
             String projectToken = headers.get("projectToken").trim();
@@ -211,7 +208,7 @@ public class HttpClientUtil {
                 headers.put("projectToken", projectToken);
             }
         }
-        String response = delete(url, headers);
+        String response = delete(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId, headers);
         log.info("Response of stop Build: "+ response + "for buildId" + buildId);
     }
 

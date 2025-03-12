@@ -7,6 +7,7 @@ public interface Constants {
 
   //SmartUI API routes
   interface SmartUIRoutes {
+    public static final String STAGE_URL = "https://stage-api.lambdatestinternal.com/visualui/1.0";
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";

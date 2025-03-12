@@ -1,11 +1,14 @@
 package io.github.lambdatest.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.Objects;
 
 public class UploadSnapshotRequest {
     private String browserName;
     private String os;
     private String viewport;
+    @JsonIgnore
     private String projectToken;
     private String buildId;
     private String buildName;
