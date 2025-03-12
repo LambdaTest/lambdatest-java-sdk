@@ -115,7 +115,8 @@ public class SmartUIUtil {
         config.setWaitForPageRender(3000);
         config.setWaitForTimeout(1000);
         createBuildRequest.setBuildConfig(config);
-        createBuildRequest.setGit(git);
+        if(Objects.nonNull(git)){
+            createBuildRequest.setGit(git);}
         String createBuildJson = gson.toJson(createBuildRequest);
 
         Map<String,String> header = new HashMap<>() ;
