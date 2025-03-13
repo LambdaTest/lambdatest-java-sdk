@@ -229,7 +229,7 @@ public class HttpClientUtil {
             builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", "default");
-            builder.addTextBody("packageType" , "lambdatest-java-app-sdk");
+            builder.addTextBody("projectType" , "lambdatest-java-app-sdk");
             if(data.getBaseline()){
                 builder.addTextBody("baseline", "true");
             }
