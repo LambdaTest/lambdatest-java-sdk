@@ -229,6 +229,7 @@ public class HttpClientUtil {
             builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
+            builder.addTextBody("packageType" , "lambdatest-java-app-sdk");
             if(data.getBaseline()){
                 builder.addTextBody("baseline", "true");
             }
@@ -240,9 +241,7 @@ public class HttpClientUtil {
             uploadRequest.setEntity(multipart);
 
             try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-                System.out.println("Response Code: " + response.getStatusLine().getStatusCode());
                 String responseBody = EntityUtils.toString(response.getEntity());
-                System.out.println("Response Body: " + responseBody);
                 return responseBody;
             }
         }

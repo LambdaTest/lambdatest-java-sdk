@@ -83,7 +83,7 @@ public class SmartUIUtil {
                 throw new IllegalStateException("Failed to upload screenshot to SmartUI");
         }
         catch (Exception e){
-            throw new Exception("Couldn't upload image to SmartUI because of error :"+ e.getMessage());
+            throw new Exception("Couldn't upload image to SmartUI because of error : "+ e.getMessage());
         }
         return  uploadAPIResponse;
     }

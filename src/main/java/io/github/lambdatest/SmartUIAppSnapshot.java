@@ -84,6 +84,7 @@ public class SmartUIAppSnapshot {
             TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
             File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
             log.info("Screenshot captured: " + screenshotName);
+
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
@@ -120,9 +121,7 @@ public class SmartUIAppSnapshot {
             log.info("In Upload Req - Browser name is set to :"+ uploadSnapshotRequest.getBrowserName());
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
-                log.info("In Upload Req - Build id set to :"+ buildData.getBuildId());
                 uploadSnapshotRequest.setBuildName(buildData.getName());
-                log.info("In Upload Req - Build name set to :"+ buildData.getName());
             }
             //Upload Screenshot API call
             UploadSnapshotResponse uploadSnapshotResponse = util.uploadScreenshot(screenshot,uploadSnapshotRequest, this.buildData);
