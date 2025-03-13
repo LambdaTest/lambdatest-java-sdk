@@ -87,6 +87,9 @@ public class SmartUIAppSnapshot {
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
+            Dimension d = appiumDriver.manage().window().getSize();
+            int w = d.getWidth(), h = d.getWidth();
+            uploadSnapshotRequest.setViewport(w+"x"+h);
             String platform = "", deviceName="";
             if(options != null && options.containsKey("platform")){
                 platform = options.get("platform").trim();
