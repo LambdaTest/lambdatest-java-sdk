@@ -69,7 +69,7 @@ public class SmartUIUtil {
         if (smartUiServerAddress != null && !smartUiServerAddress.isEmpty()) {
             return smartUiServerAddress;
         } else {
-            throw new RuntimeException("SmartUI server address not found");
+            return "http://localhost:49152";
         }
     }
 
@@ -135,4 +135,6 @@ public class SmartUIUtil {
             throw new Exception(Constants.Errors.STOP_BUILD_FAILED +" due to: " + e.getMessage());
         }
     }
+
+
 }

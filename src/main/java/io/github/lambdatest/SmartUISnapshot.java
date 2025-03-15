@@ -59,6 +59,12 @@ public class SmartUISnapshot {
                 // Execute script with the fetched DOM string
                 ((JavascriptExecutor) driver).executeScript(domString);
 
+                // Append sessionId to options
+                String sessionId = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId().toString();
+                if (!sessionId.isEmpty()) {
+                    options.put("sessionId", sessionId);
+                }
+
                 // Convert the options map to JSON string
                 String jsonOptions = gson.toJson(options);
 
@@ -76,7 +82,7 @@ public class SmartUISnapshot {
                 }
 
                 String url = driver.getCurrentUrl();
-    
+
                 String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, "lambdatest-java-sdk");
 
                 // Parse the JSON response into a SnapshotResponse object using Gson
