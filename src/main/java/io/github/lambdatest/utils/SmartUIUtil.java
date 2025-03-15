@@ -94,7 +94,6 @@ public class SmartUIUtil {
             throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
         }
         CreateBuildRequest createBuildRequest = new CreateBuildRequest();
-        Config config = new Config();
         if (options != null && options.containsKey("buildName")) {
             String buildNameStr = options.get("buildName");
 
@@ -113,10 +112,8 @@ public class SmartUIUtil {
         if(Objects.nonNull(git)){
             createBuildRequest.setGit(git);}
         String createBuildJson = gson.toJson(createBuildRequest);
-
         Map<String,String> header = new HashMap<>() ;
-        header.put("projectToken", projectToken);
-
+        header.put(Constants.PROJECT_TOKEN, projectToken);
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
         BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
         if (Objects.isNull(buildData)) {
@@ -128,13 +125,11 @@ public class SmartUIUtil {
     public void stopBuild(String buildId, String projectToken) throws Exception{
         try{
             Map<String,String> headers = new HashMap<>();
-            headers.put("projectToken", projectToken);
+            headers.put(Constants.PROJECT_TOKEN, projectToken);
             httpClient.stopBuild(buildId, headers);
         }
         catch (Exception e){
             throw new Exception(Constants.Errors.STOP_BUILD_FAILED +" due to: " + e.getMessage());
         }
     }
-
-
 }
