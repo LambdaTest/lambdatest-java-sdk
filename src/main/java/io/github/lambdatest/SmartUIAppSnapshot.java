@@ -131,7 +131,7 @@ public class SmartUIAppSnapshot {
             }
             uploadSnapshotRequest.setOs(platform != null && !platform.isEmpty() ? platform : browserName);
             if(platform != null && !platform.isEmpty()){
-                uploadSnapshotRequest.setDeviceName(deviceName+" - "+platform);
+                uploadSnapshotRequest.setDeviceName(deviceName+" "+platform);
             }
             else {
                 uploadSnapshotRequest.setDeviceName(deviceName + " "+browserName);
