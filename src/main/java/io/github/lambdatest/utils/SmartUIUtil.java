@@ -12,7 +12,7 @@ import io.github.lambdatest.constants.Constants;
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
     private final Logger log;
-    Gson gson = new Gson();
+    private Gson gson = new Gson();
 
     public SmartUIUtil() {
         this.httpClient = new HttpClientUtil();
@@ -76,7 +76,7 @@ public class SmartUIUtil {
     public UploadSnapshotResponse uploadScreenshot(File screenshotFile, UploadSnapshotRequest uploadScreenshotRequest, BuildData buildData) throws Exception {
         UploadSnapshotResponse uploadAPIResponse= new UploadSnapshotResponse();
         try{
-            String url = Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
+            String url = Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
             String uploadScreenshotResponse = httpClient.uploadScreenshot(url,screenshotFile,uploadScreenshotRequest, buildData);
              uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if(Objects.isNull(uploadAPIResponse))
@@ -110,11 +110,6 @@ public class SmartUIUtil {
         } else {
             createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10)); //Setting buildName for case when user hasn't given options
         }
-        config.setScrollTime(8);
-        config.setEnableJavaScript(false);
-        config.setWaitForPageRender(3000);
-        config.setWaitForTimeout(1000);
-        createBuildRequest.setBuildConfig(config);
         if(Objects.nonNull(git)){
             createBuildRequest.setGit(git);}
         String createBuildJson = gson.toJson(createBuildRequest);
@@ -125,7 +120,7 @@ public class SmartUIUtil {
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
         BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
         if (Objects.isNull(buildData)) {
-            throw new RuntimeException("Build not created for projectToken: "+ projectToken);
+            throw new Exception("Build not created for projectToken: "+ projectToken);
         }
         return buildData;
     }

@@ -60,10 +60,10 @@ public class HttpClientUtil {
     private String delete(String url,Map<String, String> headers) throws IOException {
 
         HttpDelete request = new HttpDelete(url);
-        if (headers != null && headers.containsKey("projectToken")) {
-            String projectToken = headers.get("projectToken").trim();
+        if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
             if (!projectToken.isEmpty()) {
-                request.setHeader("projectToken", projectToken);
+                request.setHeader(Constants.PROJECT_TOKEN, projectToken);
             }
         }
         try (CloseableHttpResponse response = httpClient.execute(request)) {
@@ -117,8 +117,8 @@ public class HttpClientUtil {
         request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
         request.setHeader("Content-Type", "application/json");
 
-        if (Objects.nonNull(headers) && headers.containsKey("projectToken")) {
-            request.setHeader("projectToken", headers.get("projectToken").trim());
+        if (Objects.nonNull(headers) && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            request.setHeader(Constants.PROJECT_TOKEN, headers.get(Constants.PROJECT_TOKEN).trim());
         }
 
         try (CloseableHttpResponse response = httpClient.execute(request)) {
@@ -162,13 +162,13 @@ public class HttpClientUtil {
     }
 
     public boolean isUserAuthenticated(String projectToken) throws IOException {
-        HttpGet request = new HttpGet(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE
+        HttpGet request = new HttpGet(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE
         );
-        request.setHeader("projectToken", projectToken);
+        request.setHeader(Constants.PROJECT_TOKEN, projectToken);
 
         try(CloseableHttpResponse response = httpClient.execute(request)){
             int statusCode = response.getStatusLine().getStatusCode();
-            if(statusCode == 200){
+            if(statusCode == HttpStatus.SC_OK){
                 log.info("Authenticated used for projectToken :"+ projectToken);
                 return true;
             }
@@ -197,18 +197,18 @@ public class HttpClientUtil {
 
 
     public String createSmartUIBuild(String createBuildRequest, Map<String,String> headers) throws IOException {
-        return postWithHeader(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,  createBuildRequest, headers);
+        return postWithHeader(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,  createBuildRequest, headers);
     }
 
     public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
 
-        if (headers != null && headers.containsKey("projectToken")) {
-            String projectToken = headers.get("projectToken").trim();
+        if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
             if (!projectToken.isEmpty()) {
-                headers.put("projectToken", projectToken);
+                headers.put(Constants.PROJECT_TOKEN, projectToken);
             }
         }
-        String response = delete(Constants.SmartUIRoutes.STAGE_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId, headers);
+        String response = delete(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId, headers);
         log.info("Response of stop Build: "+ response + "for buildId" + buildId);
     }
 
@@ -228,7 +228,7 @@ public class HttpClientUtil {
             builder.addTextBody("browser", uploadScreenshotRequest.getBrowserName());
             builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
-            builder.addTextBody("viewport", "default");
+            builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
             builder.addTextBody("projectType" , "lambdatest-java-app-sdk");
             if(data.getBaseline()){
                 builder.addTextBody("baseline", "true");
@@ -241,13 +241,13 @@ public class HttpClientUtil {
             uploadRequest.setEntity(multipart);
 
             try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-                String responseBody = EntityUtils.toString(response.getEntity());
-                return responseBody;
+                return EntityUtils.toString(response.getEntity());
             }
         }
          catch (IOException e) {
-            e.printStackTrace();
+             log.warning("Exception occurred in uploading screenshot: " +
+                     e.getMessage());
+             return "An error occurred while processing your request.";
         }
-        return "Success";
     }
 }

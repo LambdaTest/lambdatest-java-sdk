@@ -31,15 +31,13 @@ public class SmartUIAppSnapshot {
     }
 
 
-    public void start(Map<String, String> options) {
-        if (options == null) {
-            throw new IllegalArgumentException(Constants.Errors.NULL_OPTIONS_OBJECT);
-        }
+    public void start(Map<String, String> options) throws Exception{
         try{
             this.projectToken = getProjectToken(options);
             log.info("Project token set as: " + this.projectToken);
         } catch (Exception e){
             log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
+            throw new Exception("Project token is a mandatory field");
         }
         Map<String, String> envVars = System.getenv();
         GitInfo git = GitUtils.getGitInfo(envVars);
@@ -56,8 +54,8 @@ public class SmartUIAppSnapshot {
     }
 
     private String getProjectToken(Map<String, String> options) {
-        if (options != null && options.containsKey("projectToken")) {
-            String token = options.get("projectToken").trim();
+        if (options != null && options.containsKey(Constants.PROJECT_TOKEN)) {
+            String token = options.get(Constants.PROJECT_TOKEN).trim();
             if (!token.isEmpty()) {
                 return token;
             }
@@ -70,13 +68,13 @@ public class SmartUIAppSnapshot {
     }
 
 
-    public void smartUiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) {
+    public void smartuiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) throws Exception {
         try {
             if (Objects.isNull(appiumDriver)) {
                 log.severe(Constants.Errors.SELENIUM_DRIVER_NULL +" during take snapshot");
                 throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
             }
-            if(Objects.isNull(screenshotName)){
+            if (screenshotName == null || screenshotName.isEmpty()) {
                 log.info(Constants.Errors.SNAPSHOT_NAME_NULL);
                 throw new IllegalArgumentException(Constants.Errors.SNAPSHOT_NAME_NULL);
             }
@@ -91,7 +89,8 @@ public class SmartUIAppSnapshot {
             Dimension d = appiumDriver.manage().window().getSize();
             int w = d.getWidth(), h = d.getWidth();
             uploadSnapshotRequest.setViewport(w+"x"+h);
-            String platform = "", deviceName="";
+            log.info("Device viewport set to: "+ uploadSnapshotRequest.getViewport());
+            String platform = "", deviceName="", browserName ="";
             if(options != null && options.containsKey("platform")){
                 platform = options.get("platform").trim();
             }
@@ -99,35 +98,33 @@ public class SmartUIAppSnapshot {
                 deviceName = options.get("deviceName").trim();
             }
             if(Objects.isNull(deviceName) || deviceName.isEmpty()){
-                throw new IllegalStateException(Constants.Errors.DEVICE_NAME_NULL);
+                throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
             }
             if(Objects.isNull(platform) || platform.isEmpty()){
-                if(deviceName.startsWith("i") || deviceName.startsWith("I")){
-                    platform =  "iOS";
+                if(deviceName.toLowerCase().startsWith("i")){
+                    browserName =  "iOS";
                 }
                 else {
-                    platform = "Android";
+                    browserName = "Android";
                 }
             }
-            uploadSnapshotRequest.setOs(platform);
+            uploadSnapshotRequest.setOs(platform != null && !platform.isEmpty() ? platform : browserName);
             uploadSnapshotRequest.setDeviceName(deviceName+"-"+platform);
-            log.info("In Upload Req - Device name is set to :"+ deviceName);
-            log.info("In Upload Req - Platform is set to :"+ platform);
-            if(platform.toLowerCase().contains("ios")){
+
+            if (platform.toLowerCase().contains("ios")) {
                 uploadSnapshotRequest.setBrowserName("safari");
+            } else {
+                uploadSnapshotRequest.setBrowserName("chrome");
             }
-            else {
-                uploadSnapshotRequest.setBrowserName("chrome");}
-            log.info("In Upload Req - Browser name is set to :"+ uploadSnapshotRequest.getBrowserName());
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
                 uploadSnapshotRequest.setBuildName(buildData.getName());
             }
-            //Upload Screenshot API call
             UploadSnapshotResponse uploadSnapshotResponse = util.uploadScreenshot(screenshot,uploadSnapshotRequest, this.buildData);
-            log.info("For uploading: " + uploadSnapshotRequest.getScreenshotName() + " received response: "+ uploadSnapshotResponse.getData());
+            log.info("For uploading: " + uploadSnapshotRequest.toString() + " received response: "+ uploadSnapshotResponse.getData());
         } catch (Exception e) {
             log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " +e.getMessage());
+            throw new  Exception("Couldnt upload image to Smart UI due to: " + e.getMessage());
         }
     }
 

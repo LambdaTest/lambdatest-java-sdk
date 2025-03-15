@@ -3,11 +3,12 @@ package io.github.lambdatest.constants;
 public interface Constants {
 
   String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
+  public static final String PROJECT_TOKEN = "projectToken";
   String LOCAL_SERVER_HOST = "http://localhost:8080";
 
   //SmartUI API routes
   interface SmartUIRoutes {
-    public static final String STAGE_URL = "https://stage-api.lambdatestinternal.com/visualui/1.0";
+    public static final String HOST_URL = "https://api.lambdatest.com/visualui/1.0";
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";
