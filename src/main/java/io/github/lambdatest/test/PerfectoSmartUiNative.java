@@ -20,11 +20,10 @@ public class PerfectoSmartUiNative {
     private final SmartUIUtil smartUIUtil = new SmartUIUtil();
     private Logger log;
 
-    // Default constructor
     public PerfectoSmartUiNative() {
         this.log = Logger.getLogger("lt-smart-ui-java-sdk");
     }
-    // Parameterized constructor
+
     public PerfectoSmartUiNative(AppiumDriver driver,SmartUIAppSnapshot smartUIAppSnapshot, SmartUIUtil smartUIUtil) {
         this.driver = driver;
         this.smartUIAppSnapshot = smartUIAppSnapshot;
@@ -32,25 +31,20 @@ public class PerfectoSmartUiNative {
 
     @BeforeTest
     public void setup() throws Exception {
-
-        Map<String, String> option = new HashMap<>();
-        option.put("projectToken", "<lambdatest-token>");
-        option.put("buildName", "testBuild");
         DesiredCapabilities cap = new DesiredCapabilities();
         cap.setCapability("enableAppiumBehavior", true);
         cap.setCapability("model", "Galaxy S24");
         cap.setCapability("platformVersion", "14");
         cap.setCapability("platformName", Platform.ANDROID.name());
-        cap.setCapability("ltOptions", option);
-
 
         try {
             String PERFECTO_URL = "your-cloud.perfectomobile.com";  //Custom cloud url
             this.driver = new AppiumDriver(new URL("https://" + PERFECTO_URL + "/nexperience/perfectomobile/wd/hub"), cap);
             driver.manage().timeouts().implicitlyWait(15, TimeUnit.SECONDS);
             log.info("Driver created successfully! with capabilities :"+ cap);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             log.warning("Couldn't create driver due to: " + e.getMessage());
+            throw new Exception("Couldn't create driver due to: " + e.getMessage());
         }
     }
 
@@ -58,24 +52,10 @@ public class PerfectoSmartUiNative {
     public void appiumTest() throws Exception {
 
         Map<String, String> options = new HashMap<>();
-        Object capabilityObj = driver.getCapabilities().getCapability("ltOptions");
-
-        if (Objects.nonNull(capabilityObj) && capabilityObj instanceof Map) {
-            Map<?, ?> capabilityMap = (Map<?, ?>) capabilityObj;
-
-            // Extract projectToken if it exists
-            if (capabilityMap.containsKey("projectToken") && capabilityMap.get("projectToken") instanceof String) {
-                String projectToken = ((String) capabilityMap.get("projectToken")).trim();
-                options.put("projectToken", projectToken);
-            }
-
-            // Extract buildName if it exists
-            if (capabilityMap.containsKey("buildName") && capabilityMap.get("buildName") instanceof String) {
-                String buildName = (String) ((String) capabilityMap.get("buildName")).trim();
-                options.put("buildName", buildName);
-            }
-        }
-
+        options.put("projectToken", "<lambdatest-token>");
+        options.put("buildName", "testBuild"); //Optional name for your SmartUI Build
+        options.put("deviceName", "Samsung S24");
+        options.put("platform", "Android 15");
         try{
             smartUIAppSnapshot.start(options);}
         catch (Exception e){
@@ -84,14 +64,15 @@ public class PerfectoSmartUiNative {
         }
 
         // Capture and upload visual snapshot
-        smartUIAppSnapshot.smartUiAppSnapshot(driver, "home_screen", options);
+        smartUIAppSnapshot.smartuiAppSnapshot(driver, "home_screen", options);
 
         // More actions...
         // e.g., Navigate,to another UI
-        smartUIAppSnapshot.smartUiAppSnapshot(driver, "after_navigation", options);
+        smartUIAppSnapshot.smartuiAppSnapshot(driver, "after_navigation", options);
 
         try{
-            smartUIAppSnapshot.stop();} catch (Exception e){
+            smartUIAppSnapshot.stop();
+        } catch (Exception e){
             log.severe("Stop Smart UI failed" + " due to "+ e.getMessage());
         }
     }
