@@ -109,7 +109,12 @@ public class SmartUIAppSnapshot {
                 }
             }
             uploadSnapshotRequest.setOs(platform != null && !platform.isEmpty() ? platform : browserName);
-            uploadSnapshotRequest.setDeviceName(deviceName+"-"+platform);
+            if(platform != null && !platform.isEmpty()){
+                uploadSnapshotRequest.setDeviceName(deviceName+" - "+platform);
+            }
+            else {
+                uploadSnapshotRequest.setDeviceName(deviceName);
+            }
 
             if (platform.toLowerCase().contains("ios")) {
                 uploadSnapshotRequest.setBrowserName("safari");
