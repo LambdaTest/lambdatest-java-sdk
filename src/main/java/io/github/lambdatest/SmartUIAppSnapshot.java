@@ -53,11 +53,10 @@ public class SmartUIAppSnapshot {
         }
     }
     public void start() throws Exception{
-        try{
-            String envToken = System.getenv("PROJECT_TOKEN");
-            this.projectToken = envToken;
-            log.info("Project token set as: " + this.projectToken);
-        } catch (Exception e){
+        String envToken = System.getenv("PROJECT_TOKEN");
+        this.projectToken = envToken;
+        log.info("Project token set as: " + this.projectToken);
+        if(Objects.isNull(this.projectToken)){
             log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
             throw new Exception("Project token is a mandatory field");
         }
