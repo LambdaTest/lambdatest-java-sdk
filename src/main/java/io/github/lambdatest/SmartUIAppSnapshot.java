@@ -113,7 +113,7 @@ public class SmartUIAppSnapshot {
                 uploadSnapshotRequest.setDeviceName(deviceName+" - "+platform);
             }
             else {
-                uploadSnapshotRequest.setDeviceName(deviceName + " "+platform);
+                uploadSnapshotRequest.setDeviceName(deviceName + " "+browserName);
             }
 
             if (platform.toLowerCase().contains("ios")) {
