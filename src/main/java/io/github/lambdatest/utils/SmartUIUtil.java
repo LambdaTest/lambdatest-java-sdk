@@ -3,6 +3,7 @@ package io.github.lambdatest.utils;
 
 import java.io.File;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.github.lambdatest.models.*;
@@ -24,7 +25,7 @@ public class SmartUIUtil {
             httpClient.isSmartUIRunning();
             return true;
         } catch (Exception e) {
-            log.severe(e.getMessage());
+            log.log(Level.SEVERE, "An error occurred", e);
             return false;
         }
     }
@@ -112,7 +113,7 @@ public class SmartUIUtil {
         if(Objects.nonNull(git)){
             createBuildRequest.setGit(git);}
         String createBuildJson = gson.toJson(createBuildRequest);
-        Map<String,String> header = new HashMap<>() ;
+        Map<String,String> header = new HashMap<String, String>() ;
         header.put(Constants.PROJECT_TOKEN, projectToken);
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
         BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
@@ -124,7 +125,7 @@ public class SmartUIUtil {
 
     public void stopBuild(String buildId, String projectToken) throws Exception{
         try{
-            Map<String,String> headers = new HashMap<>();
+            Map<String,String> headers = new HashMap<String, String>();
             headers.put(Constants.PROJECT_TOKEN, projectToken);
             httpClient.stopBuild(buildId, headers);
         }

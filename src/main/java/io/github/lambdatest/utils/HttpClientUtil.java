@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
@@ -72,8 +73,9 @@ public class HttpClientUtil {
             return entity != null ? EntityUtils.toString(entity) : null;
         }
         catch (Exception e){
-        log.warning("Exception occured in delete "+ e.getMessage());}
-        return "Success";
+        log.log(Level.WARNING, "Exception occurred in delete", e);
+        throw  e;
+        }
     }
 
     private String post(String url, String data) throws IOException {
@@ -214,14 +216,14 @@ public class HttpClientUtil {
 
     public String uploadScreenshot(String url, File screenshot , UploadSnapshotRequest uploadScreenshotRequest, BuildData data) throws IOException {
 
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+        try {
             HttpPost uploadRequest = new HttpPost(url);
             uploadRequest.setHeader("projectToken", uploadScreenshotRequest.getProjectToken());
 
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.setMode(HttpMultipartMode.STRICT);
 
-            builder.addBinaryBody("screenshot", screenshot, ContentType.IMAGE_PNG, screenshot.getName());
+            builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), screenshot.getName());
             builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
             builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
             builder.addTextBody("screenshotName", uploadScreenshotRequest.getScreenshotName());
