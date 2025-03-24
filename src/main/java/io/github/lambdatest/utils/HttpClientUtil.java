@@ -175,7 +175,6 @@ public class HttpClientUtil {
                 return true;
             }
             else{
-                log.warning("Error in authenticating user ...");
                 throw new IllegalArgumentException(Constants.Errors.USER_AUTH_ERROR);
             }
         }
@@ -211,7 +210,6 @@ public class HttpClientUtil {
             }
         }
         String response = delete(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE +buildId, headers);
-        log.info("Response of stop Build: "+ response + "for buildId" + buildId);
     }
 
     public String uploadScreenshot(String url, File screenshot , UploadSnapshotRequest uploadScreenshotRequest, BuildData data) throws IOException {
