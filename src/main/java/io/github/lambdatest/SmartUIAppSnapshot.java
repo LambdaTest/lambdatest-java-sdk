@@ -12,6 +12,7 @@ import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
@@ -30,16 +31,15 @@ public class SmartUIAppSnapshot {
         this.gson = new Gson();
     }
 
-
     public void start(Map<String, String> options) throws Exception{
         try{
             this.projectToken = getProjectToken(options);
             log.info("Project token set as: " + this.projectToken);
         } catch (Exception e){
             log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
-            throw new Exception("Project token is a mandatory field");
+            throw new Exception("Project token is a mandatory field", e);
         }
-        Map<String, String> envVars = System.getenv();
+        Map<String, String> envVars = new HashMap<>(System.getenv());
         GitInfo git = GitUtils.getGitInfo(envVars);
         // Authenticate user and create a build
         try {
@@ -49,7 +49,7 @@ public class SmartUIAppSnapshot {
             options.put("buildName", this.buildData.getName());
         } catch(Exception e) {
             log.severe("Couldn't create build: " + e.getMessage());
-            throw new IllegalStateException("Couldn't create build: " + e.getMessage());
+            throw new Exception("Couldn't create build: " + e.getMessage());
         }
     }
     public void start() throws Exception{
@@ -69,7 +69,7 @@ public class SmartUIAppSnapshot {
             log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : "+ this.buildData.getName());
         } catch(Exception e) {
             log.severe("Couldn't create build: " + e.getMessage());
-            throw new IllegalStateException("Couldn't create build: " + e.getMessage());
+            throw new Exception("Couldn't create build due to: ", e);
         }
     }
 
@@ -90,7 +90,7 @@ public class SmartUIAppSnapshot {
 
     public void smartuiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) throws Exception {
         try {
-            if (Objects.isNull(appiumDriver)) {
+            if (appiumDriver == null) {
                 log.severe(Constants.Errors.SELENIUM_DRIVER_NULL +" during take snapshot");
                 throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
             }
@@ -107,7 +107,7 @@ public class SmartUIAppSnapshot {
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
             Dimension d = appiumDriver.manage().window().getSize();
-            int w = d.getWidth(), h = d.getWidth();
+            int w = d.getWidth(), h = d.getHeight();
             uploadSnapshotRequest.setViewport(w+"x"+h);
             log.info("Device viewport set to: "+ uploadSnapshotRequest.getViewport());
             String platform = "", deviceName="", browserName ="";
@@ -117,10 +117,10 @@ public class SmartUIAppSnapshot {
             if(options != null && options.containsKey("deviceName")){
                 deviceName = options.get("deviceName").trim();
             }
-            if(Objects.isNull(deviceName) || deviceName.isEmpty()){
+            if(deviceName == null || deviceName.isEmpty()){
                 throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
             }
-            if(Objects.isNull(platform) || platform.isEmpty()){
+            if(platform == null || platform.isEmpty()){
                 if(deviceName.toLowerCase().startsWith("i")){
                     browserName =  "iOS";
                 }
