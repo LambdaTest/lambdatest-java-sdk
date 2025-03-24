@@ -49,7 +49,7 @@ public class SmartUIAppSnapshot {
             options.put("buildName", this.buildData.getName());
         } catch(Exception e) {
             log.severe("Couldn't create build: " + e.getMessage());
-            throw new Exception("Couldn't create build: ", e);
+            throw new Exception("Couldn't create build: " + e.getMessage());
         }
     }
     public void start() throws Exception{
