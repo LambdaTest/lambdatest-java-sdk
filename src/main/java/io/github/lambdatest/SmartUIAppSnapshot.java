@@ -10,6 +10,7 @@ import io.github.lambdatest.utils.SmartUIUtil;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
 
 import java.io.File;
 import java.util.HashMap;
@@ -88,7 +89,7 @@ public class SmartUIAppSnapshot {
     }
 
 
-    public void smartuiAppSnapshot(AppiumDriver appiumDriver, String screenshotName, Map<String, String> options) throws Exception {
+    public void smartuiAppSnapshot(WebDriver appiumDriver, String screenshotName, Map<String, String> options) throws Exception {
         try {
             if (appiumDriver == null) {
                 log.severe(Constants.Errors.SELENIUM_DRIVER_NULL +" during take snapshot");
