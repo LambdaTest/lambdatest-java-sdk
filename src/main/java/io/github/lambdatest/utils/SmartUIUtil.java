@@ -25,7 +25,7 @@ public class SmartUIUtil {
             httpClient.isSmartUIRunning();
             return true;
         } catch (Exception e) {
-            log.log(Level.SEVERE, "An error occurred", e);
+            log.severe("Exception occurred "  + e);
             return false;
         }
     }

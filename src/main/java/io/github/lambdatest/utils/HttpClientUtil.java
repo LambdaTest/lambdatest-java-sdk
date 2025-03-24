@@ -73,8 +73,8 @@ public class HttpClientUtil {
             return entity != null ? EntityUtils.toString(entity) : null;
         }
         catch (Exception e){
-        log.log(Level.WARNING, "Exception occurred in delete", e);
-        throw  e;
+            log.warning("Exception occurred in Delete" + e);
+            throw  e;
         }
     }
 
