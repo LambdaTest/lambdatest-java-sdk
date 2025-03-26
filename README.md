@@ -22,24 +22,34 @@ export LT_USERNAME=<add-your-username>
 #### 1. Create an Object of `SmartUIAppSnapshot`
 
 ```java
-SmartUIAppSnapshot smartUIAppSnapshot = new SmartUIAppSnapshot();
-```
+import java.util.HashMap;
+import java.util.Map;
 
-#### 2. Add Screenshot Config for Taking a Screenshot
+public class SmartUITest {
+    public static void main(String[] args) {
+        Map<String, String> screenshotConfig = new HashMap<>();
+        screenshotConfig.put("deviceName", "Google Pixel 9");
+        screenshotConfig.put("platform", "Android 15");
 
-```java
-Map<String, String> screenshotConfig = new HashMap<>();
-screenshotConfig.put("deviceName", "Google Pixel 9");
-screenshotConfig.put("platform", "Android 15");
-
-try {
-    smartUIAppSnapshot.start(); // Starts the auth process and creates the build
-    smartUIAppSnapshot.smartuiAppSnapshot(driver, "screenshot1", screenshotConfig); // Takes a screenshot and uploads to SmartUI server
-    smartUIAppSnapshot.stop();
-} catch (Exception e) {
-    e.printStackTrace();
+        SmartUIAppSnapshot smartUIAppSnapshot = new SmartUIAppSnapshot();
+        
+        try {
+            smartUIAppSnapshot.start(); // Start authentication and create the build
+            smartUIAppSnapshot.smartuiAppSnapshot(driver, "screenshot1", screenshotConfig); // Capture screenshot
+        } catch (Exception e) {
+            System.err.println("Error capturing SmartUI snapshot: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                smartUIAppSnapshot.stop(); // Ensure stop is always called
+            } catch (Exception ex) {
+                System.err.println("Error stopping SmartUI session: " + ex.getMessage());
+            }
+        }
+    }
 }
 ```
+
 
 ### Using the Web Screenshot Function
 
@@ -54,6 +64,21 @@ npm i @lambdatest/smartui-cli
 ```sh
 npx smartui config:create smartui-web.json
 ```
+```java
+import io.github.lambdatest.SmartUISnapshot;
+
+public class SmartUISDK {
+
+    private RemoteWebDriver driver;
+
+    @Test
+    public void basicTest() throws Exception {
+        driver.get("https://www.lambdatest.com/support/docs/smartui-selenium-java-sdk");
+        SmartUISnapshot.smartuiSnapshot(driver, "visual-regression-testing");
+    }
+
+}
+```
 
 #### 3. Use Local Hub
 
@@ -66,10 +91,6 @@ npx smartui exec -- mvn test -D suite=sdk-local.xml
 ```sh
 npx smartui exec -- mvn test -D suite=sdk-cloud.xml
 ```
-
-Your test results will be displayed on the test console (or command-line interface if you are using terminal/cmd) and on the SmartUI dashboard.
-
-## Executing SmartUI Test on LambdaTest Hub Without `smartui-cli`
 
 The tests can be executed in the terminal using the following command:
 
