@@ -2,7 +2,6 @@ package io.github.lambdatest.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.lambdatest.models.GitInfo;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,11 +10,14 @@ import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import io.github.lambdatest.utils.LoggerUtil;
+import java.util.logging.Logger;
 
 import java.util.stream.Collectors;
 
 public class GitUtils {
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(GitUtils.class);
+
+    private static Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public static GitInfo getGitInfo(Map<String, String> envVars) {
 
