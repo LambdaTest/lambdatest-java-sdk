@@ -2,7 +2,6 @@ package io.github.lambdatest;
 
 
 import com.google.gson.Gson;
-import io.appium.java_client.AppiumDriver;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.*;
 import io.github.lambdatest.utils.GitUtils;
@@ -17,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
+import io.github.lambdatest.utils.LoggerUtil;
 
 public class SmartUIAppSnapshot {
     private final Logger log;
@@ -27,7 +27,7 @@ public class SmartUIAppSnapshot {
     private BuildData buildData;
 
     public SmartUIAppSnapshot() {
-        this.log = Logger.getLogger("lt-smart-ui-java-sdk");
+        this.log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
         this.util = new SmartUIUtil();
         this.gson = new Gson();
     }
