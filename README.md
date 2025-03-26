@@ -91,9 +91,3 @@ npx smartui exec -- mvn test -D suite=sdk-local.xml
 ```sh
 npx smartui exec -- mvn test -D suite=sdk-cloud.xml
 ```
-
-The tests can be executed in the terminal using the following command:
-
-```sh
-mvn test -D suite=smartui.xml
-```
