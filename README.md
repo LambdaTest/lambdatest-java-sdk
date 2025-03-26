@@ -17,41 +17,24 @@ export LT_USERNAME=<add-your-username>
 
 ## Usage
 
-###  Using the App Screenshot Function
-
+###  To Take Smartui App Snapshot
+`import io.github.lambdatest.SmartUIAppSnapshot;`
 #### 1. Create an Object of `SmartUIAppSnapshot`
 
 ```java
-import java.util.HashMap;
-import java.util.Map;
-
-public class SmartUITest {
-    public static void main(String[] args) {
-        Map<String, String> screenshotConfig = new HashMap<>();
-        screenshotConfig.put("deviceName", "Google Pixel 9");
-        screenshotConfig.put("platform", "Android 15");
-
         SmartUIAppSnapshot smartUIAppSnapshot = new SmartUIAppSnapshot();
-        
-        try {
-            smartUIAppSnapshot.start(); // Start authentication and create the build
-            smartUIAppSnapshot.smartuiAppSnapshot(driver, "screenshot1", screenshotConfig); // Capture screenshot
-        } catch (Exception e) {
-            System.err.println("Error capturing SmartUI snapshot: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                smartUIAppSnapshot.stop(); // Ensure stop is always called
-            } catch (Exception ex) {
-                System.err.println("Error stopping SmartUI session: " + ex.getMessage());
-            }
-        }
-    }
-}
+        Map<String, String> screenshotConfig = new HashMap<>();
+        screenshotConfig.put("deviceName","Google pixel 9");
+        screenshotConfig.put("platform","Android 15");
+
+        smartUIAppSnapshot.start(); 
+        smartUIAppSnapshot.smartuiAppSnapshot(driver, "screenshot1", screenshotConfig);
+        smartUIAppSnapshot.stop();
+    
 ```
 
 
-### Using the Web Screenshot Function
+### To Take Smartui Snapshot
 
 #### 1. Install the `smartui-cli` Dependencies
 
