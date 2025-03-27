@@ -27,15 +27,108 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import io.github.lambdatest.utils.LoggerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.http.HttpHost;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.conn.ssl.SSLContextBuilder;
+import org.apache.http.conn.ssl.TrustAllStrategy;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import javax.net.ssl.SSLContext;
 
 public class HttpClientUtil {
     private final CloseableHttpClient httpClient;
-    private Logger log;
+    private Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public HttpClientUtil() {
         this.httpClient = HttpClients.createDefault();
-        this.log = LoggerUtil.createLogger("lambdatest-java-sdk");
+    }
+
+    public HttpClientUtil(String proxyHost, int proxyPort) throws Exception {
+        this(proxyHost, proxyPort, false);
+    }
+
+    public HttpClientUtil(String proxyHost, int proxyPort, boolean allowInsecure) throws Exception {
+        try {
+            HttpHost proxy = new HttpHost(proxyHost, proxyPort);
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setProxy(proxy)
+                    .build();
+            // Build the HttpClient with conditional SSL settings
+            CloseableHttpClient clientBuilder;
+
+            // If allowInsecure is true, disable SSL verification
+            if (allowInsecure) {
+                SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+                        .build();
+
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setSSLContext(sslContext)
+                        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                        .build();
+            } else {
+                // Build standard HttpClient with proxy
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .build();
+            }
+
+            this.httpClient = clientBuilder;
+            String proxyConfig = String.format("%s:%d (Insecure: %b)", proxyHost, proxyPort, allowInsecure);
+            log.info(proxyConfig);
+
+        } catch (Exception e) {
+            log.severe("Error configuring HttpClient" + e.getMessage());
+            throw new Exception("Failed to create HttpClient" + e.getMessage());
+        }
+    }
+
+    public HttpClientUtil(String proxyProtocol, String proxyHost, int proxyPort, boolean allowInsecure)
+            throws Exception {
+        try {
+            HttpHost proxy = new HttpHost(proxyHost, proxyPort, proxyProtocol);
+
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setProxy(proxy)
+                    .build();
+
+            // Build the HttpClient with conditional SSL settings
+            CloseableHttpClient clientBuilder;
+
+            // If allowInsecure is true, disable SSL verification
+            if (allowInsecure) {
+                SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+                        .build();
+
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setSSLContext(sslContext)
+                        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                        .build();
+
+            } else {
+                // Build standard HttpClient with proxy
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .build();
+            }
+
+            // Assign the built HttpClient
+            this.httpClient = clientBuilder;
+
+            String proxyConfig = String.format("%s://%s:%d (Insecure: %b)",
+                    proxyProtocol, proxyHost, proxyPort, allowInsecure);
+            log.info(proxyConfig);
+        } catch (Exception e) {
+            log.severe("Error configuring HttpClient" + e.getMessage());
+            throw new Exception("Failed to create HttpClient" + e.getMessage());
+        }
     }
 
     public String request(String url, String method, String data) throws IOException {

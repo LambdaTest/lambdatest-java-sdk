@@ -11,12 +11,23 @@ import io.github.lambdatest.constants.Constants;
 
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
-    private final Logger log;
+    private final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
     private Gson gson = new Gson();
 
     public SmartUIUtil() {
         this.httpClient = new HttpClientUtil();
-        this.log = LoggerUtil.createLogger("lambdatest-java-sdk");
+    }
+
+    public SmartUIUtil(String proxyHost, int proxyPort) throws Exception {
+        this.httpClient = new HttpClientUtil(proxyHost, proxyPort);
+    }
+
+    public SmartUIUtil(String proxyHost, int proxyPort, boolean allowInsecure) throws Exception {
+        this.httpClient = new HttpClientUtil(proxyHost, proxyPort, allowInsecure);
+    }
+
+    public SmartUIUtil(String proxyProtocol, String proxyHost, int proxyPort, boolean allowInsecure) throws Exception {
+        this.httpClient = new HttpClientUtil(proxyProtocol, proxyHost, proxyPort, allowInsecure);
     }
 
     public boolean isSmartUIRunning() {
@@ -111,7 +122,7 @@ public class SmartUIUtil {
                 log.info("Build name set from system: " + buildNameStr);
             }
         } else {
-            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10)); 
+            createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10));
         }
         if (Objects.nonNull(git)) {
             createBuildRequest.setGit(git);
