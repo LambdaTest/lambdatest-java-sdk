@@ -40,38 +40,22 @@ public class SmartUIAppSnapshot {
             log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
             throw new Exception("Project token is a mandatory field", e);
         }
-        Map<String, String> envVars = new HashMap<>(System.getenv());
-        GitInfo git = GitUtils.getGitInfo(envVars);
-        // Authenticate user and create a build
+    
         try {
+            Map<String, String> envVars = new HashMap<>(System.getenv());
+            GitInfo git = GitUtils.getGitInfo(envVars);
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
             log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : "+ this.buildData.getName());
             options.put("buildName", this.buildData.getName());
         } catch(Exception e) {
-            log.severe("Couldn't create build: " + e.getMessage());
-            throw new Exception("Couldn't create build: " + e.getMessage());
+            log.severe("Couldn't create smartui build: " + e.getMessage());
+            throw new Exception("Couldn't create smartui build: " + e.getMessage());
         }
     }
+
     public void start() throws Exception{
-        String envToken = System.getenv("PROJECT_TOKEN");
-        this.projectToken = envToken;
-        log.info("Project token set as: " + this.projectToken);
-        if(Objects.isNull(this.projectToken)){
-            log.severe(Constants.Errors.PROJECT_TOKEN_UNSET);
-            throw new Exception("Project token is a mandatory field");
-        }
-        Map<String, String> envVars = System.getenv();
-        GitInfo git = GitUtils.getGitInfo(envVars);
-        // Authenticate user and create a build
-        try {
-            BuildResponse buildRes = util.build(git, this.projectToken, null);
-            this.buildData = buildRes.getData();
-            log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : "+ this.buildData.getName());
-        } catch(Exception e) {
-            log.severe("Couldn't create build: " + e.getMessage());
-            throw new Exception("Couldn't create build due to: ", e);
-        }
+        this.start(new HashMap<>());
     }
 
     private String getProjectToken(Map<String, String> options) {

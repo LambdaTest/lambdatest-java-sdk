@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import io.github.lambdatest.utils.LoggerUtil;
 import java.util.logging.Logger;
@@ -20,15 +21,11 @@ public class GitUtils {
     private static Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public static GitInfo getGitInfo(Map<String, String> envVars) {
-
         String gitInfoFilePath = envVars.get("SMARTUI_GIT_INFO_FILEPATH");
-        // If Git info file exists, read from it
         if (gitInfoFilePath != null) {
             return readGitInfoFromFile(gitInfoFilePath, envVars);
-        }
-        // Otherwise, fetch Git info from Git commands
-        else{
-        return fetchGitInfoFromCommands(envVars);
+        } else {
+            return fetchGitInfoFromCommands(envVars);
         }
     }
 
@@ -44,22 +41,20 @@ public class GitUtils {
                     (String) gitInfo.get("commit_body"),
                     (String) gitInfo.get("commit_author"),
                     getGitHubURL(envVars, (String) gitInfo.get("commit_id")),
-                    envVars.getOrDefault("BASELINE_BRANCH", "")
-            );
+                    envVars.getOrDefault("BASELINE_BRANCH", ""));
         } catch (IOException e) {
-          log.info("Error reading Git info file: " + e.getMessage());
+            log.info("Error reading Git info file: " + e.getMessage());
             return null;
         }
     }
 
     private static GitInfo fetchGitInfoFromCommands(Map<String, String> envVars) {
         String splitCharacter = "<##>";
-        String[] prettyFormat = {"%h", "%H", "%s", "%f", "%b", "%at", "%ct", "%an", "%ae", "%cn", "%ce", "%N", ""};
+        String[] prettyFormat = { "%h", "%H", "%s", "%f", "%b", "%at", "%ct", "%an", "%ae", "%cn", "%ce", "%N", "" };
 
         String command = String.format(
                 "git log -1 --pretty=format:\"%s\" && git rev-parse --abbrev-ref HEAD && git tag --contains HEAD",
-                String.join(splitCharacter, prettyFormat)
-        );
+                String.join(splitCharacter, prettyFormat));
 
         List<String> outputLines = executeCommand(command);
 
@@ -74,15 +69,13 @@ public class GitUtils {
         List<String> branchAndTagsList = Arrays.asList(branchAndTags);
         String branch = envVars.getOrDefault("CURRENT_BRANCH", branchAndTagsList.get(0));
 
-
         return new GitInfo(
                 branch,
                 res[0], // commitId
                 res[2], // commitMessage
                 res[7], // commitAuthor
                 getGitHubURL(envVars, res[1]), // githubURL
-                envVars.getOrDefault("BASELINE_BRANCH", "")
-        );
+                envVars.getOrDefault("BASELINE_BRANCH", ""));
     }
 
     private static String shortenCommitId(String commitId) {
@@ -99,12 +92,13 @@ public class GitUtils {
 
     private static List<String> executeCommand(String command) {
         try {
-            Process process = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});
+            Process process = Runtime.getRuntime().exec(new String[] { "/bin/sh", "-c", command });
             return new BufferedReader(new InputStreamReader(process.getInputStream()))
                     .lines()
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            throw new RuntimeException("Error executing Git command: " + e.getMessage(), e);
+            log.severe("Error executing command: " + e.getMessage());
+            return new ArrayList<String>();
         }
     }
 }
