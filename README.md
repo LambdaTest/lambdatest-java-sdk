@@ -1,6 +1,5 @@
 # LambdaTest Java SDK
 
-
 Run the following command to install the dependencies of the project mentioned in `pom.xml`:
 
 ```sh
@@ -17,7 +16,7 @@ export LT_USERNAME=<add-your-username>
 
 ## Usage
 
-###  To Take Smartui App Snapshot
+###  To Take SmartUI App Snapshot
 `import io.github.lambdatest.SmartUIAppSnapshot;`
 #### 1. Create an Object of `SmartUIAppSnapshot`
 
@@ -34,7 +33,7 @@ export LT_USERNAME=<add-your-username>
 ```
 
 
-### To Take Smartui Snapshot
+### To Take SmartUI Snapshot
 
 #### 1. Install the `smartui-cli` Dependencies
 
@@ -61,16 +60,4 @@ public class SmartUISDK {
     }
 
 }
-```
-
-#### 3. Use Local Hub
-
-```sh
-npx smartui exec -- mvn test -D suite=sdk-local.xml
-```
-
-#### 4. Use LambdaTest Cloud Hub
-
-```sh
-npx smartui exec -- mvn test -D suite=sdk-cloud.xml
 ```
