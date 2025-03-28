@@ -2,7 +2,6 @@ package io.github.lambdatest.utils;
 
 import java.io.File;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.github.lambdatest.models.*;
@@ -121,9 +120,11 @@ public class SmartUIUtil {
                 createBuildRequest.setBuildName(buildNameStr);
                 log.info("Build name set from system: " + buildNameStr);
             }
+
         } else {
             createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10));
         }
+
         if (Objects.nonNull(git)) {
             createBuildRequest.setGit(git);
         }

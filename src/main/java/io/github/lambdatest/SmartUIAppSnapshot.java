@@ -82,10 +82,10 @@ public class SmartUIAppSnapshot {
         throw new IllegalArgumentException(Constants.Errors.PROJECT_TOKEN_UNSET);
     }
 
-    public void smartuiAppSnapshot(WebDriver appiumDriver, String screenshotName, Map<String, String> options)
+    public void smartuiAppSnapshot(WebDriver driver, String screenshotName, Map<String, String> options)
             throws Exception {
         try {
-            if (appiumDriver == null) {
+            if (driver == null) {
                 log.severe(Constants.Errors.SELENIUM_DRIVER_NULL + " during take snapshot");
                 throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
             }
@@ -94,14 +94,14 @@ public class SmartUIAppSnapshot {
                 throw new IllegalArgumentException(Constants.Errors.SNAPSHOT_NAME_NULL);
             }
 
-            TakesScreenshot takesScreenshot = (TakesScreenshot) appiumDriver;
+            TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
             File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
             log.info("Screenshot captured: " + screenshotName);
 
             UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
             uploadSnapshotRequest.setScreenshotName(screenshotName);
             uploadSnapshotRequest.setProjectToken(projectToken);
-            Dimension d = appiumDriver.manage().window().getSize();
+            Dimension d = driver.manage().window().getSize();
             int w = d.getWidth(), h = d.getHeight();
             uploadSnapshotRequest.setViewport(w + "x" + h);
             log.info("Device viewport set to: " + uploadSnapshotRequest.getViewport());
@@ -134,6 +134,13 @@ public class SmartUIAppSnapshot {
             } else {
                 uploadSnapshotRequest.setBrowserName("chrome");
             }
+            if(options != null && options.containsKey("cropFooter")) {
+                uploadSnapshotRequest.setCropFooter(options.get("cropFooter").trim().toLowerCase());
+            }
+            if(options != null && options.containsKey("cropStatusBar")) {
+                uploadSnapshotRequest.setCropStatusBar(options.get("cropStatusBar").trim().toLowerCase());
+            }
+
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
                 uploadSnapshotRequest.setBuildName(buildData.getName());
