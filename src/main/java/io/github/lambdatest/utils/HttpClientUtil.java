@@ -1,33 +1,134 @@
 package io.github.lambdatest.utils;
 
+import com.google.gson.*;
+import io.github.lambdatest.models.BuildData;
+import io.github.lambdatest.models.ProjectTokenResponse;
+import io.github.lambdatest.models.UploadSnapshotRequest;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import io.github.lambdatest.constants.Constants;
+
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.json.*;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.JsonElement;
+import io.github.lambdatest.utils.LoggerUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.http.HttpHost;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.conn.ssl.SSLContextBuilder;
+import org.apache.http.conn.ssl.TrustAllStrategy;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import javax.net.ssl.SSLContext;
 
 public class HttpClientUtil {
     private final CloseableHttpClient httpClient;
-    private Logger log;
+    private Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public HttpClientUtil() {
         this.httpClient = HttpClients.createDefault();
-        this.log = LoggerUtil.createLogger("lambdatest-java-sdk");
+    }
+
+    public HttpClientUtil(String proxyHost, int proxyPort) throws Exception {
+        this(proxyHost, proxyPort, false);
+    }
+
+    public HttpClientUtil(String proxyHost, int proxyPort, boolean allowInsecure) throws Exception {
+        try {
+            HttpHost proxy = new HttpHost(proxyHost, proxyPort);
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setProxy(proxy)
+                    .build();
+            // Build the HttpClient with conditional SSL settings
+            CloseableHttpClient clientBuilder;
+
+            // If allowInsecure is true, disable SSL verification
+            if (allowInsecure) {
+                SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+                        .build();
+
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setSSLContext(sslContext)
+                        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                        .build();
+            } else {
+                // Build standard HttpClient with proxy
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .build();
+            }
+
+            this.httpClient = clientBuilder;
+            String proxyConfig = String.format("%s:%d (Insecure: %b)", proxyHost, proxyPort, allowInsecure);
+            log.info(proxyConfig);
+
+        } catch (Exception e) {
+            log.severe("Error configuring HttpClient" + e.getMessage());
+            throw new Exception("Failed to create HttpClient" + e.getMessage());
+        }
+    }
+
+    public HttpClientUtil(String proxyProtocol, String proxyHost, int proxyPort, boolean allowInsecure)
+            throws Exception {
+        try {
+            HttpHost proxy = new HttpHost(proxyHost, proxyPort, proxyProtocol);
+
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setProxy(proxy)
+                    .build();
+
+            // Build the HttpClient with conditional SSL settings
+            CloseableHttpClient clientBuilder;
+
+            // If allowInsecure is true, disable SSL verification
+            if (allowInsecure) {
+                SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, TrustAllStrategy.INSTANCE)
+                        .build();
+
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setSSLContext(sslContext)
+                        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                        .build();
+
+            } else {
+                // Build standard HttpClient with proxy
+                clientBuilder = HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .build();
+            }
+
+            // Assign the built HttpClient
+            this.httpClient = clientBuilder;
+
+            String proxyConfig = String.format("%s://%s:%d (Insecure: %b)",
+                    proxyProtocol, proxyHost, proxyPort, allowInsecure);
+            log.info(proxyConfig);
+        } catch (Exception e) {
+            log.severe("Error configuring HttpClient" + e.getMessage());
+            throw new Exception("Failed to create HttpClient" + e.getMessage());
+        }
     }
 
     public String request(String url, String method, String data) throws IOException {
@@ -49,15 +150,34 @@ public class HttpClientUtil {
         }
     }
 
+    private String delete(String url, Map<String, String> headers) throws IOException {
+
+        HttpDelete request = new HttpDelete(url);
+        if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
+            if (!projectToken.isEmpty()) {
+                request.setHeader(Constants.PROJECT_TOKEN, projectToken);
+            }
+        }
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            checkResponseStatus(response);
+            HttpEntity entity = response.getEntity();
+            return entity != null ? EntityUtils.toString(entity) : null;
+        } catch (Exception e) {
+            log.warning("Exception occurred in Delete" + e);
+            throw e;
+        }
+    }
+
     private String post(String url, String data) throws IOException {
         HttpPost request = new HttpPost(url);
         request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
         request.setHeader("Content-type", "application/json");
-    
+
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             HttpEntity entity = response.getEntity();
             String responseString = entity != null ? EntityUtils.toString(entity) : null;
-    
+
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == HttpStatus.SC_OK) {
                 // Request was successful
@@ -83,7 +203,49 @@ public class HttpClientUtil {
             }
         }
     }
-    
+
+    private String postWithHeader(String url, String data, Map<String, String> headers) throws IOException {
+        HttpPost request = new HttpPost(url);
+        request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
+        request.setHeader("Content-Type", "application/json");
+
+        if (Objects.nonNull(headers) && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            request.setHeader(Constants.PROJECT_TOKEN, headers.get(Constants.PROJECT_TOKEN).trim());
+        }
+
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            HttpEntity entity = response.getEntity();
+            String responseString = entity != null ? EntityUtils.toString(entity) : null;
+            log.info(" postWithHeader responseString : " + responseString);
+
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == HttpStatus.SC_OK) {
+                return responseString;
+            } else {
+                // Try to extract error message
+                try {
+                    if (Objects.nonNull(responseString)) {
+                        JsonElement element;
+                        element = JsonParser.parseString(responseString);
+                        if (element.isJsonObject()) {
+                            JsonObject jsonResponse = element.getAsJsonObject();
+                            if (jsonResponse.has("error") && jsonResponse.get("error").isJsonObject()) {
+                                JsonObject errorObject = jsonResponse.getAsJsonObject("error");
+                                if (errorObject.has("message")) {
+                                    String errorMessage = errorObject.get("message").getAsString();
+                                    log.severe(String.format("Error in POST request " + errorMessage));
+                                }
+                            }
+                        }
+                    }
+                } catch (JsonSyntaxException e) {
+                    throw new IOException("Failed to parse error response: " + responseString, e);
+                }
+                throw new IOException("Unexpected status code: " + statusCode);
+            }
+        }
+    }
+
     private void checkResponseStatus(HttpResponse response) throws IOException {
         int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode != HttpStatus.SC_OK) {
@@ -91,18 +253,110 @@ public class HttpClientUtil {
         }
     }
 
+    public boolean isUserAuthenticated(String projectToken) throws Exception {
+        try {
+            String url = Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
+            HttpGet request = new HttpGet(url);
+            request.setHeader(Constants.PROJECT_TOKEN, projectToken);
+            log.info("Authenticating user for projectToken :" + projectToken);
+            log.info("URL : " + url);
+            CloseableHttpResponse response = httpClient.execute(request);
+            HttpEntity entity = response.getEntity();
+            String responseString = entity != null ? EntityUtils.toString(entity) : null;
+            log.info("responseString : " + responseString);
+            log.info("response.getStatusLine() : " + response.getStatusLine());
+
+            ProjectTokenResponse projectResponse = parseResponse(responseString);
+            if (projectResponse.isSuccessful()) {
+                return true;
+            } else {
+                log.info("User authentication failed for projectToken response : " + responseString);
+                return false;
+            }
+        } catch (Exception e) {
+            log.severe("Exception in authenticating projectToken due to : " + e.getMessage());
+            throw e;
+        }
+    }
 
     public String isSmartUIRunning() throws IOException {
-        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_HEALTHCHECK_ROUTE, Constants.RequestMethods.GET, null);
+        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_HEALTHCHECK_ROUTE,
+                Constants.RequestMethods.GET, null);
     }
 
     public String fetchDOMSerializer() throws IOException {
-        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_DOMSERIALIZER_ROUTE, Constants.RequestMethods.GET, null);
+        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_DOMSERIALIZER_ROUTE,
+                Constants.RequestMethods.GET, null);
     }
 
     public String postSnapshot(String data) throws IOException {
-        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_SNPASHOT_ROUTE, Constants.RequestMethods.POST, data);
+        return request(SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_ROUTE,
+                Constants.RequestMethods.POST, data);
     }
 
+    public String createSmartUIBuild(String createBuildRequest, Map<String, String> headers) throws IOException {
+        return postWithHeader(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,
+                createBuildRequest, headers);
+    }
 
+    public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
+
+        if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
+            String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
+            if (!projectToken.isEmpty()) {
+                headers.put(Constants.PROJECT_TOKEN, projectToken);
+            }
+        }
+        String response = delete(
+                Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId,
+                headers);
+    }
+
+    public String uploadScreenshot(String url, File screenshot, UploadSnapshotRequest uploadScreenshotRequest,
+            BuildData data) throws IOException {
+
+        try {
+            HttpPost uploadRequest = new HttpPost(url);
+            uploadRequest.setHeader("projectToken", uploadScreenshotRequest.getProjectToken());
+
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.setMode(HttpMultipartMode.STRICT);
+
+            builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), screenshot.getName());
+            builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
+            builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
+            builder.addTextBody("screenshotName", uploadScreenshotRequest.getScreenshotName());
+            builder.addTextBody("browser", uploadScreenshotRequest.getBrowserName());
+            builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
+            builder.addTextBody("os", uploadScreenshotRequest.getOs());
+            builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
+            builder.addTextBody("projectType", "lambdatest-java-app-sdk");
+            if (data.getBaseline()) {
+                builder.addTextBody("baseline", "true");
+            } else {
+                builder.addTextBody("baseline", "false");
+            }
+
+            HttpEntity multipart = builder.build();
+            uploadRequest.setEntity(multipart);
+
+            try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+                return EntityUtils.toString(response.getEntity());
+            }
+        } catch (IOException e) {
+            log.warning("Exception occurred in uploading screenshot: " +
+                    e.getMessage());
+            return "An error occurred while processing your request.";
+        }
+    }
+
+    public ProjectTokenResponse parseResponse(String responseString) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.readValue(responseString, ProjectTokenResponse.class);
+        } catch (Exception e) {
+            log.severe("Error parsing response: " + e.getMessage());
+            return new ProjectTokenResponse();
+        }
+    }
 }
