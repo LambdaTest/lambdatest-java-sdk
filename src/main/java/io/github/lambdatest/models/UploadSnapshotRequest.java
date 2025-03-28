@@ -14,6 +14,9 @@ public class UploadSnapshotRequest {
     private String buildName;
     private String screenshotName;
     private String deviceName;
+    private String cropFooter;
+    private String cropStatusBar;
+    private  String fullPage;
 
     // Default constructor
     public UploadSnapshotRequest() {
@@ -22,7 +25,7 @@ public class UploadSnapshotRequest {
     // All Args constructor
     public UploadSnapshotRequest(String screenshot, String browserName, String os, String viewport,
                                  String projectToken, String buildId, String buildName,
-                                 String screenshotName, String deviceName) {
+                                 String screenshotName, String deviceName,String fullPage, String  cropFooter, String cropStatusBar) {
         this.browserName = browserName;
         this.os = os;
         this.viewport = viewport;
@@ -31,6 +34,9 @@ public class UploadSnapshotRequest {
         this.buildName = buildName;
         this.screenshotName = screenshotName;
         this.deviceName = deviceName;
+        this.cropFooter = cropFooter;
+        this.cropStatusBar = cropStatusBar;
+        this.fullPage = fullPage;
     }
 
     // Getters and setters
@@ -52,6 +58,24 @@ public class UploadSnapshotRequest {
 
     public String getViewport() {
         return viewport;
+    }
+
+    public String getCropFooter() { return cropFooter; }
+
+    public void setCropFooter(String cropFooter) {
+        this.cropFooter = cropFooter;
+    }
+
+    public String getCropStatusBar() { return cropStatusBar; }
+
+    public String getFullPage() { return fullPage; }
+
+    public void setFullPage(String fullPage) {
+        this.fullPage = fullPage;
+    }
+
+    public void setCropStatusBar(String cropStatusBar) {
+        this.cropStatusBar = cropStatusBar;
     }
 
     public void setViewport(String viewport) {
