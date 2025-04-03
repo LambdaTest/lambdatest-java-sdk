@@ -140,6 +140,9 @@ public class SmartUIAppSnapshot {
             if(options != null && options.containsKey("cropStatusBar")) {
                 uploadSnapshotRequest.setCropStatusBar(options.get("cropStatusBar").trim().toLowerCase());
             }
+            if(options != null && options.containsKey("fullPage")) {
+                uploadSnapshotRequest.setFullPage(options.get("fullPage").trim().toLowerCase());
+            }
 
             if (Objects.nonNull(buildData)) {
                 uploadSnapshotRequest.setBuildId(buildData.getBuildId());
