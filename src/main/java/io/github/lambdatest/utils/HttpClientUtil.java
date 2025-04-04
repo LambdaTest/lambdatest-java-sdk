@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import io.github.lambdatest.utils.LoggerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -331,6 +330,8 @@ public class HttpClientUtil {
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
             builder.addTextBody("projectType", "lambdatest-java-app-sdk");
+            builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
+            builder.addTextBody("cropFooter", uploadScreenshotRequest.getCropFooter());
             if (data.getBaseline()) {
                 builder.addTextBody("baseline", "true");
             } else {
