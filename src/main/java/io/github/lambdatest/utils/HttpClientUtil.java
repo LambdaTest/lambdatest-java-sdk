@@ -330,8 +330,12 @@ public class HttpClientUtil {
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
             builder.addTextBody("projectType", "lambdatest-java-app-sdk");
-            builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
-            builder.addTextBody("cropFooter", uploadScreenshotRequest.getCropFooter());
+            if(Objects.nonNull(uploadScreenshotRequest.getCropStatusBar())){
+                builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
+            }
+            if(Objects.nonNull(uploadScreenshotRequest.getCropFooter())){
+                builder.addTextBody("cropFooter", uploadScreenshotRequest.getCropFooter());
+            }
             if (data.getBaseline()) {
                 builder.addTextBody("baseline", "true");
             } else {
