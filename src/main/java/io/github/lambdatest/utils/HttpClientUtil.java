@@ -321,7 +321,7 @@ public class HttpClientUtil {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.setMode(HttpMultipartMode.STRICT);
 
-            builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), screenshot.getName());
+            builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), uploadScreenshotRequest.getScreenshotName());
             builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
             builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
             builder.addTextBody("screenshotName", uploadScreenshotRequest.getScreenshotName());
@@ -330,17 +330,30 @@ public class HttpClientUtil {
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
             builder.addTextBody("projectType", "lambdatest-java-app-sdk");
+            if (data.getBaseline()) {
+                builder.addTextBody("baseline", "true");
+            } else {
+                builder.addTextBody("baseline", "false");
+            }
+            if(Objects.nonNull(uploadScreenshotRequest.getScreenshotHash())){
+                builder.addTextBody("screenshotHash", uploadScreenshotRequest.getScreenshotHash());
+            }
             if(Objects.nonNull(uploadScreenshotRequest.getCropStatusBar())){
                 builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
             }
             if(Objects.nonNull(uploadScreenshotRequest.getCropFooter())){
                 builder.addTextBody("cropFooter", uploadScreenshotRequest.getCropFooter());
             }
-            if (data.getBaseline()) {
-                builder.addTextBody("baseline", "true");
-            } else {
-                builder.addTextBody("baseline", "false");
+            if(Objects.nonNull(uploadScreenshotRequest.getFullPage())){
+                builder.addTextBody("fullPage", uploadScreenshotRequest.getFullPage());
             }
+            if(Objects.nonNull(uploadScreenshotRequest.getIsLastChunk())) {
+                builder.addTextBody("isLastChunk", uploadScreenshotRequest.getIsLastChunk());
+            }
+            if(Objects.nonNull(uploadScreenshotRequest.getChunkCount())) {
+                builder.addTextBody("chunkCount", String.valueOf(uploadScreenshotRequest.getChunkCount()));
+            }
+
 
             HttpEntity multipart = builder.build();
             uploadRequest.setEntity(multipart);

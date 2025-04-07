@@ -13,10 +13,13 @@ public class UploadSnapshotRequest {
     private String buildId;
     private String buildName;
     private String screenshotName;
+    private String screenshotHash;
     private String deviceName;
     private String cropFooter;
     private String cropStatusBar;
     private  String fullPage;
+    private String isLastChunk;
+    private Integer chunkCount;
 
     // Default constructor
     public UploadSnapshotRequest() {
@@ -25,7 +28,8 @@ public class UploadSnapshotRequest {
     // All Args constructor
     public UploadSnapshotRequest(String screenshot, String browserName, String os, String viewport,
                                  String projectToken, String buildId, String buildName,
-                                 String screenshotName, String deviceName,String fullPage, String  cropFooter, String cropStatusBar) {
+                                 String screenshotName, String screenshotHash ,String deviceName,String fullPage, String  cropFooter,
+                                 String cropStatusBar, String isLastChunk, Integer chunkCount) {
         this.browserName = browserName;
         this.os = os;
         this.viewport = viewport;
@@ -33,10 +37,13 @@ public class UploadSnapshotRequest {
         this.buildId = buildId;
         this.buildName = buildName;
         this.screenshotName = screenshotName;
+        this.screenshotHash = screenshotHash;
         this.deviceName = deviceName;
         this.cropFooter = cropFooter;
         this.cropStatusBar = cropStatusBar;
         this.fullPage = fullPage;
+        this.isLastChunk = isLastChunk;
+        this.chunkCount = chunkCount;
     }
 
     // Getters and setters
@@ -72,6 +79,11 @@ public class UploadSnapshotRequest {
 
     public void setFullPage(String fullPage) {
         this.fullPage = fullPage;
+    }
+    public String getIsLastChunk() { return isLastChunk; }
+
+    public void setIsLastChunk(String isLastChunk) {
+        this.isLastChunk = isLastChunk;
     }
 
     public void setCropStatusBar(String cropStatusBar) {
@@ -114,11 +126,27 @@ public class UploadSnapshotRequest {
         this.screenshotName = screenshotName;
     }
 
+    public String getScreenshotHash() {
+        return screenshotHash;
+    }
+
+    public void setScreenshotHash(String screenshotHash) {
+        this.screenshotHash = screenshotHash;
+    }
+
     public String getDeviceName() {
         return deviceName;
     }
 
     public void setDeviceName(String deviceName) {
         this.deviceName = deviceName;
+    }
+
+    public void setChunkCount(int chunkCount) {
+        this.chunkCount = chunkCount;
+    }
+
+    public Integer getChunkCount() {
+        return chunkCount;
     }
 }
