@@ -39,17 +39,17 @@ public class FullPageScreenshotUtil {
         int chunkCount = 0; int maxCount = 10;
         boolean isLastScroll = false;
         List<File> screenshotDir = new ArrayList<>();
-        while (!isLastScroll && chunkCount <= maxCount) {
+        while (!isLastScroll && chunkCount < maxCount) {
             // Capture and save screenshot asynchronously
             File screenshotFile= captureAndSaveScreenshot(this.saveDirectoryName,chunkCount);
             if(screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
             }
-            chunkCount++;
-            // Perform scroll
+            //Perform scroll
             scrollDown();
-            // Detect end of page
+            chunkCount++;
             log.info("Scrolling attempt # " + chunkCount);
+            // Detect end of page
             isLastScroll = hasReachedBottom();
 
         }
@@ -87,7 +87,6 @@ public class FullPageScreenshotUtil {
         // Press (touch) at the start position
         swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
         swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-
         // Move to end position (scrolling)
         swipe.addAction(finger.createPointerMove(Duration.ofMillis(500), PointerInput.Origin.viewport(), startX, endY));
         swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
