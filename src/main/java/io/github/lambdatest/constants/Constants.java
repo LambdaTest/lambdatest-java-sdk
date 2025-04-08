@@ -1,10 +1,17 @@
 package io.github.lambdatest.constants;
 
+import static io.github.lambdatest.constants.Constants.SmartUIRoutes.HOST_URL;
+
 public interface Constants {
 
   String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
   public static final String PROJECT_TOKEN = "projectToken";
   String LOCAL_SERVER_HOST = "http://localhost:8080";
+
+  public static String getHostUrlFromEnvOrDefault() {
+    String envUrl = System.getenv("HOST_URL");
+    return (envUrl != null && !envUrl.isEmpty()) ? envUrl : HOST_URL;
+  }
 
   //SmartUI API routes
   interface SmartUIRoutes {

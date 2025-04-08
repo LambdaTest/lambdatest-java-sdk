@@ -254,7 +254,8 @@ public class HttpClientUtil {
 
     public boolean isUserAuthenticated(String projectToken) throws Exception {
         try {
-            String url = Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
+            String hostUrl = Constants.getHostUrlFromEnvOrDefault();
+            String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
             HttpGet request = new HttpGet(url);
             request.setHeader(Constants.PROJECT_TOKEN, projectToken);
             log.info("Authenticating user for projectToken :" + projectToken);
@@ -294,7 +295,8 @@ public class HttpClientUtil {
     }
 
     public String createSmartUIBuild(String createBuildRequest, Map<String, String> headers) throws IOException {
-        return postWithHeader(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,
+        String hostUrl = Constants.getHostUrlFromEnvOrDefault();
+        return postWithHeader(hostUrl + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,
                 createBuildRequest, headers);
     }
 
@@ -306,8 +308,9 @@ public class HttpClientUtil {
                 headers.put(Constants.PROJECT_TOKEN, projectToken);
             }
         }
+        String hostUrl = Constants.getHostUrlFromEnvOrDefault();
         String response = delete(
-                Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId,
+                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId,
                 headers);
     }
 
@@ -320,7 +323,6 @@ public class HttpClientUtil {
 
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.setMode(HttpMultipartMode.STRICT);
-
             builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), uploadScreenshotRequest.getScreenshotName());
             builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
             builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
@@ -335,9 +337,7 @@ public class HttpClientUtil {
             } else {
                 builder.addTextBody("baseline", "false");
             }
-            if(Objects.nonNull(uploadScreenshotRequest.getScreenshotHash())){
-                builder.addTextBody("screenshotHash", uploadScreenshotRequest.getScreenshotHash());
-            }
+            builder.addTextBody("screenshotHash", uploadScreenshotRequest.getScreenshotHash());
             if(Objects.nonNull(uploadScreenshotRequest.getCropStatusBar())){
                 builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
             }

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import java.util.Objects;
 import java.util.logging.Logger;
 
 public class FullPageScreenshotUtil {
@@ -32,8 +33,9 @@ public class FullPageScreenshotUtil {
             dir.mkdirs();
         }
     }
-    String lastPageSource ="";
 
+    private String lastPageSource = "";
+    private int samePageCounter = 0;
 
     public List<File> captureFullPage() {
         int chunkCount = 0; int maxCount = 10;
@@ -51,7 +53,6 @@ public class FullPageScreenshotUtil {
             log.info("Scrolling attempt # " + chunkCount);
             // Detect end of page
             isLastScroll = hasReachedBottom();
-
         }
         log.info("Finished capturing all screenshots for full page.");
         return screenshotDir;
@@ -80,21 +81,21 @@ public class FullPageScreenshotUtil {
         int endY = (int) (screenHeight * 0.25);   // Scroll up to 25% of the screen height
 
         try {
-        // Create a PointerInput action for touch gestures
-        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
-        Sequence swipe = new Sequence(finger, 0);
+            // Create a PointerInput action for touch gestures
+            PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+            Sequence swipe = new Sequence(finger, 0);
 
-        // Press (touch) at the start position
-        swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
-        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-        // Move to end position (scrolling)
-        swipe.addAction(finger.createPointerMove(Duration.ofMillis(500), PointerInput.Origin.viewport(), startX, endY));
-        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+            // Press (touch) at the start position
+            swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
+            swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            // Move to end position (scrolling)
+            swipe.addAction(finger.createPointerMove(Duration.ofMillis(500), PointerInput.Origin.viewport(), startX, endY));
+            swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             if (driver instanceof AppiumDriver) {
                 AppiumDriver appiumDriver = (AppiumDriver) driver;
                 appiumDriver.perform(Collections.singleton(swipe));
             } else {
-                log.warning("Driver is not an instance of AppiumDriver, scrolling by typecasting");
+                log.warning("Driver is not an instance of AppiumDriver");
                 AppiumDriver appiumDriver = (AppiumDriver) driver;
                 appiumDriver.perform(Collections.singleton(swipe));
             }
@@ -114,13 +115,20 @@ public class FullPageScreenshotUtil {
         }
 
         String currentPageSource = driver.getPageSource();
-        if (currentPageSource.equals(lastPageSource)) {
-            log.info("Reached the bottom of the page — no new content found.");
-            return true;
+
+        if (Objects.requireNonNull(currentPageSource).equals(lastPageSource)) {
+            samePageCounter++;
+            log.info("Same page content detected, counter: " + samePageCounter);
+            if (samePageCounter >= 3) {
+                log.info("Reached the bottom of the page — no new content found.");
+                samePageCounter = 0;
+                return true;
+            }
         } else {
             lastPageSource = currentPageSource;
+            samePageCounter = 0;
             return false;
         }
+        return false;
     }
-
 }
