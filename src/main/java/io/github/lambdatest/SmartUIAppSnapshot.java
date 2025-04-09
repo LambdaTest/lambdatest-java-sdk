@@ -134,6 +134,12 @@ public class SmartUIAppSnapshot {
             UploadSnapshotRequest uploadSnapshotRequest = configureDeviceNameAndPlatform(initReq, deviceName, platform);
             String screenshotHash = UUID.randomUUID().toString();
             uploadSnapshotRequest.setScreenshotHash(screenshotHash);
+            String uploadChunk = getOptionValue(options, "uploadChunk");
+            if(!uploadChunk.isEmpty()) {
+                uploadSnapshotRequest.setUploadChunk("true");
+            } else {
+                uploadSnapshotRequest.setUploadChunk("false");
+            }
             String cropFooter = getOptionValue(options, "cropFooter");
             if (!cropFooter.isEmpty()) {
                 uploadSnapshotRequest.setCropFooter(cropFooter.toLowerCase());

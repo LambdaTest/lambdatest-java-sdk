@@ -1,21 +1,22 @@
 package io.github.lambdatest.constants;
 
-import static io.github.lambdatest.constants.Constants.SmartUIRoutes.HOST_URL;
+import static io.github.lambdatest.constants.Constants.SmartUIRoutes.SMARTUI_CLIENT_API_URL;
 
 public interface Constants {
 
   String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
   public static final String PROJECT_TOKEN = "projectToken";
+  public static final String TEST_TYPE = "lambdatest-java-app-sdk";
   String LOCAL_SERVER_HOST = "http://localhost:8080";
 
   public static String getHostUrlFromEnvOrDefault() {
-    String envUrl = System.getenv("HOST_URL");
-    return (envUrl != null && !envUrl.isEmpty()) ? envUrl : HOST_URL;
+    String envUrl = System.getenv("SMARTUI_CLIENT_API_URL");
+    return (envUrl != null && !envUrl.isEmpty()) ? envUrl : SMARTUI_CLIENT_API_URL;
   }
 
   //SmartUI API routes
   interface SmartUIRoutes {
-    public static final String HOST_URL = "https://api.lambdatest.com/visualui/1.0";
+    public static final String SMARTUI_CLIENT_API_URL = "https://api.lambdatest.com/visualui/1.0";
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";

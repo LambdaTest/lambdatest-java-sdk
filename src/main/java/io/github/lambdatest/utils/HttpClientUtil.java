@@ -38,6 +38,8 @@ import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import javax.net.ssl.SSLContext;
 
+import static io.github.lambdatest.constants.Constants.TEST_TYPE;
+
 public class HttpClientUtil {
     private final CloseableHttpClient httpClient;
     private Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
@@ -315,7 +317,7 @@ public class HttpClientUtil {
     }
 
     public String uploadScreenshot(String url, File screenshot, UploadSnapshotRequest uploadScreenshotRequest,
-            BuildData data) throws IOException {
+                                   BuildData data) throws IOException {
 
         try {
             HttpPost uploadRequest = new HttpPost(url);
@@ -331,13 +333,15 @@ public class HttpClientUtil {
             builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
             builder.addTextBody("os", uploadScreenshotRequest.getOs());
             builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
-            builder.addTextBody("projectType", "lambdatest-java-app-sdk");
+            builder.addTextBody("uploadChunk", uploadScreenshotRequest.getUploadChunk());
+            builder.addTextBody("projectType", TEST_TYPE);
+            builder.addTextBody("screenshotHash", uploadScreenshotRequest.getScreenshotHash());
+
             if (data.getBaseline()) {
                 builder.addTextBody("baseline", "true");
             } else {
                 builder.addTextBody("baseline", "false");
             }
-            builder.addTextBody("screenshotHash", uploadScreenshotRequest.getScreenshotHash());
             if(Objects.nonNull(uploadScreenshotRequest.getCropStatusBar())){
                 builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
             }
@@ -353,7 +357,6 @@ public class HttpClientUtil {
             if(Objects.nonNull(uploadScreenshotRequest.getChunkCount())) {
                 builder.addTextBody("chunkCount", String.valueOf(uploadScreenshotRequest.getChunkCount()));
             }
-
 
             HttpEntity multipart = builder.build();
             uploadRequest.setEntity(multipart);

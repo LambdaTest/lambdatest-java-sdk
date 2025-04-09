@@ -20,6 +20,7 @@ public class UploadSnapshotRequest {
     private  String fullPage;
     private String isLastChunk;
     private Integer chunkCount;
+    private String uploadChunk;
 
     // Default constructor
     public UploadSnapshotRequest() {
@@ -29,7 +30,7 @@ public class UploadSnapshotRequest {
     public UploadSnapshotRequest(String screenshot, String browserName, String os, String viewport,
                                  String projectToken, String buildId, String buildName,
                                  String screenshotName, String screenshotHash ,String deviceName,String fullPage, String  cropFooter,
-                                 String cropStatusBar, String isLastChunk, Integer chunkCount) {
+                                 String cropStatusBar, String isLastChunk, Integer chunkCount, String uploadChunk) {
         this.browserName = browserName;
         this.os = os;
         this.viewport = viewport;
@@ -44,6 +45,7 @@ public class UploadSnapshotRequest {
         this.fullPage = fullPage;
         this.isLastChunk = isLastChunk;
         this.chunkCount = chunkCount;
+        this.uploadChunk = uploadChunk;
     }
 
     // Getters and setters
@@ -80,10 +82,17 @@ public class UploadSnapshotRequest {
     public void setFullPage(String fullPage) {
         this.fullPage = fullPage;
     }
+
     public String getIsLastChunk() { return isLastChunk; }
 
     public void setIsLastChunk(String isLastChunk) {
         this.isLastChunk = isLastChunk;
+    }
+
+    public String getUploadChunk() { return uploadChunk; }
+
+    public void setUploadChunk(String uploadChunk) {
+        this.uploadChunk = uploadChunk;
     }
 
     public void setCropStatusBar(String cropStatusBar) {
