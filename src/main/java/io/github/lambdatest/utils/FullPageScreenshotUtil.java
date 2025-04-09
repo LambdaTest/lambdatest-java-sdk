@@ -77,8 +77,8 @@ public class FullPageScreenshotUtil {
 
         // Define start and end points for scrolling
         int startX = screenWidth / 2;
-        int startY = (int) (screenHeight * 0.75); // Start at 75% of the screen height
-        int endY = (int) (screenHeight * 0.25);   // Scroll up to 25% of the screen height
+        int startY = (int) (screenHeight * 0.70); // Start at 70% of the screen height
+        int endY = (int) (screenHeight * 0.50);   // Scroll up to 20%
 
         try {
             // Create a PointerInput action for touch gestures
