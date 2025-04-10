@@ -14,7 +14,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Logger;
 
 public class FullPageScreenshotUtil {
@@ -22,13 +21,10 @@ public class FullPageScreenshotUtil {
     private final String saveDirectoryName;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
 
-    private String prevPageSource = "";
-    private int samePageCounter = 1;  // Init with value 1, finalize at 3
-    private int maxCount = 10;
-
     public FullPageScreenshotUtil(WebDriver driver, String saveDirectoryName) {
         this.driver = driver;
         this.saveDirectoryName = saveDirectoryName;
+
         // Ensure the directory exists
         File dir = new File(saveDirectoryName);
         if (!dir.exists()) {
@@ -36,26 +32,25 @@ public class FullPageScreenshotUtil {
         }
     }
 
-    public List<File> captureFullPage(Integer pageCount) {
-        if (Objects.nonNull(pageCount)) {
-            if (pageCount <= 0) {
-                throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
+    private String prevPageSource = "";
+    private int samePageCounter = 1;    //Init with value 1 , finalise at 3
+    private int maxCount = 10;
+    public List<File> captureFullPage(int pageCount) {
+            if(pageCount<=0){
+                pageCount = maxCount;
             }
             if (pageCount < maxCount) {
                 maxCount = pageCount;
             }
-        }
-
         int chunkCount = 0;
         boolean isLastScroll = false;
-        List<File> screenshotFiles = new ArrayList<>();
-
+        List<File> screenshotDir = new ArrayList<>();
         while (!isLastScroll && chunkCount < maxCount) {
-            File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
-            if (screenshotFile != null) {
-                screenshotFiles.add(screenshotFile);
+            File screenshotFile= captureAndSaveScreenshot(this.saveDirectoryName,chunkCount);
+            if(screenshotFile != null) {
+                screenshotDir.add(screenshotFile);
             }
-
+            //Perform scroll
             scrollDown();
             chunkCount++;
             log.info("Scrolling attempt # " + chunkCount);
@@ -63,20 +58,19 @@ public class FullPageScreenshotUtil {
             isLastScroll = hasReachedBottom();
         }
         log.info("Finished capturing all screenshots for full page.");
-        return screenshotFiles;
+        return screenshotDir;
     }
 
     private File captureAndSaveScreenshot(String ssDir, int index) {
-        File destinationFile = new File(ssDir + "/" + ssDir + "_" + index + ".png");
+        File destinationFile = new File(ssDir + "/" + ssDir +"_" + index + ".png");
         try {
             File screenshotFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
             Files.copy(screenshotFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             log.info("Saved screenshot: " + destinationFile.getAbsolutePath());
-            return destinationFile;
         } catch (IOException e) {
             log.warning("Error saving screenshot: " + e.getMessage());
-            return null;
         }
+        return destinationFile;
     }
 
     private void scrollDown() {
@@ -85,8 +79,8 @@ public class FullPageScreenshotUtil {
         int screenHeight = screenSize.getHeight();
         // Define start and end points for scrolling
         int startX = (int) (screenWidth * 0.05);
-        int startY = (int) (screenHeight * 0.70);  // Start at 70% of the screen height
-        int endY = (int) (screenHeight * 0.45);    // Scroll up to 25%
+        int startY = (int) (screenHeight * 0.70); // Start at 70% of the screen height
+        int endY = (int) (screenHeight * 0.45);   // Scroll up to 25%
 
         try {
             // Create a PointerInput action for touch gestures
@@ -99,7 +93,6 @@ public class FullPageScreenshotUtil {
             // Move to end position (scrolling)
             swipe.addAction(finger.createPointerMove(Duration.ofMillis(500), PointerInput.Origin.viewport(), startX, endY));
             swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-
             if (driver instanceof AppiumDriver) {
                 AppiumDriver appiumDriver = (AppiumDriver) driver;
                 appiumDriver.perform(Collections.singleton(swipe));
@@ -128,7 +121,6 @@ public class FullPageScreenshotUtil {
             log.warning("Page source is null");
             return false;
         }
-
         if (currentPageSource.equals(prevPageSource)) {
             samePageCounter++;
             log.info("Same page content detected, counter: " + samePageCounter);
