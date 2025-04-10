@@ -104,6 +104,7 @@ public class SmartUIAppSnapshot {
         request.setScreenshotName(screenshotName);
         request.setProjectToken(projectToken);
         request.setViewport(viewport);
+        log.info("Viewport set to :" + viewport);
         if (Objects.nonNull(buildData)) {
             request.setBuildId(buildData.getBuildId());
             request.setBuildName(buildData.getName());
@@ -135,7 +136,11 @@ public class SmartUIAppSnapshot {
             String screenshotHash = UUID.randomUUID().toString();
             uploadSnapshotRequest.setScreenshotHash(screenshotHash);
             String uploadChunk = getOptionValue(options, "uploadChunk");
-            if(!uploadChunk.isEmpty()) {
+            String pageCount = getOptionValue(options, "pageCount"); int userInputtedPageCount = 0;
+            if(!pageCount.isEmpty()) {
+                userInputtedPageCount = Integer.parseInt(pageCount);
+            }
+            if(!uploadChunk.isEmpty() && uploadChunk.toLowerCase().contains("true")) {
                 uploadSnapshotRequest.setUploadChunk("true");
             } else {
                 uploadSnapshotRequest.setUploadChunk("false");
@@ -150,6 +155,9 @@ public class SmartUIAppSnapshot {
             }
             String fullPage = getOptionValue(options, "fullPage").toLowerCase();
             if(!Boolean.parseBoolean(fullPage)){
+                if(!pageCount.isEmpty()){
+                    throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
+                }
                 TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
                 File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
                 log.info("Screenshot captured: " + screenshotName);
@@ -158,7 +166,10 @@ public class SmartUIAppSnapshot {
             } else {
                 uploadSnapshotRequest.setFullPage("true");
                 FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
-                List<File> ssDir = fullPageCapture.captureFullPage();
+                List<File> ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
+                if(ssDir.isEmpty()){
+                    throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
+                }
                 int chunkCount = ssDir.size(); int i;
                 for( i = 0; i < chunkCount -1; ++i){
                     uploadSnapshotRequest.setIsLastChunk("false");
