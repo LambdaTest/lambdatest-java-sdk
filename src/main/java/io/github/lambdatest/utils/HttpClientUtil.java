@@ -302,7 +302,7 @@ public class HttpClientUtil {
                 createBuildRequest, headers);
     }
 
-    public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
+    public void stopBuild(String buildId, Map<String, String> headers, String testType) throws IOException {
 
         if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
             String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
@@ -312,7 +312,7 @@ public class HttpClientUtil {
         }
         String hostUrl = Constants.getHostUrlFromEnvOrDefault();
         String response = delete(
-                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId,
+                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId + "&testType="+ testType,
                 headers);
     }
 
@@ -327,8 +327,8 @@ public class HttpClientUtil {
 
         // Add the required fields
         builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), request.getScreenshotName());
-        builder.addTextBody("buildId", request.getBuildId());
-        builder.addTextBody("buildName", request.getBuildName());
+        builder.addTextBody("buildId", data.getBuildId());
+        builder.addTextBody("buildName", data.getName());
         builder.addTextBody("screenshotName", request.getScreenshotName());
         builder.addTextBody("browser", request.getBrowserName());
         builder.addTextBody("deviceName", request.getDeviceName());

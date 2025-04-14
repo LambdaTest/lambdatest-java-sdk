@@ -8,6 +8,8 @@ import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
 
+import static io.github.lambdatest.constants.Constants.TEST_TYPE;
+
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
@@ -143,7 +145,7 @@ public class SmartUIUtil {
         try {
             Map<String, String> headers = new HashMap<>();
             headers.put(Constants.PROJECT_TOKEN, projectToken);
-            httpClient.stopBuild(buildId, headers);
+            httpClient.stopBuild(buildId, headers, TEST_TYPE);
         } catch (Exception e) {
             throw new Exception(Constants.Errors.STOP_BUILD_FAILED + " due to: " + e.getMessage());
         }
