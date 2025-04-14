@@ -52,6 +52,7 @@ public interface Constants {
   interface Errors {
     public static final String SELENIUM_DRIVER_NULL = "An instance of the selenium driver object is required.";
     public static final String SNAPSHOT_NAME_NULL = "The `snapshotName` argument is required.";
+    public static final String SNAPSHOT_NOT_FOUND = "Screenshot not found.";
     public static final String SMARTUI_NOT_RUNNING = "SmartUI server is not running.";
     public static final String JAVA_SCRIPT_NOT_SUPPORTED = "The driver does not support JavaScript execution.";
     public static final String EMPTY_RESPONSE_DOMSERIALIZER = "Response from fetchDOMSerializer is null or empty.";
@@ -67,8 +68,9 @@ public interface Constants {
     public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed %s";
     public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";
     public static final String USER_AUTH_ERROR = "User authentication failed";
-    public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
+    public static final String INVALID_PARAM_ERROR = "Please provode a valid value, current value in request is invalid";
     public static final String STOP_BUILD_FAILED = "Failed to stop build";
+    public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";
     public static final String DEVICE_NAME_NULL = "Device name is a mandatory parameter.";
   }

@@ -75,10 +75,9 @@ public class FullPageScreenshotUtil {
 
     private void scrollDown() {
         Dimension screenSize = driver.manage().window().getSize();
-        int screenWidth = screenSize.getWidth();
         int screenHeight = screenSize.getHeight();
         // Define start and end points for scrolling
-        int startX = (int) (screenWidth * 0.05);
+        int startX = 4; //start from 4 pixels from the left, to avoid click on action items/webview
         int startY = (int) (screenHeight * 0.70); // Start at 70% of the screen height
         int endY = (int) (screenHeight * 0.45);   // Scroll up to 25%
 

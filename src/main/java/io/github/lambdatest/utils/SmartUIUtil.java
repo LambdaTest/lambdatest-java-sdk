@@ -89,6 +89,9 @@ public class SmartUIUtil {
                                  BuildData buildData) throws Exception {
         UploadSnapshotResponse uploadAPIResponse = new UploadSnapshotResponse();
         try {
+            if(Objects.isNull(screenshotFile)){
+                throw new RuntimeException(Constants.Errors.SNAPSHOT_NOT_FOUND);
+            }
             String hostUrl = Constants.getHostUrlFromEnvOrDefault();
             String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
             String uploadScreenshotResponse = httpClient.uploadScreenshot(url, screenshotFile, uploadScreenshotRequest, buildData);

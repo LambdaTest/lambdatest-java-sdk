@@ -50,6 +50,13 @@ public class SmartUIAppSnapshot {
         try {
             Map<String, String> envVars = new HashMap<>(System.getenv());
             GitInfo git = GitUtils.getGitInfo(envVars);
+            log.info("Git baseline branch set to :"+ git.getBaselineBranch());
+            log.info("Git branch set to :"+ git.getBranch());
+            log.info("Git commit author set to :"+ git.getCommitAuthor());
+            log.info("Git commit msg set to :"+ git.getCommitMessage());
+            log.info("Git commit id set to :"+ git.getCommitId());
+            log.info("Github URL set to :" + git.getGithubURL());
+
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
             log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : " + this.buildData.getName());
@@ -131,12 +138,11 @@ public class SmartUIAppSnapshot {
             Dimension d = driver.manage().window().getSize();
             int width = d.getWidth(), height = d.getHeight();
             UploadSnapshotRequest initReq = initializeUploadRequest(screenshotName, width + "x" + height);
-
             UploadSnapshotRequest uploadSnapshotRequest = configureDeviceNameAndPlatform(initReq, deviceName, platform);
             String screenshotHash = UUID.randomUUID().toString();
             uploadSnapshotRequest.setScreenshotHash(screenshotHash);
             String uploadChunk = getOptionValue(options, "uploadChunk");
-            String pageCount = getOptionValue(options, "pageCount"); int userInputtedPageCount = 0;
+            String pageCount = getOptionValue(options, "pageCount"); int userInputtedPageCount=0;
             if(!pageCount.isEmpty()) {
                 userInputtedPageCount = Integer.parseInt(pageCount);
             }
@@ -144,6 +150,15 @@ public class SmartUIAppSnapshot {
                 uploadSnapshotRequest.setUploadChunk("true");
             } else {
                 uploadSnapshotRequest.setUploadChunk("false");
+            }
+            String navBarHeight = getOptionValue(options, "navigationBarHeight");
+            String statusBarHeight = getOptionValue(options, "statusBarHeight");
+
+            if(!navBarHeight.isEmpty()) {
+                uploadSnapshotRequest.setNavigationBarHeight(navBarHeight);
+            }
+            if(!statusBarHeight.isEmpty()) {
+                uploadSnapshotRequest.setStatusBarHeight(statusBarHeight);
             }
             String cropFooter = getOptionValue(options, "cropFooter");
             if (!cropFooter.isEmpty()) {
@@ -153,6 +168,7 @@ public class SmartUIAppSnapshot {
             if (!cropStatusBar.isEmpty()) {
                 uploadSnapshotRequest.setCropStatusBar(cropStatusBar.toLowerCase());
             }
+
             String fullPage = getOptionValue(options, "fullPage").toLowerCase();
             if(!Boolean.parseBoolean(fullPage)){
                 if(!pageCount.isEmpty()){
@@ -163,6 +179,7 @@ public class SmartUIAppSnapshot {
                 log.info("Screenshot captured: " + screenshotName);
                 uploadSnapshotRequest.setFullPage("false");
                 util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
+
             } else {
                 uploadSnapshotRequest.setFullPage("true");
                 FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
