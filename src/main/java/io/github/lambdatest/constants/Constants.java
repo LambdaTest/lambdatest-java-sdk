@@ -6,7 +6,7 @@ public interface Constants {
 
   String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
   public static final String PROJECT_TOKEN = "projectToken";
-  public static final String TEST_TYPE = "lambdatest-java-app-sdk";
+  public final String TEST_TYPE = "lambdatest-java-app-sdk";
   String LOCAL_SERVER_HOST = "http://localhost:8080";
 
   public static String getHostUrlFromEnvOrDefault() {
@@ -68,7 +68,6 @@ public interface Constants {
     public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed %s";
     public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";
     public static final String USER_AUTH_ERROR = "User authentication failed";
-    public static final String INVALID_PARAM_ERROR = "Please provode a valid value, current value in request is invalid";
     public static final String STOP_BUILD_FAILED = "Failed to stop build";
     public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";

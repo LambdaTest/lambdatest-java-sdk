@@ -26,13 +26,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
-import io.github.lambdatest.utils.LoggerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.conn.ssl.SSLContextBuilder;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
@@ -302,7 +299,7 @@ public class HttpClientUtil {
                 createBuildRequest, headers);
     }
 
-    public void stopBuild(String buildId, Map<String, String> headers, String testType) throws IOException {
+    public void stopBuild(String buildId, Map<String, String> headers) throws IOException {
 
         if (headers != null && headers.containsKey(Constants.PROJECT_TOKEN)) {
             String projectToken = headers.get(Constants.PROJECT_TOKEN).trim();
@@ -312,7 +309,7 @@ public class HttpClientUtil {
         }
         String hostUrl = Constants.getHostUrlFromEnvOrDefault();
         String response = delete(
-                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId + "&testType="+ testType,
+                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId + "&testType="+ TEST_TYPE,
                 headers);
     }
 
@@ -329,6 +326,7 @@ public class HttpClientUtil {
         builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), request.getScreenshotName());
         builder.addTextBody("buildId", data.getBuildId());
         builder.addTextBody("buildName", data.getName());
+        builder.addTextBody("baseline", Boolean.toString(data.getBaseline()));
         builder.addTextBody("screenshotName", request.getScreenshotName());
         builder.addTextBody("browser", request.getBrowserName());
         builder.addTextBody("deviceName", request.getDeviceName());
@@ -337,7 +335,6 @@ public class HttpClientUtil {
         builder.addTextBody("uploadChunk", request.getUploadChunk());
         builder.addTextBody("projectType", TEST_TYPE);
         builder.addTextBody("screenshotHash", request.getScreenshotHash());
-        builder.addTextBody("baseline", Boolean.toString(data.getBaseline()));
 
         // Add optional fields if present
         if (Objects.nonNull(request.getFullPage())) {

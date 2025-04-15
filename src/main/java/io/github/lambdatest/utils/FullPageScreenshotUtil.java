@@ -1,7 +1,6 @@
 package io.github.lambdatest.utils;
 
 import io.appium.java_client.AppiumDriver;
-import io.github.lambdatest.constants.Constants;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
