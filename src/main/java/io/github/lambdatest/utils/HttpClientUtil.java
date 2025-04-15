@@ -358,6 +358,7 @@ public class HttpClientUtil {
                     && isValidNumber(statusBarHeight)) {
                 request.setCropStatusBar("false"); // Overwrite since we have custom value from user
             }
+            request.setCropStatusBar("false");
             builder.addTextBody("statusBarHeight", statusBarHeight);
         }
 
@@ -376,6 +377,7 @@ public class HttpClientUtil {
                     && isValidNumber(navigationBarHeight)) {
                 request.setCropFooter("false"); // Overwrite since we have custom value from user
             }
+            request.setCropFooter("false");
             builder.addTextBody("navigationBarHeight", navigationBarHeight);
         }
 
@@ -394,7 +396,7 @@ public class HttpClientUtil {
             throw new IOException("Failed to upload screenshot", e);
         }
     }
-    // Helper method to validate if a string is a valid number or not
+
     private boolean isValidNumber(String value) {
         if (value == null || value.isEmpty()) {
             return false;

@@ -48,10 +48,10 @@ public class FullPageScreenshotUtil {
             File screenshotFile= captureAndSaveScreenshot(this.saveDirectoryName,chunkCount);
             if(screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
+                chunkCount++;
             }
             //Perform scroll
             scrollDown();
-            chunkCount++;
             log.info("Scrolling attempt # " + chunkCount);
             // Detect end of page
             isLastScroll = hasReachedBottom();

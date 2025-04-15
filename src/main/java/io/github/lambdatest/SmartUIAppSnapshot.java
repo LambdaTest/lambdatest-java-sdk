@@ -50,13 +50,6 @@ public class SmartUIAppSnapshot {
         try {
             Map<String, String> envVars = new HashMap<>(System.getenv());
             GitInfo git = GitUtils.getGitInfo(envVars);
-            log.info("Git baseline branch set to :"+ git.getBaselineBranch());
-            log.info("Git branch set to :"+ git.getBranch());
-            log.info("Git commit author set to :"+ git.getCommitAuthor());
-            log.info("Git commit msg set to :"+ git.getCommitMessage());
-            log.info("Git commit id set to :"+ git.getCommitId());
-            log.info("Github URL set to :" + git.getGithubURL());
-
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
             log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : " + this.buildData.getName());
@@ -187,16 +180,20 @@ public class SmartUIAppSnapshot {
                 if(ssDir.isEmpty()){
                     throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
                 }
-                int chunkCount = ssDir.size(); int i;
-                for( i = 0; i < chunkCount -1; ++i){
+                int pageCountInSsDir = ssDir.size(); int i;
+                if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
+                    uploadSnapshotRequest.setFullPage("false");
+                    util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
+                    return;
+                }
+                for( i = 0; i < pageCountInSsDir -1; ++i){
                     uploadSnapshotRequest.setIsLastChunk("false");
                     uploadSnapshotRequest.setChunkCount(i);
                     util.uploadScreenshot(ssDir.get(i), uploadSnapshotRequest, this.buildData);
                 }
-                log.info("Last chunk received!");
                 uploadSnapshotRequest.setIsLastChunk("true");
                 uploadSnapshotRequest.setChunkCount(i);
-                util.uploadScreenshot(ssDir.get(chunkCount-1), uploadSnapshotRequest, this.buildData);
+                util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
             }
         } catch (Exception e) {
             log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " + e.getMessage());
