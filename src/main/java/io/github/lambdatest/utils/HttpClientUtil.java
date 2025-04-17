@@ -26,17 +26,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
-import io.github.lambdatest.utils.LoggerUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.conn.ssl.SSLContextBuilder;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import javax.net.ssl.SSLContext;
+
+import static io.github.lambdatest.constants.Constants.TEST_TYPE;
 
 public class HttpClientUtil {
     private final CloseableHttpClient httpClient;
@@ -254,7 +253,8 @@ public class HttpClientUtil {
 
     public boolean isUserAuthenticated(String projectToken) throws Exception {
         try {
-            String url = Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
+            String hostUrl = Constants.getHostUrlFromEnvOrDefault();
+            String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_AUTH_ROUTE;
             HttpGet request = new HttpGet(url);
             request.setHeader(Constants.PROJECT_TOKEN, projectToken);
             log.info("Authenticating user for projectToken :" + projectToken);
@@ -294,7 +294,8 @@ public class HttpClientUtil {
     }
 
     public String createSmartUIBuild(String createBuildRequest, Map<String, String> headers) throws IOException {
-        return postWithHeader(Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,
+        String hostUrl = Constants.getHostUrlFromEnvOrDefault();
+        return postWithHeader(hostUrl + Constants.SmartUIRoutes.SMARTUI_CREATE_BUILD,
                 createBuildRequest, headers);
     }
 
@@ -306,52 +307,109 @@ public class HttpClientUtil {
                 headers.put(Constants.PROJECT_TOKEN, projectToken);
             }
         }
+        String hostUrl = Constants.getHostUrlFromEnvOrDefault();
         String response = delete(
-                Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId,
+                hostUrl + Constants.SmartUIRoutes.SMARTUI_FINALISE_BUILD_ROUTE + buildId + "&testType="+ TEST_TYPE,
                 headers);
     }
 
-    public String uploadScreenshot(String url, File screenshot, UploadSnapshotRequest uploadScreenshotRequest,
-            BuildData data) throws IOException {
+    public String uploadScreenshot(String url, File screenshot, UploadSnapshotRequest request,
+                                   BuildData data) throws IOException {
+        HttpPost uploadRequest = new HttpPost(url);
+        uploadRequest.setHeader("projectToken", request.getProjectToken());
 
-        try {
-            HttpPost uploadRequest = new HttpPost(url);
-            uploadRequest.setHeader("projectToken", uploadScreenshotRequest.getProjectToken());
+        // Build the multipart request entity
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setMode(HttpMultipartMode.STRICT);
 
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.setMode(HttpMultipartMode.STRICT);
+        // Add the required fields
+        builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), request.getScreenshotName());
+        builder.addTextBody("buildId", data.getBuildId());
+        builder.addTextBody("buildName", data.getName());
+        builder.addTextBody("baseline", Boolean.toString(data.getBaseline()));
+        builder.addTextBody("screenshotName", request.getScreenshotName());
+        builder.addTextBody("browser", request.getBrowserName());
+        builder.addTextBody("deviceName", request.getDeviceName());
+        builder.addTextBody("os", request.getOs());
+        builder.addTextBody("viewport", request.getViewport());
+        builder.addTextBody("uploadChunk", request.getUploadChunk());
+        builder.addTextBody("projectType", TEST_TYPE);
+        builder.addTextBody("screenshotHash", request.getScreenshotHash());
 
-            builder.addBinaryBody("screenshot", screenshot, ContentType.create("image/png"), screenshot.getName());
-            builder.addTextBody("buildId", uploadScreenshotRequest.getBuildId());
-            builder.addTextBody("buildName", uploadScreenshotRequest.getBuildName());
-            builder.addTextBody("screenshotName", uploadScreenshotRequest.getScreenshotName());
-            builder.addTextBody("browser", uploadScreenshotRequest.getBrowserName());
-            builder.addTextBody("deviceName", uploadScreenshotRequest.getDeviceName());
-            builder.addTextBody("os", uploadScreenshotRequest.getOs());
-            builder.addTextBody("viewport", uploadScreenshotRequest.getViewport());
-            builder.addTextBody("projectType", "lambdatest-java-app-sdk");
-            if(Objects.nonNull(uploadScreenshotRequest.getCropStatusBar())){
-                builder.addTextBody("cropStatusBar", uploadScreenshotRequest.getCropStatusBar());
+        // Add optional fields if present
+        if (Objects.nonNull(request.getFullPage())) {
+            builder.addTextBody("fullPage", request.getFullPage());
+        }
+        if (Objects.nonNull(request.getIsLastChunk())) {
+            builder.addTextBody("isLastChunk", request.getIsLastChunk());
+        }
+        if (Objects.nonNull(request.getChunkCount())) {
+            builder.addTextBody("chunkCount", String.valueOf(request.getChunkCount()));
+        }
+
+        // Handle status bar height
+        String statusBarHeight = "";
+        if (request.getStatusBarHeight() == null) {
+            builder.addTextBody("statusBarHeight", statusBarHeight);
+        } else {
+            statusBarHeight = request.getStatusBarHeight();
+            //only set cropStatusBar to false when it exists and statusBarHeight is valid
+            if (request.getCropStatusBar() != null && Boolean.parseBoolean(request.getCropStatusBar())
+                    && isValidNumber(statusBarHeight)) {
+                request.setCropStatusBar("false"); // Overwrite since we have custom value from user
             }
-            if(Objects.nonNull(uploadScreenshotRequest.getCropFooter())){
-                builder.addTextBody("cropFooter", uploadScreenshotRequest.getCropFooter());
-            }
-            if (data.getBaseline()) {
-                builder.addTextBody("baseline", "true");
-            } else {
-                builder.addTextBody("baseline", "false");
-            }
+            request.setCropStatusBar("false");
+            builder.addTextBody("statusBarHeight", statusBarHeight);
+        }
 
-            HttpEntity multipart = builder.build();
-            uploadRequest.setEntity(multipart);
+        if (request.getCropStatusBar() != null) {
+            builder.addTextBody("cropStatusBar", request.getCropStatusBar());
+        }
 
-            try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-                return EntityUtils.toString(response.getEntity());
+        // Handle navigation bar height
+        String navigationBarHeight = "";
+        if (request.getNavigationBarHeight() == null) {
+            builder.addTextBody("navigationBarHeight", navigationBarHeight);
+        } else {
+            navigationBarHeight = request.getNavigationBarHeight();
+            //only set cropFooter to false when it exists and navigationBarHeight is valid
+            if (request.getCropFooter() != null && Boolean.parseBoolean(request.getCropFooter())
+                    && isValidNumber(navigationBarHeight)) {
+                request.setCropFooter("false"); // Overwrite since we have custom value from user
             }
+            request.setCropFooter("false");
+            builder.addTextBody("navigationBarHeight", navigationBarHeight);
+        }
+
+        if (request.getCropFooter() != null) {
+            builder.addTextBody("cropFooter", request.getCropFooter());
+        }
+
+        // Execute the request
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            return EntityUtils.toString(response.getEntity());
         } catch (IOException e) {
-            log.warning("Exception occurred in uploading screenshot: " +
-                    e.getMessage());
-            return "An error occurred while processing your request.";
+
+            log.warning("Exception occurred in uploading screenshot: " + e.getMessage());
+            throw new IOException("Failed to upload screenshot", e);
+        }
+    }
+
+    private boolean isValidNumber(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        try {
+            int strVal = Integer.parseInt(value);
+            if(strVal >=1) {
+            return true;
+            } else {
+                throw new NumberFormatException("Invalid value for cropping, pls provide a valid value");
+            }
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

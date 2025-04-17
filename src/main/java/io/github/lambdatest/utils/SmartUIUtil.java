@@ -8,6 +8,7 @@ import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
 
+
 public class SmartUIUtil {
     private final HttpClientUtil httpClient;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
@@ -85,20 +86,22 @@ public class SmartUIUtil {
         }
     }
 
-    public UploadSnapshotResponse uploadScreenshot(File screenshotFile, UploadSnapshotRequest uploadScreenshotRequest,
-            BuildData buildData) throws Exception {
+    public void uploadScreenshot(File screenshotFile, UploadSnapshotRequest uploadScreenshotRequest,
+                                 BuildData buildData) throws Exception {
         UploadSnapshotResponse uploadAPIResponse = new UploadSnapshotResponse();
         try {
-            String url = Constants.SmartUIRoutes.HOST_URL + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
-            String uploadScreenshotResponse = httpClient.uploadScreenshot(url, screenshotFile, uploadScreenshotRequest,
-                    buildData);
+            if(Objects.isNull(screenshotFile)){
+                throw new RuntimeException(Constants.Errors.SNAPSHOT_NOT_FOUND);
+            }
+            String hostUrl = Constants.getHostUrlFromEnvOrDefault();
+            String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_UPLOAD_SCREENSHOT_ROUTE;
+            String uploadScreenshotResponse = httpClient.uploadScreenshot(url, screenshotFile, uploadScreenshotRequest, buildData);
             uploadAPIResponse = gson.fromJson(uploadScreenshotResponse, UploadSnapshotResponse.class);
             if (Objects.isNull(uploadAPIResponse))
                 throw new IllegalStateException("Failed to upload screenshot to SmartUI");
         } catch (Exception e) {
             throw new Exception("Couldn't upload image to SmartUI because of error : " + e.getMessage());
         }
-        return uploadAPIResponse;
     }
 
     public BuildResponse build(GitInfo git, String projectToken, Map<String, String> options) throws Exception {
@@ -111,7 +114,6 @@ public class SmartUIUtil {
         if (options != null && options.containsKey("buildName")) {
             String buildNameStr = options.get("buildName");
 
-            // Check if value is non-null and a valid String
             if (buildNameStr != null && !buildNameStr.trim().isEmpty()) {
                 createBuildRequest.setBuildName(buildNameStr);
                 log.info("Build name set from options: " + buildNameStr);
@@ -120,7 +122,6 @@ public class SmartUIUtil {
                 createBuildRequest.setBuildName(buildNameStr);
                 log.info("Build name set from system: " + buildNameStr);
             }
-
         } else {
             createBuildRequest.setBuildName("smartui-" + UUID.randomUUID().toString().substring(0, 10));
         }
@@ -129,7 +130,7 @@ public class SmartUIUtil {
             createBuildRequest.setGit(git);
         }
         String createBuildJson = gson.toJson(createBuildRequest);
-        Map<String, String> header = new HashMap<String, String>();
+        Map<String, String> header = new HashMap<>();
         header.put(Constants.PROJECT_TOKEN, projectToken);
         String createBuildResponse = httpClient.createSmartUIBuild(createBuildJson, header);
         BuildResponse buildData = gson.fromJson(createBuildResponse, BuildResponse.class);
@@ -141,7 +142,7 @@ public class SmartUIUtil {
 
     public void stopBuild(String buildId, String projectToken) throws Exception {
         try {
-            Map<String, String> headers = new HashMap<String, String>();
+            Map<String, String> headers = new HashMap<>();
             headers.put(Constants.PROJECT_TOKEN, projectToken);
             httpClient.stopBuild(buildId, headers);
         } catch (Exception e) {

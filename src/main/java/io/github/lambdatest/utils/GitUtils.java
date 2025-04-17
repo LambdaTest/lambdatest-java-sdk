@@ -7,14 +7,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import io.github.lambdatest.utils.LoggerUtil;
+import java.util.*;
 import java.util.logging.Logger;
 
-import java.util.stream.Collectors;
 
 public class GitUtils {
 
@@ -25,7 +20,8 @@ public class GitUtils {
         if (gitInfoFilePath != null) {
             return readGitInfoFromFile(gitInfoFilePath, envVars);
         } else {
-            return fetchGitInfoFromCommands(envVars);
+            GitInfo gitInfo = fetchGitInfoFromCommands(envVars);
+            return  gitInfo;
         }
     }
 
@@ -55,11 +51,10 @@ public class GitUtils {
         String command = String.format(
                 "git log -1 --pretty=format:\"%s\" && git rev-parse --abbrev-ref HEAD && git tag --contains HEAD",
                 String.join(splitCharacter, prettyFormat));
-
         List<String> outputLines = executeCommand(command);
 
         if (outputLines.isEmpty()) {
-            return null;
+            return new GitInfo("", "", "", "", "", "");
         }
 
         String[] res = String.join("\n", outputLines).split(splitCharacter);
@@ -91,14 +86,39 @@ public class GitUtils {
     }
 
     private static List<String> executeCommand(String command) {
+        List<String> outputLines = new ArrayList<>();
         try {
-            Process process = Runtime.getRuntime().exec(new String[] { "/bin/sh", "-c", command });
-            return new BufferedReader(new InputStreamReader(process.getInputStream()))
-                    .lines()
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
+            String os = System.getProperty("os.name").toLowerCase();
+            Process process;
+            if (os.contains("win")) {
+                // For Windows, use cmd.exe to execute the command
+                process = Runtime.getRuntime().exec(new String[] { "cmd.exe", "/c", command });
+            } else {
+                // For Unix-like systems (Linux, macOS), use /bin/sh
+                process = Runtime.getRuntime().exec(new String[] { "/bin/sh", "-c", command });
+            }
+            // Read both the output and error streams
+            try (BufferedReader inputReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                String line;
+                // Capture standard output (stdout)
+                while ((line = inputReader.readLine()) != null) {
+                    outputLines.add(line);
+                }
+                // Capture error output (stderr)
+                while ((line = errorReader.readLine()) != null) {
+                    log.severe("Error: " + line);
+                }
+            }
+            // Wait for the command to complete
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                log.severe("Command failed with exit code: " + exitCode);
+            }
+        } catch (IOException | InterruptedException e) {
             log.severe("Error executing command: " + e.getMessage());
             return new ArrayList<String>();
         }
+        return outputLines;
     }
 }

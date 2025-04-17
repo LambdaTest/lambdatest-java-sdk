@@ -1,14 +1,22 @@
 package io.github.lambdatest.constants;
 
+import static io.github.lambdatest.constants.Constants.SmartUIRoutes.SMARTUI_CLIENT_API_URL;
+
 public interface Constants {
 
   String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
   public static final String PROJECT_TOKEN = "projectToken";
+  public final String TEST_TYPE = "lambdatest-java-app-sdk";
   String LOCAL_SERVER_HOST = "http://localhost:8080";
+
+  public static String getHostUrlFromEnvOrDefault() {
+    String envUrl = System.getenv("SMARTUI_CLIENT_API_URL");
+    return (envUrl != null && !envUrl.isEmpty()) ? envUrl : SMARTUI_CLIENT_API_URL;
+  }
 
   //SmartUI API routes
   interface SmartUIRoutes {
-    public static final String HOST_URL = "https://api.lambdatest.com/visualui/1.0";
+    public static final String SMARTUI_CLIENT_API_URL = "https://api.lambdatest.com/visualui/1.0";
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";
@@ -44,6 +52,7 @@ public interface Constants {
   interface Errors {
     public static final String SELENIUM_DRIVER_NULL = "An instance of the selenium driver object is required.";
     public static final String SNAPSHOT_NAME_NULL = "The `snapshotName` argument is required.";
+    public static final String SNAPSHOT_NOT_FOUND = "Screenshot not found.";
     public static final String SMARTUI_NOT_RUNNING = "SmartUI server is not running.";
     public static final String JAVA_SCRIPT_NOT_SUPPORTED = "The driver does not support JavaScript execution.";
     public static final String EMPTY_RESPONSE_DOMSERIALIZER = "Response from fetchDOMSerializer is null or empty.";
@@ -60,6 +69,7 @@ public interface Constants {
     public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";
     public static final String USER_AUTH_ERROR = "User authentication failed";
     public static final String STOP_BUILD_FAILED = "Failed to stop build";
+    public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";
     public static final String DEVICE_NAME_NULL = "Device name is a mandatory parameter.";
   }

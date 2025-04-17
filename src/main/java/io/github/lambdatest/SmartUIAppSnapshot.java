@@ -3,17 +3,13 @@ package io.github.lambdatest;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.*;
+import io.github.lambdatest.utils.FullPageScreenshotUtil;
 import io.github.lambdatest.utils.GitUtils;
 import io.github.lambdatest.utils.SmartUIUtil;
-import org.openqa.selenium.Dimension;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.logging.Logger;
 import io.github.lambdatest.utils.LoggerUtil;
 
@@ -81,77 +77,124 @@ public class SmartUIAppSnapshot {
         }
         throw new IllegalArgumentException(Constants.Errors.PROJECT_TOKEN_UNSET);
     }
+    private void validateMandatoryParams(WebDriver driver, String screenshotName, String deviceName) {
+        if (driver == null) {
+            log.severe(Constants.Errors.SELENIUM_DRIVER_NULL + " during take snapshot");
+            throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
+        }
+        if (screenshotName == null || screenshotName.isEmpty()) {
+            log.info(Constants.Errors.SNAPSHOT_NAME_NULL);
+            throw new IllegalArgumentException(Constants.Errors.SNAPSHOT_NAME_NULL);
+        }
+        if (deviceName == null || deviceName.isEmpty()) {
+            throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
+        }
+    }
+
+    private String getOptionValue(Map<String, String> options, String key) {
+        if (options != null && options.containsKey(key)) {
+            String value = options.get(key);
+            return value != null ? value.trim() : "";
+        }
+        return "";
+    }
+
+    private UploadSnapshotRequest initializeUploadRequest(String screenshotName, String viewport) {
+        UploadSnapshotRequest request = new UploadSnapshotRequest();
+        request.setScreenshotName(screenshotName);
+        request.setProjectToken(projectToken);
+        request.setViewport(viewport);
+        log.info("Viewport set to :" + viewport);
+        if (Objects.nonNull(buildData)) {
+            request.setBuildId(buildData.getBuildId());
+            request.setBuildName(buildData.getName());
+        }
+        return request;
+    }
+
+    private UploadSnapshotRequest configureDeviceNameAndPlatform(UploadSnapshotRequest request, String deviceName, String platform) {
+        String browserName = deviceName.toLowerCase().startsWith("i") ? "iOS" : "Android";
+        String platformName = (platform == null || platform.isEmpty()) ? browserName : platform;
+        request.setOs(platformName);
+        request.setDeviceName(deviceName + " " + platformName);
+        assert platform != null;
+        request.setBrowserName(platform.toLowerCase().contains("ios") ? "safari" : "chrome");
+        return request;
+    }
 
     public void smartuiAppSnapshot(WebDriver driver, String screenshotName, Map<String, String> options)
             throws Exception {
         try {
-            if (driver == null) {
-                log.severe(Constants.Errors.SELENIUM_DRIVER_NULL + " during take snapshot");
-                throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
-            }
-            if (screenshotName == null || screenshotName.isEmpty()) {
-                log.info(Constants.Errors.SNAPSHOT_NAME_NULL);
-                throw new IllegalArgumentException(Constants.Errors.SNAPSHOT_NAME_NULL);
-            }
-
-            TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
-            File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
-            log.info("Screenshot captured: " + screenshotName);
-
-            UploadSnapshotRequest uploadSnapshotRequest = new UploadSnapshotRequest();
-            uploadSnapshotRequest.setScreenshotName(screenshotName);
-            uploadSnapshotRequest.setProjectToken(projectToken);
+            String deviceName = getOptionValue(options, "deviceName");
+            String platform = getOptionValue(options, "platform");
+            validateMandatoryParams(driver, screenshotName, deviceName);
             Dimension d = driver.manage().window().getSize();
-            int w = d.getWidth(), h = d.getHeight();
-            uploadSnapshotRequest.setViewport(w + "x" + h);
-            log.info("Device viewport set to: " + uploadSnapshotRequest.getViewport());
-            String platform = "", deviceName = "", browserName = "";
-            if (options != null && options.containsKey("platform")) {
-                platform = options.get("platform").trim();
+            int width = d.getWidth(), height = d.getHeight();
+            UploadSnapshotRequest initReq = initializeUploadRequest(screenshotName, width + "x" + height);
+            UploadSnapshotRequest uploadSnapshotRequest = configureDeviceNameAndPlatform(initReq, deviceName, platform);
+            String screenshotHash = UUID.randomUUID().toString();
+            uploadSnapshotRequest.setScreenshotHash(screenshotHash);
+            String uploadChunk = getOptionValue(options, "uploadChunk");
+            String pageCount = getOptionValue(options, "pageCount"); int userInputtedPageCount=0;
+            if(!pageCount.isEmpty()) {
+                userInputtedPageCount = Integer.parseInt(pageCount);
             }
-            if (options != null && options.containsKey("deviceName")) {
-                deviceName = options.get("deviceName").trim();
+            if(!uploadChunk.isEmpty() && uploadChunk.toLowerCase().contains("true")) {
+                uploadSnapshotRequest.setUploadChunk("true");
+            } else {
+                uploadSnapshotRequest.setUploadChunk("false");
             }
-            if (deviceName == null || deviceName.isEmpty()) {
-                throw new IllegalArgumentException(Constants.Errors.DEVICE_NAME_NULL);
+            String navBarHeight = getOptionValue(options, "navigationBarHeight");
+            String statusBarHeight = getOptionValue(options, "statusBarHeight");
+
+            if(!navBarHeight.isEmpty()) {
+                uploadSnapshotRequest.setNavigationBarHeight(navBarHeight);
             }
-            if (platform == null || platform.isEmpty()) {
-                if (deviceName.toLowerCase().startsWith("i")) {
-                    browserName = "iOS";
-                } else {
-                    browserName = "Android";
+            if(!statusBarHeight.isEmpty()) {
+                uploadSnapshotRequest.setStatusBarHeight(statusBarHeight);
+            }
+            String cropFooter = getOptionValue(options, "cropFooter");
+            if (!cropFooter.isEmpty()) {
+                uploadSnapshotRequest.setCropFooter(cropFooter.toLowerCase());
+            }
+            String cropStatusBar = getOptionValue(options, "cropStatusBar");
+            if (!cropStatusBar.isEmpty()) {
+                uploadSnapshotRequest.setCropStatusBar(cropStatusBar.toLowerCase());
+            }
+
+            String fullPage = getOptionValue(options, "fullPage").toLowerCase();
+            if(!Boolean.parseBoolean(fullPage)){
+                if(!pageCount.isEmpty()){
+                    throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
                 }
-            }
-            uploadSnapshotRequest.setOs(platform != null && !platform.isEmpty() ? platform : browserName);
-            if (platform != null && !platform.isEmpty()) {
-                uploadSnapshotRequest.setDeviceName(deviceName + " " + platform);
-            } else {
-                uploadSnapshotRequest.setDeviceName(deviceName + " " + browserName);
-            }
+                TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
+                File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
+                log.info("Screenshot captured: " + screenshotName);
+                uploadSnapshotRequest.setFullPage("false");
+                util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
 
-            if (platform.toLowerCase().contains("ios")) {
-                uploadSnapshotRequest.setBrowserName("safari");
             } else {
-                uploadSnapshotRequest.setBrowserName("chrome");
+                uploadSnapshotRequest.setFullPage("true");
+                FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
+                List<File> ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
+                if(ssDir.isEmpty()){
+                    throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
+                }
+                int pageCountInSsDir = ssDir.size(); int i;
+                if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
+                    uploadSnapshotRequest.setFullPage("false");
+                    util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
+                    return;
+                }
+                for( i = 0; i < pageCountInSsDir -1; ++i){
+                    uploadSnapshotRequest.setIsLastChunk("false");
+                    uploadSnapshotRequest.setChunkCount(i);
+                    util.uploadScreenshot(ssDir.get(i), uploadSnapshotRequest, this.buildData);
+                }
+                uploadSnapshotRequest.setIsLastChunk("true");
+                uploadSnapshotRequest.setChunkCount(i);
+                util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
             }
-            if(options != null && options.containsKey("cropFooter")) {
-                uploadSnapshotRequest.setCropFooter(options.get("cropFooter").trim().toLowerCase());
-            }
-            if(options != null && options.containsKey("cropStatusBar")) {
-                uploadSnapshotRequest.setCropStatusBar(options.get("cropStatusBar").trim().toLowerCase());
-            }
-            if(options != null && options.containsKey("fullPage")) {
-                uploadSnapshotRequest.setFullPage(options.get("fullPage").trim().toLowerCase());
-            }
-
-            if (Objects.nonNull(buildData)) {
-                uploadSnapshotRequest.setBuildId(buildData.getBuildId());
-                uploadSnapshotRequest.setBuildName(buildData.getName());
-            }
-            UploadSnapshotResponse uploadSnapshotResponse = util.uploadScreenshot(screenshot, uploadSnapshotRequest,
-                    this.buildData);
-            log.info("For uploading: " + uploadSnapshotRequest.toString() + " received response: "
-                    + uploadSnapshotResponse.getData());
         } catch (Exception e) {
             log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " + e.getMessage());
             throw new Exception("Couldnt upload image to Smart UI due to: " + e.getMessage());
