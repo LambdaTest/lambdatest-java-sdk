@@ -83,7 +83,7 @@ afterEvaluate {
             mavenJava(MavenPublication) {
                 groupId = 'io.github.lambdatest'
                 artifactId = 'lambdatest-java-sdk'
-                version = '1.0.13'
+                version = '1.0.13-beta.1'
 
                 pom {
                     name.set('LambdaTest Java SDK')
