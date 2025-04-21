@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'io.github.lambdatest'
-version = '1.0.13'
+version = '1.0.13-beta.1'
 description = 'lambdatest-java-sdk'
 
 repositories {
