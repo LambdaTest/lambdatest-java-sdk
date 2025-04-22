@@ -89,16 +89,12 @@ public class FullPageScreenshotUtil {
         try {
             // Try iOS style swipe
             JavascriptExecutor javascriptExecutorIos = (JavascriptExecutor) driver;
-//            Map<String, Object> swipeObj = new HashMap<>();
-//            swipeObj.put("direction", "up");
-//            swipeObj.put("velocity", 400);
-//            javascriptExecutorIos.executeScript("mobile: swipe", swipeObj);
             Map<String, Object> swipeObj = new HashMap<>();
             swipeObj.put("fromX", startX);
             swipeObj.put("fromY", startY);
             swipeObj.put("toX", startX);
             swipeObj.put("toY", endY);
-            swipeObj.put("duration", 0.5);
+            swipeObj.put("duration", 0.8);
             javascriptExecutorIos.executeScript("mobile: dragFromToForDuration", swipeObj);
 
         } catch (Exception iosException) {
