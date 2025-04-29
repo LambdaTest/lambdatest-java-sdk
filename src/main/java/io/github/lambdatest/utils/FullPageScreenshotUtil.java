@@ -102,20 +102,16 @@ public class FullPageScreenshotUtil {
                 driver.executeScript("mobile:touch:swipe", params);
                 log.info("Perfecto scroll command succeeded");
                 return;
-            } catch (Exception e) {
-                log.warning("Perfecto scroll command failed: " + e.getMessage());
-            }
+            } catch (Exception ignore) {}
 
-            // Then try UiAutomator2 scroll with Perfecto-specific tweaks
+            // Then try UiAutomator2 scroll with Perfecto-support
             try {
                 String scrollCommand = "new UiScrollable(new UiSelector().scrollable(true).instance(0))"
                         + ".setAsVerticalList().scrollForward()";
                 driver.findElement(MobileBy.AndroidUIAutomator(scrollCommand));
                 log.info("UiAutomator2 scroll succeeded");
                 return;
-            } catch (Exception e) {
-                log.warning("UiAutomator2 scroll failed: " + e.getMessage());
-            }
+            } catch (Exception ignore) {}
             //Try ios style swipe
             try {
                 Map<String, Object> swipeObj = new HashMap<>();
@@ -126,9 +122,7 @@ public class FullPageScreenshotUtil {
                 swipeObj.put("duration", 0.8);
                 ((JavascriptExecutor) driver).executeScript("mobile: dragFromToForDuration", swipeObj);
                 log.info("DragFromTo scroll succeeded");
-            } catch (Exception e) {
-                log.warning("DragFromTo scroll failed: " + e.getMessage());
-            }
+            } catch (Exception ignore) {}
             //Trying Scroll Gestures to scroll - supported on Android devices
             try {
                 Map<String, Object> scrollParams = new HashMap<>();
@@ -141,11 +135,8 @@ public class FullPageScreenshotUtil {
                 scrollParams.put("speed", 2500);
                 ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
                 log.info("ScrollGestures scroll succeeded");
-            } catch (Exception e) {
-                log.warning("Error during Android scroll gesture operation: " + e.getMessage());
-            }
+            } catch (Exception ignore) {}
             // Fallback to TouchAction
-            log.info("Attempting TouchAction...");
             TouchAction touchAction = new TouchAction(driver);
             touchAction.press(PointOption.point(startX, startY))
                     .waitAction(WaitOptions.waitOptions(Duration.ofMillis(1000))) // Longer wait for Perfecto
@@ -154,7 +145,7 @@ public class FullPageScreenshotUtil {
                     .perform();
             log.info("TouchAction scroll succeeded");
         } catch (Exception e) {
-            log.severe("All scroll methods failed : " + e.getMessage());
+            log.severe("Scroll not supported on this device : " + e.getMessage());
         }
     }
 
