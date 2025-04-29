@@ -1,14 +1,11 @@
 package io.github.lambdatest.utils;
 
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.PerformsTouchActions;
+import io.appium.java_client.MobileBy;
 import io.appium.java_client.TouchAction;
 import io.appium.java_client.touch.WaitOptions;
 import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.PointerInput;
-import org.openqa.selenium.interactions.Sequence;
-import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +32,7 @@ public class FullPageScreenshotUtil {
     }
 
     private String prevPageSource = "";
-    private int samePageCounter = 1;    //Init with value 1 , finalise at 3
+    private int samePageCounter = 1;
     private int maxCount = 10;
     public List<File> captureFullPage(int pageCount) {
         if(pageCount<=0){
@@ -76,31 +73,64 @@ public class FullPageScreenshotUtil {
     }
 
     private void scrollDown() {
-        Dimension screenSize = driver.manage().window().getSize();
-        int screenHeight = screenSize.getHeight();
-        int screenWidth = screenSize.getWidth();
-
-        // Define start and end points for scrolling
-        int startX = 4; //start from 4 pixels from the left, to avoid click on action items/webview
-        int startY = (int) (screenHeight * 0.70); // Start at 70% of the screen height
-        int endY = (int) (screenHeight * 0.45);   // Scroll up to 25%
-        int scrollHeight = startY - endY;
-
         try {
-            // Try iOS style swipe
-            JavascriptExecutor javascriptExecutorIos = (JavascriptExecutor) driver;
-            Map<String, Object> swipeObj = new HashMap<>();
-            swipeObj.put("fromX", startX);
-            swipeObj.put("fromY", startY);
-            swipeObj.put("toX", startX);
-            swipeObj.put("toY", endY);
-            swipeObj.put("duration", 0.8);
-            javascriptExecutorIos.executeScript("mobile: dragFromToForDuration", swipeObj);
+            Thread.sleep(1000);
+            scrollOnPerfecto((AppiumDriver) driver);
+        } catch (Exception e) {
+            log.warning("Error during scroll operation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
-        } catch (Exception iosException) {
+    public void scrollOnPerfecto(AppiumDriver driver) {
+        try {
+            Dimension size = driver.manage().window().getSize();
+            int screenHeight = size.getHeight();
+            int screenWidth = size.getWidth();
+            int startX = 4;
+            int startY = (int) (screenHeight * 0.70);
+            int endY = (int) (screenHeight * 0.45);
+            int scrollHeight = startY - endY;
+
+            // First try Perfecto's native scroll command
             try {
-                // If iOS swipe fails, assume it's Android and do scrollGesture
-                JavascriptExecutor jsExecutorAndroid = (JavascriptExecutor) driver;
+                Map<String, Object> params = new HashMap<>();
+                params.put("start", "50%,80%");
+                params.put("end", "50%,20%");
+                params.put("duration", "2");
+
+                driver.executeScript("mobile:touch:swipe", params);
+                log.info("Perfecto scroll command succeeded");
+                return;
+            } catch (Exception e) {
+                log.warning("Perfecto scroll command failed: " + e.getMessage());
+            }
+
+            // Then try UiAutomator2 scroll with Perfecto-specific tweaks
+            try {
+                String scrollCommand = "new UiScrollable(new UiSelector().scrollable(true).instance(0))"
+                        + ".setAsVerticalList().scrollForward()";
+                driver.findElement(MobileBy.AndroidUIAutomator(scrollCommand));
+                log.info("UiAutomator2 scroll succeeded");
+                return;
+            } catch (Exception e) {
+                log.warning("UiAutomator2 scroll failed: " + e.getMessage());
+            }
+            //Try ios style swipe
+            try {
+                Map<String, Object> swipeObj = new HashMap<>();
+                swipeObj.put("fromX", startX);
+                swipeObj.put("fromY", startY);
+                swipeObj.put("toX", startX);
+                swipeObj.put("toY", endY);
+                swipeObj.put("duration", 0.8);
+                ((JavascriptExecutor) driver).executeScript("mobile: dragFromToForDuration", swipeObj);
+                log.info("DragFromTo scroll succeeded");
+            } catch (Exception e) {
+                log.warning("DragFromTo scroll failed: " + e.getMessage());
+            }
+            //Trying Scroll Gestures to scroll - supported on Android devices
+            try {
                 Map<String, Object> scrollParams = new HashMap<>();
                 scrollParams.put("left", startX);
                 scrollParams.put("top", endY);
@@ -109,18 +139,22 @@ public class FullPageScreenshotUtil {
                 scrollParams.put("direction", "down");
                 scrollParams.put("percent", 1.0);
                 scrollParams.put("speed", 2500);
-                jsExecutorAndroid.executeScript("mobile:scrollGesture", scrollParams);
+                ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
+                log.info("ScrollGestures scroll succeeded");
             } catch (Exception e) {
-                log.warning("Error during Android scroll operation: " + e.getMessage());
-                e.printStackTrace();
+                log.warning("Error during Android scroll gesture operation: " + e.getMessage());
             }
-        }
-
-        try {
-            Thread.sleep(1000);
+            // Fallback to TouchAction
+            log.info("Attempting TouchAction...");
+            TouchAction touchAction = new TouchAction(driver);
+            touchAction.press(PointOption.point(startX, startY))
+                    .waitAction(WaitOptions.waitOptions(Duration.ofMillis(1000))) // Longer wait for Perfecto
+                    .moveTo(PointOption.point(startX, endY))
+                    .release()
+                    .perform();
+            log.info("TouchAction scroll succeeded");
         } catch (Exception e) {
-            log.warning("Error during scroll operation: " + e.getMessage());
-            e.printStackTrace();
+            log.severe("All scroll methods failed : " + e.getMessage());
         }
     }
 
