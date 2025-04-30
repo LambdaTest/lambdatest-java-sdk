@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'io.github.lambdatest'
-version = '1.0.13-beta.1'
+version = '1.0.14-beta.1'
 description = 'lambdatest-java-sdk'
 
 repositories {
@@ -17,12 +17,11 @@ repositories {
 dependencies {
     implementation 'org.apache.httpcomponents:httpclient:4.5.13'
     implementation 'org.json:json:20231013'
-    compileOnly 'org.seleniumhq.selenium:selenium-java:[4.0.0,)'
+//    compileOnly 'org.seleniumhq.selenium:selenium-java:[4.0.0,)'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'io.netty:netty-transport-native-epoll:4.1.104.Final'
     implementation 'io.netty:netty-transport-native-kqueue:4.1.104.Final'
     implementation 'io.appium:java-client:7.6.0'
-    // New dependencies from POM file
     implementation 'org.apache.httpcomponents:httpmime:4.5.13'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 }
@@ -83,7 +82,7 @@ afterEvaluate {
             mavenJava(MavenPublication) {
                 groupId = 'io.github.lambdatest'
                 artifactId = 'lambdatest-java-sdk'
-                version = '1.0.13-beta.1'
+                version = '1.0.14-beta.1'
 
                 pom {
                     name.set('LambdaTest Java SDK')

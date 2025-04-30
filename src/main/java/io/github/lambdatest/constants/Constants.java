@@ -65,7 +65,7 @@ public interface Constants {
     public static final String POST_SNAPSHOT_FAILED = "Post snapshot failed: %s";
     public static final String UPLOAD_SNAPSHOT_FAILED = "Upload snapshot failed: ";
     public static final String INVALID_RESPONSE_DATA = "Invalid response from fetchDOMSerializer";
-    public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed %s";
+    public static final String SMARTUI_SNAPSHOT_FAILED = "SmartUI snapshot failed";
     public static  final String PROJECT_TOKEN_UNSET = "projectToken cant be empty";
     public static final String USER_AUTH_ERROR = "User authentication failed";
     public static final String STOP_BUILD_FAILED = "Failed to stop build";
