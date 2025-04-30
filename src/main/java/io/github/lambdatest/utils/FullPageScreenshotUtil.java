@@ -104,25 +104,6 @@ public class FullPageScreenshotUtil {
                 return;
             } catch (Exception ignore) {}
 
-            // Then try UiAutomator2 scroll with Perfecto-support
-            try {
-                String scrollCommand = "new UiScrollable(new UiSelector().scrollable(true).instance(0))"
-                        + ".setAsVerticalList().scrollForward()";
-                driver.findElement(MobileBy.AndroidUIAutomator(scrollCommand));
-                log.info("UiAutomator2 scroll succeeded");
-                return;
-            } catch (Exception ignore) {}
-            //Try ios style swipe
-            try {
-                Map<String, Object> swipeObj = new HashMap<>();
-                swipeObj.put("fromX", startX);
-                swipeObj.put("fromY", startY);
-                swipeObj.put("toX", startX);
-                swipeObj.put("toY", endY);
-                swipeObj.put("duration", 0.8);
-                ((JavascriptExecutor) driver).executeScript("mobile: dragFromToForDuration", swipeObj);
-                log.info("DragFromTo scroll succeeded");
-            } catch (Exception ignore) {}
             //Trying Scroll Gestures to scroll - supported on Android devices
             try {
                 Map<String, Object> scrollParams = new HashMap<>();
@@ -136,7 +117,20 @@ public class FullPageScreenshotUtil {
                 ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
                 log.info("ScrollGestures scroll succeeded");
             } catch (Exception ignore) {}
-            // Fallback to TouchAction
+
+            //Try ios style swipe - supported on IOS devices
+            try {
+                Map<String, Object> swipeObj = new HashMap<>();
+                swipeObj.put("fromX", startX);
+                swipeObj.put("fromY", startY);
+                swipeObj.put("toX", startX);
+                swipeObj.put("toY", endY);
+                swipeObj.put("duration", 0.8);
+                ((JavascriptExecutor) driver).executeScript("mobile: dragFromToForDuration", swipeObj);
+                log.info("DragFromTo scroll succeeded");
+            } catch (Exception ignore) {}
+            // Fallback to TouchAction if none work
+            try {
             TouchAction touchAction = new TouchAction(driver);
             touchAction.press(PointOption.point(startX, startY))
                     .waitAction(WaitOptions.waitOptions(Duration.ofMillis(1000))) // Longer wait for Perfecto
@@ -144,6 +138,7 @@ public class FullPageScreenshotUtil {
                     .release()
                     .perform();
             log.info("TouchAction scroll succeeded");
+            } catch (Exception ignored) {}
         } catch (Exception e) {
             log.severe("Scroll not supported on this device : " + e.getMessage());
         }
