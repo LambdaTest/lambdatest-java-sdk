@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.lambdatest</groupId>
 	<artifactId>lambdatest-java-sdk</artifactId>
-	<version>1.0.12</version>
+	<version>1.0.14-beta.1</version>
 	<name>lambdatest-java-sdk</name>
 	<description>LambdaTest SDK in Java</description>
 	<url>https://www.lambdatest.com</url>
@@ -57,6 +57,11 @@
 			<groupId>org.seleniumhq.selenium</groupId>
 			<artifactId>selenium-java</artifactId>
 			<version>4.1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>io.appium</groupId>
+			<artifactId>java-client</artifactId>
+			<version>8.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
