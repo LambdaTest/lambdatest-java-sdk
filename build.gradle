@@ -22,6 +22,7 @@ dependencies {
     implementation 'io.netty:netty-transport-native-epoll:4.1.104.Final'
     implementation 'io.netty:netty-transport-native-kqueue:4.1.104.Final'
     // implementation 'io.appium:java-client:7.6.0'
+    implementation 'org.seleniumhq.selenium:selenium-java:4.1.2'
     implementation 'org.apache.httpcomponents:httpmime:4.5.13'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 }
