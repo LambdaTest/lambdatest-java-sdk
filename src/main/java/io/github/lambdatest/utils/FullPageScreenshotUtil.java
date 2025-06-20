@@ -1,17 +1,10 @@
 package io.github.lambdatest.utils;
 
-import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.MobileBy;
-import io.appium.java_client.TouchAction;
-import io.appium.java_client.touch.WaitOptions;
-import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.time.Duration;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -34,8 +27,9 @@ public class FullPageScreenshotUtil {
     private String prevPageSource = "";
     private int samePageCounter = 1;
     private int maxCount = 10;
+
     public List<File> captureFullPage(int pageCount) {
-        if(pageCount<=0){
+        if (pageCount <= 0) {
             pageCount = maxCount;
         }
         if (pageCount < maxCount) {
@@ -45,12 +39,12 @@ public class FullPageScreenshotUtil {
         boolean isLastScroll = false;
         List<File> screenshotDir = new ArrayList<>();
         while (!isLastScroll && chunkCount < maxCount) {
-            File screenshotFile= captureAndSaveScreenshot(this.saveDirectoryName,chunkCount);
-            if(screenshotFile != null) {
+            File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
+            if (screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
                 chunkCount++;
             }
-            //Perform scroll
+            // Perform scroll
             scrollDown();
             log.info("Scrolling attempt # " + chunkCount);
             // Detect end of page
@@ -61,7 +55,7 @@ public class FullPageScreenshotUtil {
     }
 
     private File captureAndSaveScreenshot(String ssDir, int index) {
-        File destinationFile = new File(ssDir + "/" + ssDir +"_" + index + ".png");
+        File destinationFile = new File(ssDir + "/" + ssDir + "_" + index + ".png");
         try {
             File screenshotFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
             Files.copy(screenshotFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -75,36 +69,37 @@ public class FullPageScreenshotUtil {
     private void scrollDown() {
         try {
             Thread.sleep(1000);
-            scrollOnPerfecto((AppiumDriver) driver);
+            scrollOnDevice();
         } catch (Exception e) {
             log.warning("Error during scroll operation: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    public void scrollOnPerfecto(AppiumDriver driver) {
+    private void scrollOnDevice() {
         try {
             Dimension size = driver.manage().window().getSize();
             int screenHeight = size.getHeight();
             int screenWidth = size.getWidth();
-            int startX = 4;
-            int startY = (int) (screenHeight * 0.70);
-            int endY = (int) (screenHeight * 0.45);
+            int startX = screenWidth / 2; // Center of the screen
+            int startY = (int) (screenHeight * 0.70); // Start at 70% of screen height
+            int endY = (int) (screenHeight * 0.45); // End at 45% of screen height
             int scrollHeight = startY - endY;
 
-            // First try Perfecto's native scroll command
+            // Try Perfecto's native scroll command
             try {
                 Map<String, Object> params = new HashMap<>();
                 params.put("start", "50%,80%");
                 params.put("end", "50%,20%");
                 params.put("duration", "2");
-
-                driver.executeScript("mobile:touch:swipe", params);
-                log.info("Perfecto scroll command succeeded");
+                ((JavascriptExecutor) driver).executeScript("mobile:touch:swipe", params);
+                log.info("Scroll command succeeded");
                 return;
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+                log.info("touch:swipe action failed, trying next method");
+            }
 
-            //Trying Scroll Gestures to scroll - supported on Android devices
+            // Try scrollGesture (supported on Android devices)
             try {
                 Map<String, Object> scrollParams = new HashMap<>();
                 scrollParams.put("left", startX);
@@ -115,10 +110,13 @@ public class FullPageScreenshotUtil {
                 scrollParams.put("percent", 1.0);
                 scrollParams.put("speed", 2500);
                 ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
-                log.info("ScrollGestures scroll succeeded");
-            } catch (Exception ignore) {}
+                log.info("scrollGesture scroll succeeded");
+                return;
+            } catch (Exception ignore) {
+                log.info("scrollGesture failed, trying next method");
+            }
 
-            //Try ios style swipe - supported on IOS devices
+            // Try iOS-style swipe (supported on iOS devices)
             try {
                 Map<String, Object> swipeObj = new HashMap<>();
                 swipeObj.put("fromX", startX);
@@ -126,47 +124,50 @@ public class FullPageScreenshotUtil {
                 swipeObj.put("toX", startX);
                 swipeObj.put("toY", endY);
                 swipeObj.put("duration", 0.8);
-                ((JavascriptExecutor) driver).executeScript("mobile: dragFromToForDuration", swipeObj);
-                log.info("DragFromTo scroll succeeded");
-            } catch (Exception ignore) {}
-            // Fallback to TouchAction if none work
+                ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
+                log.info("iOS dragFromTo scroll succeeded");
+                return;
+            } catch (Exception ignore) {
+                log.info("iOS dragFromTo scroll failed, trying fallback");
+            }
+
+            // Fallback: Use JavaScript to scroll by pixels
             try {
-            TouchAction touchAction = new TouchAction(driver);
-            touchAction.press(PointOption.point(startX, startY))
-                    .waitAction(WaitOptions.waitOptions(Duration.ofMillis(1000))) // Longer wait for Perfecto
-                    .moveTo(PointOption.point(startX, endY))
-                    .release()
-                    .perform();
-            log.info("TouchAction scroll succeeded");
-            } catch (Exception ignored) {}
+                ((JavascriptExecutor) driver).executeScript(
+                        "window.scrollBy(0, arguments[0]);", scrollHeight);
+                log.info("JavaScript window.scrollBy succeeded");
+            } catch (Exception e) {
+                log.severe("Scroll not supported on this device: " + e.getMessage());
+            }
         } catch (Exception e) {
-            log.severe("Scroll not supported on this device : " + e.getMessage());
+            log.severe("Error in scrollOnDevice: " + e.getMessage());
         }
     }
 
     private boolean hasReachedBottom() {
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        String currentPageSource = driver.getPageSource();
-        if (currentPageSource == null) {
-            log.warning("Page source is null");
-            return false;
-        }
-        if (currentPageSource.equals(prevPageSource)) {
-            samePageCounter++;
-            log.info("Same page content detected, counter: " + samePageCounter);
-            if (samePageCounter >= 3) {
-                log.info("Reached the bottom of the page — no new content found.");
-                samePageCounter = 0;
-                return true;
+            String currentPageSource = driver.getPageSource();
+            if (currentPageSource == null) {
+                log.warning("Page source is null");
+                return false;
             }
-        } else {
-            prevPageSource = currentPageSource;
+            if (currentPageSource.equals(prevPageSource)) {
+                samePageCounter++;
+                log.info("Same page content detected, counter: " + samePageCounter);
+                if (samePageCounter >= 3) {
+                    log.info("Reached the bottom of the page — no new content found.");
+                    samePageCounter = 0;
+                    return true;
+                }
+            } else {
+                prevPageSource = currentPageSource;
+                samePageCounter = 0;
+            }
+        } catch (Exception e) {
+            log.warning("Error checking if reached bottom: " + e.getMessage());
             samePageCounter = 0;
+            return true; // Assume bottom reached on error
         }
         return false;
     }
