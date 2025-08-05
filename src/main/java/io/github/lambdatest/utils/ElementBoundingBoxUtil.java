@@ -9,13 +9,13 @@ public class ElementBoundingBoxUtil {
     private final WebDriver driver;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
     private static final int PROXIMITY_THRESHOLD = 10; // pixels
-    private int cumulativeScrollPosition = 0; // Track cumulative scroll position for native apps
+    private int cumulativeScrollPosition = 0; // Track cumulative scroll position in CSS pixels for native apps
     private double devicePixelRatio = 1.0; // Track device pixel ratio for scaling
 
     public ElementBoundingBoxUtil(WebDriver driver) {
         this.driver = driver;
         this.devicePixelRatio = getDevicePixelRatio();
-        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + ", device pixel ratio: " + devicePixelRatio);
+        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels, device pixel ratio: " + devicePixelRatio);
     }
 
     /**
@@ -88,8 +88,7 @@ public class ElementBoundingBoxUtil {
             log.info("Cumulative scroll position: " + scrollY);
             
             // Convert to absolute page coordinates with proper scaling
-            // For native apps: element Y + cumulative scroll position
-            // For web apps: element Y + current scroll position
+            // Both native and web apps: element Y + scroll position (all in CSS pixels), then scale by device pixel ratio
             int absoluteX = (int) (location.getX() * devicePixelRatio);
             int absoluteY = (int) ((location.getY() + scrollY) * devicePixelRatio);
             
@@ -174,12 +173,12 @@ public class ElementBoundingBoxUtil {
                     return scrollPosition.intValue();
                 } catch (Exception e) {
                     log.warning("Failed to get scroll position from JavaScript: " + e.getMessage());
-                    log.info("Using tracked cumulative scroll position: " + cumulativeScrollPosition);
+                    log.info("Using tracked cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels");
                     return cumulativeScrollPosition;
                 }
             } else {
                 // For native mobile apps, use tracked cumulative scroll position
-                log.info("Native mobile app detected, using tracked cumulative scroll position: " + cumulativeScrollPosition);
+                log.info("Native mobile app detected, using tracked cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels");
                 return cumulativeScrollPosition;
             }
         } catch (Exception e) {
@@ -240,11 +239,10 @@ public class ElementBoundingBoxUtil {
      * This should be called after each scroll operation with the scroll distance
      */
     public void updateScrollPosition(int scrollDistance) {
-        // Convert scroll distance to device pixels if needed
-        int scaledScrollDistance = (int) (scrollDistance * devicePixelRatio);
-        log.info("Updating cumulative scroll position from " + cumulativeScrollPosition + " by adding " + scrollDistance + " (scaled to " + scaledScrollDistance + " device pixels)");
-        this.cumulativeScrollPosition += scaledScrollDistance;
-        log.info("New cumulative scroll position: " + cumulativeScrollPosition);
+        // Store in CSS pixels, not device pixels - scaling will be applied in final calculation
+        log.info("Updating cumulative scroll position from " + cumulativeScrollPosition + " by adding " + scrollDistance + " CSS pixels");
+        this.cumulativeScrollPosition += scrollDistance;
+        log.info("New cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels");
     }
 
     /**
