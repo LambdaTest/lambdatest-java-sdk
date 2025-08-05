@@ -83,10 +83,9 @@ public class FullPageScreenshotUtil {
         
         // Process and log final element data
         if (elementUtil != null && !allElements.isEmpty()) {
-            List<ElementBoundingBox> uniqueElements = elementUtil.deduplicateElements(allElements);
-            Map<String, Object> uploadData = elementUtil.prepareUploadData(uniqueElements);
+            Map<String, Object> uploadData = elementUtil.prepareUploadData(allElements);
             
-            log.info("Element detection complete: " + allElements.size() + " total, " + uniqueElements.size() + " unique elements");
+            log.info("Element detection complete: " + allElements.size() + " total elements");
             log.info("Element upload data prepared: " + uploadData.toString());
         }
         

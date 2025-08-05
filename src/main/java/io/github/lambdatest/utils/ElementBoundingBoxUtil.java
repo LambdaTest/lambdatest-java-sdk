@@ -11,6 +11,7 @@ public class ElementBoundingBoxUtil {
     private static final int PROXIMITY_THRESHOLD = 10; // pixels
     private int cumulativeScrollPosition = 0; // Track cumulative scroll position in CSS pixels for native apps
     private double devicePixelRatio = 1.0; // Track device pixel ratio for scaling
+    private Set<String> foundXPaths = new HashSet<>(); // Track XPaths that have already been found
 
     public ElementBoundingBoxUtil(WebDriver driver) {
         this.driver = driver;
@@ -35,11 +36,24 @@ public class ElementBoundingBoxUtil {
 
         for (int i = 0; i < xpaths.size(); i++) {
             String xpath = xpaths.get(i);
+            
+            // Skip XPath if it has already been found in a previous chunk
+            if (foundXPaths.contains(xpath)) {
+                log.info("Skipping XPath " + (i + 1) + "/" + xpaths.size() + " (already found): " + xpath);
+                continue;
+            }
+            
             log.info("Processing XPath " + (i + 1) + "/" + xpaths.size() + ": " + xpath);
             
             try {
                 List<WebElement> elements = driver.findElements(By.xpath(xpath));
                 log.info("Found " + elements.size() + " elements for XPath: " + xpath);
+                
+                if (elements.size() > 0) {
+                    // Mark this XPath as found so we don't search for it again
+                    foundXPaths.add(xpath);
+                    log.info("XPath marked as found, will be skipped in future chunks: " + xpath);
+                }
                 
                 for (int j = 0; j < elements.size(); j++) {
                     WebElement element = elements.get(j);
@@ -305,47 +319,7 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    /**
-     * Deduplicate elements based on position proximity
-     * For the same XPath, we should only keep one element (the first one detected)
-     */
-    public List<ElementBoundingBox> deduplicateElements(List<ElementBoundingBox> elements) {
-        log.info("Starting deduplication process for " + (elements != null ? elements.size() : 0) + " elements");
-        
-        if (elements == null || elements.size() <= 1) {
-            log.info("No deduplication needed - " + (elements != null ? elements.size() : 0) + " elements");
-            return elements;
-        }
 
-        List<ElementBoundingBox> uniqueElements = new ArrayList<>();
-        Map<String, ElementBoundingBox> firstElementByXPath = new HashMap<>();
-
-        // For each element, keep only the first occurrence of each XPath
-        for (ElementBoundingBox element : elements) {
-            String xpath = element.getXpath();
-            
-            if (!firstElementByXPath.containsKey(xpath)) {
-                // First time seeing this XPath, keep it
-                firstElementByXPath.put(xpath, element);
-                uniqueElements.add(element);
-                log.info("First occurrence of XPath, keeping element: " + element.toString());
-            } else {
-                // Already seen this XPath, log and skip
-                ElementBoundingBox existing = firstElementByXPath.get(xpath);
-                log.info("Duplicate XPath detected, skipping element: " + element.toString());
-                log.info("  Original element: " + existing.toString());
-                log.info("  Duplicate element: " + element.toString());
-            }
-        }
-
-        log.info("Deduplication complete: " + elements.size() + " -> " + uniqueElements.size() + " elements");
-        log.info("Kept elements by XPath:");
-        for (Map.Entry<String, ElementBoundingBox> entry : firstElementByXPath.entrySet()) {
-            log.info("  " + entry.getKey() + " -> " + entry.getValue().toString());
-        }
-        
-        return uniqueElements;
-    }
 
     /**
      * Prepare element data for upload
