@@ -49,11 +49,7 @@ public class ElementBoundingBoxUtil {
                 List<WebElement> elements = driver.findElements(By.xpath(xpath));
                 log.info("Found " + elements.size() + " elements for XPath: " + xpath);
                 
-                if (elements.size() > 0) {
-                    // Mark this XPath as found so we don't search for it again
-                    foundXPaths.add(xpath);
-                    log.info("XPath marked as found, will be skipped in future chunks: " + xpath);
-                }
+                boolean xpathHasVisibleElements = false; // Track if any elements from this XPath are in viewport
                 
                 for (int j = 0; j < elements.size(); j++) {
                     WebElement element = elements.get(j);
@@ -65,6 +61,7 @@ public class ElementBoundingBoxUtil {
                         
                         if (isElementFullyInViewport(boundingBox)) {
                             detectedElements.add(boundingBox);
+                            xpathHasVisibleElements = true; // Mark that this XPath has visible elements
                             log.info("Element added to detected list: " + boundingBox.toString());
                         } else {
                             log.info("Element not fully in viewport, skipping: " + boundingBox.toString());
@@ -72,6 +69,14 @@ public class ElementBoundingBoxUtil {
                     } else {
                         log.warning("Failed to create bounding box for element " + (j + 1) + " of XPath: " + xpath);
                     }
+                }
+                
+                // Only mark XPath as found if it has visible elements in the current viewport
+                if (xpathHasVisibleElements) {
+                    foundXPaths.add(xpath);
+                    log.info("XPath marked as found (has visible elements), will be skipped in future chunks: " + xpath);
+                } else {
+                    log.info("XPath has elements but none are in viewport, will be checked again in future chunks: " + xpath);
                 }
             } catch (Exception e) {
                 log.warning("Failed to detect elements for XPath '" + xpath + "': " + e.getMessage());
@@ -85,40 +90,47 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Create bounding box from WebElement with absolute coordinates
+     * All computations done in CSS pixels, converted to device pixels only at the end
      */
     private ElementBoundingBox createBoundingBox(WebElement element, String xpath, int chunkIndex, String platform) {
         try {
             log.info("Creating bounding box for XPath: " + xpath);
             
-            // Get element location and size relative to viewport
+            // Get element location and size relative to viewport (in CSS pixels)
             Point location = element.getLocation();
             Dimension size = element.getSize();
             
-            log.info("Element viewport location: (" + location.getX() + ", " + location.getY() + ")");
-            log.info("Element size: " + size.getWidth() + "x" + size.getHeight());
+            log.info("Element viewport location (CSS pixels): (" + location.getX() + ", " + location.getY() + ")");
+            log.info("Element size (CSS pixels): " + size.getWidth() + "x" + size.getHeight());
             
-            // Get cumulative scroll position based on platform
+            // Get cumulative scroll position (in CSS pixels)
             int scrollY = getCurrentScrollPosition();
-            log.info("Cumulative scroll position: " + scrollY);
+            log.info("Cumulative scroll position (CSS pixels): " + scrollY);
             
-            // Convert to absolute page coordinates with proper scaling
-            // Both native and web apps: element Y + scroll position (all in CSS pixels), then scale by device pixel ratio
-            int absoluteX = (int) (location.getX() * devicePixelRatio);
-            int absoluteY = (int) ((location.getY() + scrollY) * devicePixelRatio);
+            // Calculate absolute page coordinates in CSS pixels
+            // Both native and web apps: element Y + scroll position (all in CSS pixels)
+            int absoluteX = location.getX();
+            int absoluteY = location.getY() + scrollY;
             
-            log.info("Coordinate calculation details:");
+            log.info("Coordinate calculation details (CSS pixels):");
             log.info("  Element viewport Y: " + location.getY());
             log.info("  Current scroll Y: " + scrollY);
-            log.info("  Device pixel ratio: " + devicePixelRatio);
-            log.info("  Raw absolute Y: " + (location.getY() + scrollY) + " (viewport Y + scroll Y)");
-            log.info("  Scaled absolute Y: " + absoluteY + " (raw * device pixel ratio)");
-            log.info("Calculated absolute coordinates: (" + absoluteX + ", " + absoluteY + ")");
+            log.info("  Absolute Y: " + absoluteY + " (viewport Y + scroll Y)");
+            log.info("Calculated absolute coordinates (CSS pixels): (" + absoluteX + ", " + absoluteY + ")");
             
-            // Scale element dimensions to device pixels
-            int scaledWidth = (int) (size.getWidth() * devicePixelRatio);
-            int scaledHeight = (int) (size.getHeight() * devicePixelRatio);
+            // Element dimensions are already in CSS pixels
+            int width = size.getWidth();
+            int height = size.getHeight();
             
-            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, scaledWidth, scaledHeight, chunkIndex, platform);
+            // Convert to device pixels only for final bounding box storage
+            int deviceX = (int) (absoluteX * devicePixelRatio);
+            int deviceY = (int) (absoluteY * devicePixelRatio);
+            int deviceWidth = (int) (width * devicePixelRatio);
+            int deviceHeight = (int) (height * devicePixelRatio);
+            
+            log.info("Final device pixel coordinates: (" + deviceX + ", " + deviceY + ") size: " + deviceWidth + "x" + deviceHeight);
+            
+            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, deviceX, deviceY, deviceWidth, deviceHeight, chunkIndex, platform);
             log.info("Successfully created bounding box: " + boundingBox.toString());
             
             return boundingBox;
@@ -133,6 +145,7 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Check if element is completely within current viewport
+     * Converts device pixel coordinates to CSS pixels for viewport comparison
      */
     private boolean isElementFullyInViewport(ElementBoundingBox boundingBox) {
         try {
@@ -141,22 +154,41 @@ public class ElementBoundingBoxUtil {
             Dimension viewportSize = driver.manage().window().getSize();
             int scrollY = getCurrentScrollPosition();
             
-            log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight());
-            log.info("Current scroll position: " + scrollY);
+            log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight() + " CSS pixels");
+            log.info("Current scroll position: " + scrollY + " CSS pixels");
             
-            // Calculate viewport-relative position
-            // boundingBox.getY() contains absolute page position, so subtract scroll to get viewport position
-            int viewportY = boundingBox.getY() - scrollY;
-            log.info("Element viewport-relative Y position: " + viewportY);
+            // Convert bounding box coordinates from device pixels to CSS pixels for viewport comparison
+            int cssX = (int) Math.round(boundingBox.getX() / devicePixelRatio);
+            int cssY = (int) Math.round(boundingBox.getY() / devicePixelRatio);
+            int cssWidth = (int) Math.round(boundingBox.getWidth() / devicePixelRatio);
+            int cssHeight = (int) Math.round(boundingBox.getHeight() / devicePixelRatio);
             
-            // Check if element is completely within viewport
-            boolean xInBounds = boundingBox.getX() >= 0 && 
-                               boundingBox.getX() + boundingBox.getWidth() <= viewportSize.getWidth();
+            log.info("Element device pixel coordinates: (" + boundingBox.getX() + ", " + boundingBox.getY() + ") size: " + boundingBox.getWidth() + "x" + boundingBox.getHeight());
+            log.info("Element CSS pixel coordinates: (" + cssX + ", " + cssY + ") size: " + cssWidth + "x" + cssHeight);
+            
+            // Calculate viewport-relative position in CSS pixels
+            // cssY contains absolute page position in CSS pixels, so subtract scroll to get viewport position
+            int viewportY = cssY - scrollY;
+            log.info("Element viewport-relative Y position: " + viewportY + " CSS pixels");
+            
+            // Check if element is completely within viewport (all in CSS pixels)
+            boolean xInBounds = cssX >= 0 && 
+                               cssX + cssWidth <= viewportSize.getWidth();
+            
+            // Y bounds check: element must be within viewport height
+            // viewportY >= 0: element is not above the viewport
+            // viewportY + cssHeight <= viewportSize.getHeight(): element is not below the viewport
             boolean yInBounds = viewportY >= 0 && 
-                               viewportY + boundingBox.getHeight() <= viewportSize.getHeight();
+                               viewportY + cssHeight <= viewportSize.getHeight();
             
-            log.info("X bounds check: " + xInBounds + " (X: " + boundingBox.getX() + ", width: " + boundingBox.getWidth() + ", viewport width: " + viewportSize.getWidth() + ")");
-            log.info("Y bounds check: " + yInBounds + " (viewport Y: " + viewportY + ", height: " + boundingBox.getHeight() + ", viewport height: " + viewportSize.getHeight() + ")");
+            // Additional checks for edge cases
+            boolean elementAboveViewport = viewportY < 0;
+            boolean elementBelowViewport = viewportY + cssHeight > viewportSize.getHeight();
+            
+            log.info("X bounds check: " + xInBounds + " (CSS X: " + cssX + ", CSS width: " + cssWidth + ", viewport width: " + viewportSize.getWidth() + ")");
+            log.info("Y bounds check: " + yInBounds + " (CSS viewport Y: " + viewportY + ", CSS height: " + cssHeight + ", viewport height: " + viewportSize.getHeight() + ")");
+            log.info("Element above viewport: " + elementAboveViewport + " (viewportY < 0: " + viewportY + " < 0)");
+            log.info("Element below viewport: " + elementBelowViewport + " (viewportY + height > viewportHeight: " + (viewportY + cssHeight) + " > " + viewportSize.getHeight() + ")");
             
             boolean isFullyInViewport = xInBounds && yInBounds;
             log.info("Element fully in viewport: " + isFullyInViewport);
