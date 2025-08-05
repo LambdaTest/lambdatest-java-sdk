@@ -66,8 +66,13 @@ public class FullPageScreenshotUtil {
                 chunkCount++;
             }
             // Perform scroll
-            scrollDown();
-            log.info("Scrolling attempt # " + chunkCount);
+            int scrollDistance = scrollDown();
+            log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
+            
+            // Update scroll position for element detection
+            if (elementUtil != null) {
+                elementUtil.updateScrollPosition(scrollDistance);
+            }
             // Detect end of page
             isLastScroll = hasReachedBottom();
         }
@@ -97,17 +102,18 @@ public class FullPageScreenshotUtil {
         return destinationFile;
     }
 
-    private void scrollDown() {
+    private int scrollDown() {
         try {
             Thread.sleep(1000);
-            scrollOnDevice();
+            return scrollOnDevice();
         } catch (Exception e) {
             log.warning("Error during scroll operation: " + e.getMessage());
             e.printStackTrace();
+            return 0;
         }
     }
 
-    private void scrollOnDevice() {
+    private int scrollOnDevice() {
         try {
             Dimension size = driver.manage().window().getSize();
             int screenHeight = size.getHeight();
@@ -125,7 +131,7 @@ public class FullPageScreenshotUtil {
                 params.put("duration", "2");
                 ((JavascriptExecutor) driver).executeScript("mobile:touch:swipe", params);
                 log.info("Scroll command succeeded");
-                return;
+                return scrollHeight;
             } catch (Exception ignore) {
                 log.info("touch:swipe action failed, trying next method");
             }
@@ -142,7 +148,7 @@ public class FullPageScreenshotUtil {
                 scrollParams.put("speed", 2500);
                 ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
                 log.info("scrollGesture scroll succeeded");
-                return;
+                return scrollHeight;
             } catch (Exception ignore) {
                 log.info("scrollGesture failed, trying next method");
             }
@@ -157,7 +163,7 @@ public class FullPageScreenshotUtil {
                 swipeObj.put("duration", 0.8);
                 ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
                 log.info("iOS dragFromTo scroll succeeded");
-                return;
+                return scrollHeight;
             } catch (Exception ignore) {
                 log.info("iOS dragFromTo scroll failed, trying fallback");
             }
@@ -167,11 +173,14 @@ public class FullPageScreenshotUtil {
                 ((JavascriptExecutor) driver).executeScript(
                         "window.scrollBy(0, arguments[0]);", scrollHeight);
                 log.info("JavaScript window.scrollBy succeeded");
+                return scrollHeight;
             } catch (Exception e) {
                 log.severe("Scroll not supported on this device: " + e.getMessage());
+                return 0;
             }
         } catch (Exception e) {
             log.severe("Error in scrollOnDevice: " + e.getMessage());
+            return 0;
         }
     }
 

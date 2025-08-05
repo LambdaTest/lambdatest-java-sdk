@@ -9,9 +9,13 @@ public class ElementBoundingBoxUtil {
     private final WebDriver driver;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
     private static final int PROXIMITY_THRESHOLD = 10; // pixels
+    private int cumulativeScrollPosition = 0; // Track cumulative scroll position for native apps
+    private double devicePixelRatio = 1.0; // Track device pixel ratio for scaling
 
     public ElementBoundingBoxUtil(WebDriver driver) {
         this.driver = driver;
+        this.devicePixelRatio = getDevicePixelRatio();
+        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + ", device pixel ratio: " + devicePixelRatio);
     }
 
     /**
@@ -79,17 +83,29 @@ public class ElementBoundingBoxUtil {
             log.info("Element viewport location: (" + location.getX() + ", " + location.getY() + ")");
             log.info("Element size: " + size.getWidth() + "x" + size.getHeight());
             
-            // Get current scroll position
-            Long scrollY = getCurrentScrollPosition();
-            log.info("Current scroll position: " + scrollY);
+            // Get cumulative scroll position based on platform
+            int scrollY = getCurrentScrollPosition();
+            log.info("Cumulative scroll position: " + scrollY);
             
-            // Convert to absolute page coordinates
-            int absoluteX = location.getX();
-            int absoluteY = location.getY() + scrollY.intValue();
+            // Convert to absolute page coordinates with proper scaling
+            // For native apps: element Y + cumulative scroll position
+            // For web apps: element Y + current scroll position
+            int absoluteX = (int) (location.getX() * devicePixelRatio);
+            int absoluteY = (int) ((location.getY() + scrollY) * devicePixelRatio);
             
+            log.info("Coordinate calculation details:");
+            log.info("  Element viewport Y: " + location.getY());
+            log.info("  Current scroll Y: " + scrollY);
+            log.info("  Device pixel ratio: " + devicePixelRatio);
+            log.info("  Raw absolute Y: " + (location.getY() + scrollY) + " (viewport Y + scroll Y)");
+            log.info("  Scaled absolute Y: " + absoluteY + " (raw * device pixel ratio)");
             log.info("Calculated absolute coordinates: (" + absoluteX + ", " + absoluteY + ")");
             
-            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, size.getWidth(), size.getHeight(), chunkIndex, platform);
+            // Scale element dimensions to device pixels
+            int scaledWidth = (int) (size.getWidth() * devicePixelRatio);
+            int scaledHeight = (int) (size.getHeight() * devicePixelRatio);
+            
+            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, scaledWidth, scaledHeight, chunkIndex, platform);
             log.info("Successfully created bounding box: " + boundingBox.toString());
             
             return boundingBox;
@@ -110,13 +126,14 @@ public class ElementBoundingBoxUtil {
             log.info("Checking viewport bounds for element: " + boundingBox.toString());
             
             Dimension viewportSize = driver.manage().window().getSize();
-            Long scrollY = getCurrentScrollPosition();
+            int scrollY = getCurrentScrollPosition();
             
             log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight());
             log.info("Current scroll position: " + scrollY);
             
             // Calculate viewport-relative position
-            int viewportY = boundingBox.getY() - scrollY.intValue();
+            // boundingBox.getY() contains absolute page position, so subtract scroll to get viewport position
+            int viewportY = boundingBox.getY() - scrollY;
             log.info("Element viewport-relative Y position: " + viewportY);
             
             // Check if element is completely within viewport
@@ -141,21 +158,93 @@ public class ElementBoundingBoxUtil {
     }
 
     /**
-     * Get current scroll position
+     * Get current scroll position - handles both web and native mobile apps
      */
-    private Long getCurrentScrollPosition() {
+    private int getCurrentScrollPosition() {
         try {
-            Long scrollPosition = (Long) ((JavascriptExecutor) driver).executeScript(
-                "return window.pageYOffset || document.documentElement.scrollTop || 0;"
-            );
-            log.info("Retrieved scroll position: " + scrollPosition);
-            return scrollPosition;
+            String platform = detectPlatform();
+            
+            if (platform.contains("web")) {
+                // For web apps, use JavaScript to get current scroll position
+                try {
+                    Long scrollPosition = (Long) ((JavascriptExecutor) driver).executeScript(
+                        "return window.pageYOffset || document.documentElement.scrollTop || 0;"
+                    );
+                    log.info("Retrieved scroll position from JavaScript: " + scrollPosition);
+                    return scrollPosition.intValue();
+                } catch (Exception e) {
+                    log.warning("Failed to get scroll position from JavaScript: " + e.getMessage());
+                    log.info("Using tracked cumulative scroll position: " + cumulativeScrollPosition);
+                    return cumulativeScrollPosition;
+                }
+            } else {
+                // For native mobile apps, use tracked cumulative scroll position
+                log.info("Native mobile app detected, using tracked cumulative scroll position: " + cumulativeScrollPosition);
+                return cumulativeScrollPosition;
+            }
         } catch (Exception e) {
             log.warning("Failed to get scroll position: " + e.getMessage());
             log.warning("Exception type: " + e.getClass().getSimpleName());
             log.warning("Using default scroll position: 0");
-            return 0L;
+            return 0;
         }
+    }
+
+    /**
+     * Get device pixel ratio for proper scaling
+     */
+    private double getDevicePixelRatio() {
+        try {
+            String platform = detectPlatform();
+            
+            if (platform.contains("web")) {
+                // For web apps, use JavaScript to get device pixel ratio
+                try {
+                    Double dpr = (Double) ((JavascriptExecutor) driver).executeScript(
+                        "return window.devicePixelRatio || 1;"
+                    );
+                    log.info("Retrieved device pixel ratio from JavaScript: " + dpr);
+                    return dpr;
+                } catch (Exception e) {
+                    log.warning("Failed to get device pixel ratio from JavaScript: " + e.getMessage());
+                    log.info("Using default device pixel ratio: 1.0");
+                    return 1.0;
+                }
+            } else {
+                // For native mobile apps, try to get from capabilities or use default
+                try {
+                    Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+                    Object pixelRatio = caps.getCapability("devicePixelRatio");
+                    if (pixelRatio != null) {
+                        double dpr = Double.parseDouble(pixelRatio.toString());
+                        log.info("Retrieved device pixel ratio from capabilities: " + dpr);
+                        return dpr;
+                    }
+                } catch (Exception e) {
+                    log.warning("Failed to get device pixel ratio from capabilities: " + e.getMessage());
+                }
+                
+                // Default values for common mobile devices
+                log.info("Using default device pixel ratio for native app: 1.0");
+                return 1.0;
+            }
+        } catch (Exception e) {
+            log.warning("Failed to get device pixel ratio: " + e.getMessage());
+            log.warning("Using default device pixel ratio: 1.0");
+            return 1.0;
+        }
+    }
+
+    /**
+     * Update cumulative scroll position for native mobile apps
+     * This should be called after each scroll operation with the scroll distance
+     */
+    public void updateScrollPosition(int scrollDistance) {
+        // Convert scroll distance to device pixels if needed
+        int scaledScrollDistance = (int) (scrollDistance * devicePixelRatio);
+        log.info("Updating cumulative scroll position from " + cumulativeScrollPosition + " by adding " + scrollDistance + " (scaled to " + scaledScrollDistance + " device pixels)");
+        this.cumulativeScrollPosition += scaledScrollDistance;
+        log.info("New cumulative scroll position: " + cumulativeScrollPosition);
     }
 
     /**
@@ -193,9 +282,6 @@ public class ElementBoundingBoxUtil {
                     log.warning("No browserName capability found");
                 }
                 
-                log.info("Platform name: " + platformName);
-                log.info("Browser name: " + browserName);
-                
                 String detectedPlatform;
                 if (platformName.contains("ios")) {
                     detectedPlatform = browserName.equals("safari") ? "ios_webview" : "ios_native";
@@ -223,10 +309,10 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Deduplicate elements based on position proximity
+     * For the same XPath, we should only keep one element (the first one detected)
      */
     public List<ElementBoundingBox> deduplicateElements(List<ElementBoundingBox> elements) {
         log.info("Starting deduplication process for " + (elements != null ? elements.size() : 0) + " elements");
-        log.info("Proximity threshold: " + PROXIMITY_THRESHOLD + " pixels");
         
         if (elements == null || elements.size() <= 1) {
             log.info("No deduplication needed - " + (elements != null ? elements.size() : 0) + " elements");
@@ -234,46 +320,32 @@ public class ElementBoundingBoxUtil {
         }
 
         List<ElementBoundingBox> uniqueElements = new ArrayList<>();
-        Set<String> processedXPaths = new HashSet<>();
+        Map<String, ElementBoundingBox> firstElementByXPath = new HashMap<>();
 
-        for (int i = 0; i < elements.size(); i++) {
-            ElementBoundingBox element = elements.get(i);
+        // For each element, keep only the first occurrence of each XPath
+        for (ElementBoundingBox element : elements) {
             String xpath = element.getXpath();
             
-            log.info("Processing element " + (i + 1) + "/" + elements.size() + " for deduplication: " + element.toString());
-            
-            if (processedXPaths.contains(xpath)) {
-                log.info("XPath already processed: " + xpath + ", checking proximity...");
-                
-                // Check if this element is too close to an already processed element
-                boolean isDuplicate = false;
-                for (ElementBoundingBox existing : uniqueElements) {
-                    if (existing.getXpath().equals(xpath)) {
-                        double distance = element.distanceTo(existing);
-                        log.info("Distance to existing element: " + distance + " pixels (threshold: " + PROXIMITY_THRESHOLD + ")");
-                        
-                        if (distance <= PROXIMITY_THRESHOLD) {
-                            isDuplicate = true;
-                            log.info("Deduplicating element: " + element.toString() + " (too close to: " + existing.toString() + ")");
-                            break;
-                        } else {
-                            log.info("Element is far enough from existing element, keeping both");
-                        }
-                    }
-                }
-                
-                if (!isDuplicate) {
-                    uniqueElements.add(element);
-                    log.info("Added element to unique list: " + element.toString());
-                }
-            } else {
+            if (!firstElementByXPath.containsKey(xpath)) {
+                // First time seeing this XPath, keep it
+                firstElementByXPath.put(xpath, element);
                 uniqueElements.add(element);
-                processedXPaths.add(xpath);
-                log.info("First occurrence of XPath, added to unique list: " + element.toString());
+                log.info("First occurrence of XPath, keeping element: " + element.toString());
+            } else {
+                // Already seen this XPath, log and skip
+                ElementBoundingBox existing = firstElementByXPath.get(xpath);
+                log.info("Duplicate XPath detected, skipping element: " + element.toString());
+                log.info("  Original element: " + existing.toString());
+                log.info("  Duplicate element: " + element.toString());
             }
         }
 
         log.info("Deduplication complete: " + elements.size() + " -> " + uniqueElements.size() + " elements");
+        log.info("Kept elements by XPath:");
+        for (Map.Entry<String, ElementBoundingBox> entry : firstElementByXPath.entrySet()) {
+            log.info("  " + entry.getKey() + " -> " + entry.getValue().toString());
+        }
+        
         return uniqueElements;
     }
 
