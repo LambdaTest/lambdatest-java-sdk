@@ -103,35 +103,68 @@ public class SmartUIAppSnapshot {
     private List<String> extractXPathsFromOptions(Map<String, String> options) {
         List<String> xpaths = new ArrayList<>();
         
+        log.info("Extracting XPaths from options map");
+        
         if (options == null) {
+            log.info("Options map is null, returning empty XPath list");
             return xpaths;
         }
         
         // Check for ignoreBoxes option with nested structure
         String ignoreBoxesValue = getOptionValue(options, "ignoreBoxes");
+        log.info("ignoreBoxes value from options: " + (ignoreBoxesValue.isEmpty() ? "empty" : "present"));
+        
         if (!ignoreBoxesValue.isEmpty()) {
             try {
+                log.info("Parsing ignoreBoxes JSON structure");
                 // Parse the ignoreBoxes JSON structure
                 Map<String, Object> ignoreBoxesMap = gson.fromJson(ignoreBoxesValue, Map.class);
-                if (ignoreBoxesMap != null && ignoreBoxesMap.containsKey("xpaths")) {
-                    Object xpathsObj = ignoreBoxesMap.get("xpaths");
-                    if (xpathsObj instanceof List) {
-                        List<?> xpathsList = (List<?>) xpathsObj;
-                        for (Object xpathObj : xpathsList) {
-                            if (xpathObj instanceof String) {
-                                String xpath = ((String) xpathObj).trim();
-                                if (!xpath.isEmpty()) {
-                                    xpaths.add(xpath);
+                
+                if (ignoreBoxesMap != null) {
+                    log.info("Successfully parsed ignoreBoxes map with " + ignoreBoxesMap.size() + " keys");
+                    
+                    if (ignoreBoxesMap.containsKey("xpaths")) {
+                        log.info("Found xpaths key in ignoreBoxes map");
+                        Object xpathsObj = ignoreBoxesMap.get("xpaths");
+                        
+                        if (xpathsObj instanceof List) {
+                            List<?> xpathsList = (List<?>) xpathsObj;
+                            log.info("XPaths list contains " + xpathsList.size() + " items");
+                            
+                            for (int i = 0; i < xpathsList.size(); i++) {
+                                Object xpathObj = xpathsList.get(i);
+                                log.info("Processing XPath item " + (i + 1) + "/" + xpathsList.size() + ": " + xpathObj);
+                                
+                                if (xpathObj instanceof String) {
+                                    String xpath = ((String) xpathObj).trim();
+                                    if (!xpath.isEmpty()) {
+                                        xpaths.add(xpath);
+                                        log.info("Added XPath: " + xpath);
+                                    } else {
+                                        log.warning("Empty XPath found at index " + i + ", skipping");
+                                    }
+                                } else {
+                                    log.warning("Non-string XPath found at index " + i + ": " + xpathObj.getClass().getSimpleName() + ", skipping");
                                 }
                             }
+                        } else {
+                            log.warning("xpaths value is not a List: " + (xpathsObj != null ? xpathsObj.getClass().getSimpleName() : "null"));
                         }
+                    } else {
+                        log.info("No xpaths key found in ignoreBoxes map. Available keys: " + ignoreBoxesMap.keySet());
                     }
+                } else {
+                    log.warning("Failed to parse ignoreBoxes map - result is null");
                 }
             } catch (Exception e) {
                 log.warning("Failed to parse ignoreBoxes option: " + e.getMessage());
+                log.warning("Exception type: " + e.getClass().getSimpleName());
             }
+        } else {
+            log.info("No ignoreBoxes option found in options map");
         }
         
+        log.info("Extracted " + xpaths.size() + " XPaths from options");
         return xpaths;
     }
 

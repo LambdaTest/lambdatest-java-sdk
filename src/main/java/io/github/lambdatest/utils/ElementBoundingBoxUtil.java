@@ -21,26 +21,47 @@ public class ElementBoundingBoxUtil {
         List<ElementBoundingBox> detectedElements = new ArrayList<>();
         String platform = detectPlatform();
 
+        log.info("Starting element detection for chunk " + chunkIndex + " with " + (xpaths != null ? xpaths.size() : 0) + " XPaths");
+        log.info("Detected platform: " + platform);
+
         if (xpaths == null || xpaths.isEmpty()) {
+            log.info("No XPaths provided for element detection");
             return detectedElements;
         }
 
-        for (String xpath : xpaths) {
+        for (int i = 0; i < xpaths.size(); i++) {
+            String xpath = xpaths.get(i);
+            log.info("Processing XPath " + (i + 1) + "/" + xpaths.size() + ": " + xpath);
+            
             try {
                 List<WebElement> elements = driver.findElements(By.xpath(xpath));
+                log.info("Found " + elements.size() + " elements for XPath: " + xpath);
                 
-                for (WebElement element : elements) {
+                for (int j = 0; j < elements.size(); j++) {
+                    WebElement element = elements.get(j);
+                    log.info("Processing element " + (j + 1) + "/" + elements.size() + " for XPath: " + xpath);
+                    
                     ElementBoundingBox boundingBox = createBoundingBox(element, xpath, chunkIndex, platform);
-                    if (boundingBox != null && isElementFullyInViewport(boundingBox)) {
-                        detectedElements.add(boundingBox);
-                        log.info("Element found: " + boundingBox.toString());
+                    if (boundingBox != null) {
+                        log.info("Created bounding box: " + boundingBox.toString());
+                        
+                        if (isElementFullyInViewport(boundingBox)) {
+                            detectedElements.add(boundingBox);
+                            log.info("Element added to detected list: " + boundingBox.toString());
+                        } else {
+                            log.info("Element not fully in viewport, skipping: " + boundingBox.toString());
+                        }
+                    } else {
+                        log.warning("Failed to create bounding box for element " + (j + 1) + " of XPath: " + xpath);
                     }
                 }
             } catch (Exception e) {
                 log.warning("Failed to detect elements for XPath '" + xpath + "': " + e.getMessage());
+                log.warning("Exception details: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             }
         }
 
+        log.info("Element detection completed for chunk " + chunkIndex + ". Total elements detected: " + detectedElements.size());
         return detectedElements;
     }
 
@@ -49,21 +70,34 @@ public class ElementBoundingBoxUtil {
      */
     private ElementBoundingBox createBoundingBox(WebElement element, String xpath, int chunkIndex, String platform) {
         try {
+            log.info("Creating bounding box for XPath: " + xpath);
+            
             // Get element location and size relative to viewport
             Point location = element.getLocation();
             Dimension size = element.getSize();
             
+            log.info("Element viewport location: (" + location.getX() + ", " + location.getY() + ")");
+            log.info("Element size: " + size.getWidth() + "x" + size.getHeight());
+            
             // Get current scroll position
             Long scrollY = getCurrentScrollPosition();
+            log.info("Current scroll position: " + scrollY);
             
             // Convert to absolute page coordinates
             int absoluteX = location.getX();
             int absoluteY = location.getY() + scrollY.intValue();
             
-            return new ElementBoundingBox(xpath, absoluteX, absoluteY, size.getWidth(), size.getHeight(), chunkIndex, platform);
+            log.info("Calculated absolute coordinates: (" + absoluteX + ", " + absoluteY + ")");
+            
+            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, size.getWidth(), size.getHeight(), chunkIndex, platform);
+            log.info("Successfully created bounding box: " + boundingBox.toString());
+            
+            return boundingBox;
             
         } catch (Exception e) {
             log.warning("Failed to create bounding box for element with XPath '" + xpath + "': " + e.getMessage());
+            log.warning("Exception type: " + e.getClass().getSimpleName());
+            log.warning("Exception stack trace: " + e.getMessage());
             return null;
         }
     }
@@ -73,20 +107,35 @@ public class ElementBoundingBoxUtil {
      */
     private boolean isElementFullyInViewport(ElementBoundingBox boundingBox) {
         try {
+            log.info("Checking viewport bounds for element: " + boundingBox.toString());
+            
             Dimension viewportSize = driver.manage().window().getSize();
             Long scrollY = getCurrentScrollPosition();
             
+            log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight());
+            log.info("Current scroll position: " + scrollY);
+            
             // Calculate viewport-relative position
             int viewportY = boundingBox.getY() - scrollY.intValue();
+            log.info("Element viewport-relative Y position: " + viewportY);
             
             // Check if element is completely within viewport
-            return boundingBox.getX() >= 0 && 
-                   boundingBox.getX() + boundingBox.getWidth() <= viewportSize.getWidth() &&
-                   viewportY >= 0 && 
-                   viewportY + boundingBox.getHeight() <= viewportSize.getHeight();
+            boolean xInBounds = boundingBox.getX() >= 0 && 
+                               boundingBox.getX() + boundingBox.getWidth() <= viewportSize.getWidth();
+            boolean yInBounds = viewportY >= 0 && 
+                               viewportY + boundingBox.getHeight() <= viewportSize.getHeight();
+            
+            log.info("X bounds check: " + xInBounds + " (X: " + boundingBox.getX() + ", width: " + boundingBox.getWidth() + ", viewport width: " + viewportSize.getWidth() + ")");
+            log.info("Y bounds check: " + yInBounds + " (viewport Y: " + viewportY + ", height: " + boundingBox.getHeight() + ", viewport height: " + viewportSize.getHeight() + ")");
+            
+            boolean isFullyInViewport = xInBounds && yInBounds;
+            log.info("Element fully in viewport: " + isFullyInViewport);
+            
+            return isFullyInViewport;
                    
         } catch (Exception e) {
             log.warning("Failed to check viewport bounds: " + e.getMessage());
+            log.warning("Exception type: " + e.getClass().getSimpleName());
             return false;
         }
     }
@@ -96,11 +145,15 @@ public class ElementBoundingBoxUtil {
      */
     private Long getCurrentScrollPosition() {
         try {
-            return (Long) ((JavascriptExecutor) driver).executeScript(
+            Long scrollPosition = (Long) ((JavascriptExecutor) driver).executeScript(
                 "return window.pageYOffset || document.documentElement.scrollTop || 0;"
             );
+            log.info("Retrieved scroll position: " + scrollPosition);
+            return scrollPosition;
         } catch (Exception e) {
             log.warning("Failed to get scroll position: " + e.getMessage());
+            log.warning("Exception type: " + e.getClass().getSimpleName());
+            log.warning("Using default scroll position: 0");
             return 0L;
         }
     }
@@ -110,19 +163,60 @@ public class ElementBoundingBoxUtil {
      */
     private String detectPlatform() {
         try {
+            log.info("Detecting platform...");
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-            String platformName = caps.getPlatformName().toString().toLowerCase();
-            String browserName = caps.getBrowserName().toString().toLowerCase();
             
-            if (platformName.contains("ios")) {
-                return browserName.equals("safari") ? "ios_webview" : "ios_native";
-            } else if (platformName.contains("android")) {
-                return browserName.equals("chrome") ? "android_webview" : "android_native";
-            } else {
-                return "web";
+            // Use the older API compatible with Selenium 4.1.2
+            String platformName = "";
+            String browserName = "";
+            
+            try {
+                // Log all available capabilities for debugging
+                log.info("Available capabilities: " + caps.asMap().keySet());
+                
+                // Try to get platform name using the old API
+                if (caps.getCapability("platformName") != null) {
+                    platformName = caps.getCapability("platformName").toString().toLowerCase();
+                    log.info("Found platformName capability: " + platformName);
+                } else if (caps.getCapability("platform") != null) {
+                    platformName = caps.getCapability("platform").toString().toLowerCase();
+                    log.info("Found platform capability: " + platformName);
+                } else {
+                    log.warning("No platform capability found");
+                }
+                
+                // Try to get browser name
+                if (caps.getCapability("browserName") != null) {
+                    browserName = caps.getCapability("browserName").toString().toLowerCase();
+                    log.info("Found browserName capability: " + browserName);
+                } else {
+                    log.warning("No browserName capability found");
+                }
+                
+                log.info("Platform name: " + platformName);
+                log.info("Browser name: " + browserName);
+                
+                String detectedPlatform;
+                if (platformName.contains("ios")) {
+                    detectedPlatform = browserName.equals("safari") ? "ios_webview" : "ios_native";
+                } else if (platformName.contains("android")) {
+                    detectedPlatform = browserName.equals("chrome") ? "android_webview" : "android_native";
+                } else {
+                    detectedPlatform = "web";
+                }
+                
+                log.info("Detected platform: " + detectedPlatform);
+                return detectedPlatform;
+                
+            } catch (Exception e) {
+                log.warning("Error accessing capabilities: " + e.getMessage());
+                return "unknown";
             }
+            
         } catch (Exception e) {
             log.warning("Failed to detect platform: " + e.getMessage());
+            log.warning("Exception type: " + e.getClass().getSimpleName());
+            log.warning("Using default platform: unknown");
             return "unknown";
         }
     }
@@ -131,34 +225,51 @@ public class ElementBoundingBoxUtil {
      * Deduplicate elements based on position proximity
      */
     public List<ElementBoundingBox> deduplicateElements(List<ElementBoundingBox> elements) {
+        log.info("Starting deduplication process for " + (elements != null ? elements.size() : 0) + " elements");
+        log.info("Proximity threshold: " + PROXIMITY_THRESHOLD + " pixels");
+        
         if (elements == null || elements.size() <= 1) {
+            log.info("No deduplication needed - " + (elements != null ? elements.size() : 0) + " elements");
             return elements;
         }
 
         List<ElementBoundingBox> uniqueElements = new ArrayList<>();
         Set<String> processedXPaths = new HashSet<>();
 
-        for (ElementBoundingBox element : elements) {
+        for (int i = 0; i < elements.size(); i++) {
+            ElementBoundingBox element = elements.get(i);
             String xpath = element.getXpath();
             
+            log.info("Processing element " + (i + 1) + "/" + elements.size() + " for deduplication: " + element.toString());
+            
             if (processedXPaths.contains(xpath)) {
+                log.info("XPath already processed: " + xpath + ", checking proximity...");
+                
                 // Check if this element is too close to an already processed element
                 boolean isDuplicate = false;
                 for (ElementBoundingBox existing : uniqueElements) {
-                    if (existing.getXpath().equals(xpath) && 
-                        element.distanceTo(existing) <= PROXIMITY_THRESHOLD) {
-                        isDuplicate = true;
-                        log.info("Deduplicating element: " + element.toString() + " (too close to: " + existing.toString() + ")");
-                        break;
+                    if (existing.getXpath().equals(xpath)) {
+                        double distance = element.distanceTo(existing);
+                        log.info("Distance to existing element: " + distance + " pixels (threshold: " + PROXIMITY_THRESHOLD + ")");
+                        
+                        if (distance <= PROXIMITY_THRESHOLD) {
+                            isDuplicate = true;
+                            log.info("Deduplicating element: " + element.toString() + " (too close to: " + existing.toString() + ")");
+                            break;
+                        } else {
+                            log.info("Element is far enough from existing element, keeping both");
+                        }
                     }
                 }
                 
                 if (!isDuplicate) {
                     uniqueElements.add(element);
+                    log.info("Added element to unique list: " + element.toString());
                 }
             } else {
                 uniqueElements.add(element);
                 processedXPaths.add(xpath);
+                log.info("First occurrence of XPath, added to unique list: " + element.toString());
             }
         }
 
@@ -170,31 +281,45 @@ public class ElementBoundingBoxUtil {
      * Prepare element data for upload
      */
     public Map<String, Object> prepareUploadData(List<ElementBoundingBox> elements) {
+        log.info("Preparing upload data for " + (elements != null ? elements.size() : 0) + " elements");
+        
         Map<String, Object> uploadData = new HashMap<>();
         
         // Add metadata
-        uploadData.put("timestamp", System.currentTimeMillis());
-        uploadData.put("totalElements", elements.size());
-        uploadData.put("platform", detectPlatform());
+        long timestamp = System.currentTimeMillis();
+        String platform = detectPlatform();
+        
+        uploadData.put("timestamp", timestamp);
+        uploadData.put("totalElements", elements != null ? elements.size() : 0);
+        uploadData.put("platform", platform);
+        
+        log.info("Upload metadata - timestamp: " + timestamp + ", totalElements: " + (elements != null ? elements.size() : 0) + ", platform: " + platform);
         
         // Add element data
         List<Map<String, Object>> elementData = new ArrayList<>();
-        for (ElementBoundingBox element : elements) {
-            Map<String, Object> elementMap = new HashMap<>();
-            elementMap.put("xpath", element.getXpath());
-            elementMap.put("x", element.getX());
-            elementMap.put("y", element.getY());
-            elementMap.put("width", element.getWidth());
-            elementMap.put("height", element.getHeight());
-            elementMap.put("chunkIndex", element.getChunkIndex());
-            elementMap.put("timestamp", element.getTimestamp());
-            elementMap.put("platform", element.getPlatform());
-            
-            elementData.add(elementMap);
+        if (elements != null) {
+            for (int i = 0; i < elements.size(); i++) {
+                ElementBoundingBox element = elements.get(i);
+                log.info("Processing element " + (i + 1) + "/" + elements.size() + " for upload: " + element.toString());
+                
+                Map<String, Object> elementMap = new HashMap<>();
+                elementMap.put("xpath", element.getXpath());
+                elementMap.put("x", element.getX());
+                elementMap.put("y", element.getY());
+                elementMap.put("width", element.getWidth());
+                elementMap.put("height", element.getHeight());
+                elementMap.put("chunkIndex", element.getChunkIndex());
+                elementMap.put("timestamp", element.getTimestamp());
+                elementMap.put("platform", element.getPlatform());
+                
+                elementData.add(elementMap);
+                log.info("Added element data to upload: " + elementMap.toString());
+            }
         }
         
         uploadData.put("elements", elementData);
         
+        log.info("Upload data preparation complete. Total elements in upload data: " + elementData.size());
         return uploadData;
     }
 } 
