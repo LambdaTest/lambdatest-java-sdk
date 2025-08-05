@@ -12,6 +12,7 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Logger;
 import io.github.lambdatest.utils.LoggerUtil;
+import io.github.lambdatest.utils.ElementBoundingBoxUtil;
 
 public class SmartUIAppSnapshot {
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
@@ -99,6 +100,41 @@ public class SmartUIAppSnapshot {
         return "";
     }
 
+    private List<String> extractXPathsFromOptions(Map<String, String> options) {
+        List<String> xpaths = new ArrayList<>();
+        
+        if (options == null) {
+            return xpaths;
+        }
+        
+        // Check for ignoreBoxes option with nested structure
+        String ignoreBoxesValue = getOptionValue(options, "ignoreBoxes");
+        if (!ignoreBoxesValue.isEmpty()) {
+            try {
+                // Parse the ignoreBoxes JSON structure
+                Map<String, Object> ignoreBoxesMap = gson.fromJson(ignoreBoxesValue, Map.class);
+                if (ignoreBoxesMap != null && ignoreBoxesMap.containsKey("xpaths")) {
+                    Object xpathsObj = ignoreBoxesMap.get("xpaths");
+                    if (xpathsObj instanceof List) {
+                        List<?> xpathsList = (List<?>) xpathsObj;
+                        for (Object xpathObj : xpathsList) {
+                            if (xpathObj instanceof String) {
+                                String xpath = ((String) xpathObj).trim();
+                                if (!xpath.isEmpty()) {
+                                    xpaths.add(xpath);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warning("Failed to parse ignoreBoxes option: " + e.getMessage());
+            }
+        }
+        
+        return xpaths;
+    }
+
     private UploadSnapshotRequest initializeUploadRequest(String screenshotName, String viewport) {
         UploadSnapshotRequest request = new UploadSnapshotRequest();
         request.setScreenshotName(screenshotName);
@@ -176,7 +212,18 @@ public class SmartUIAppSnapshot {
             } else {
                 uploadSnapshotRequest.setFullPage("true");
                 FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
-                List<File> ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
+                
+                // Extract XPaths from options for element detection
+                List<String> xpaths = extractXPathsFromOptions(options);
+                
+                List<File> ssDir;
+                if (xpaths != null && !xpaths.isEmpty()) {
+                    log.info("Element detection enabled for " + xpaths.size() + " XPaths");
+                    ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, xpaths);
+                } else {
+                    ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
+                }
+                
                 if(ssDir.isEmpty()){
                     throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
                 }

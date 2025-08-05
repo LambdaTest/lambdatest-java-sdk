@@ -29,6 +29,10 @@ public class FullPageScreenshotUtil {
     private int maxCount = 10;
 
     public List<File> captureFullPage(int pageCount) {
+        return captureFullPage(pageCount, null);
+    }
+
+    public List<File> captureFullPage(int pageCount, List<String> xpaths) {
         if (pageCount <= 0) {
             pageCount = maxCount;
         }
@@ -38,10 +42,27 @@ public class FullPageScreenshotUtil {
         int chunkCount = 0;
         boolean isLastScroll = false;
         List<File> screenshotDir = new ArrayList<>();
+        List<ElementBoundingBox> allElements = new ArrayList<>();
+        ElementBoundingBoxUtil elementUtil = null;
+        
+        // Initialize element detection if XPaths provided
+        if (xpaths != null && !xpaths.isEmpty()) {
+            elementUtil = new ElementBoundingBoxUtil(driver);
+            log.info("Element detection enabled for " + xpaths.size() + " XPaths");
+        }
+        
         while (!isLastScroll && chunkCount < maxCount) {
             File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
             if (screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
+                
+                // Detect elements after screenshot if XPaths provided
+                if (elementUtil != null) {
+                    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(xpaths, chunkCount);
+                    allElements.addAll(chunkElements);
+                    log.info("Detected " + chunkElements.size() + " elements in chunk " + chunkCount);
+                }
+                
                 chunkCount++;
             }
             // Perform scroll
@@ -50,6 +71,16 @@ public class FullPageScreenshotUtil {
             // Detect end of page
             isLastScroll = hasReachedBottom();
         }
+        
+        // Process and log final element data
+        if (elementUtil != null && !allElements.isEmpty()) {
+            List<ElementBoundingBox> uniqueElements = elementUtil.deduplicateElements(allElements);
+            Map<String, Object> uploadData = elementUtil.prepareUploadData(uniqueElements);
+            
+            log.info("Element detection complete: " + allElements.size() + " total, " + uniqueElements.size() + " unique elements");
+            log.info("Element upload data prepared: " + uploadData.toString());
+        }
+        
         log.info("Finished capturing all screenshots for full page.");
         return screenshotDir;
     }
