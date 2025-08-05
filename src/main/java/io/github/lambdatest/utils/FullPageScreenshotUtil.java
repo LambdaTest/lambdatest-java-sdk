@@ -1,6 +1,7 @@
 package io.github.lambdatest.utils;
 
 import org.openqa.selenium.*;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
