@@ -223,8 +223,11 @@ public class ElementBoundingBoxUtil {
                     log.info("Using default device pixel ratio: 1.0");
                     return 1.0;
                 }
+            } else if (platform.contains("ios")) {
+                // For iOS devices, use hardcoded DPR map
+                return getIOSDevicePixelRatio();
             } else {
-                // For native mobile apps, try to get from capabilities or use default
+                // For Android native apps, try to get from capabilities or use default
                 try {
                     Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
                     Object pixelRatio = caps.getCapability("devicePixelRatio");
@@ -237,14 +240,210 @@ public class ElementBoundingBoxUtil {
                     log.warning("Failed to get device pixel ratio from capabilities: " + e.getMessage());
                 }
                 
-                // Default values for common mobile devices
-                log.info("Using default device pixel ratio for native app: 1.0");
+                // Default values for common Android devices
+                log.info("Using default device pixel ratio for Android app: 1.0");
                 return 1.0;
             }
         } catch (Exception e) {
             log.warning("Failed to get device pixel ratio: " + e.getMessage());
             log.warning("Using default device pixel ratio: 1.0");
             return 1.0;
+        }
+    }
+
+    /**
+     * Get iOS device pixel ratio from hardcoded map based on ios-resolution.com
+     */
+    private double getIOSDevicePixelRatio() {
+        try {
+            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            String deviceName = "";
+            String model = "";
+            
+            // Try to get device information from capabilities
+            if (caps.getCapability("deviceName") != null) {
+                deviceName = caps.getCapability("deviceName").toString().toLowerCase();
+            }
+            if (caps.getCapability("model") != null) {
+                model = caps.getCapability("model").toString().toLowerCase();
+            }
+            
+            log.info("iOS device detection - deviceName: " + deviceName + ", model: " + model);
+            
+            // iPhone DPR Map based on ios-resolution.com scale factors
+            if (deviceName.contains("iphone") || model.contains("iphone")) {
+                // iPhone 16 series (Scale Factor: 3)
+                if (deviceName.contains("16") || model.contains("16")) {
+                    log.info("Detected iPhone 16 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 15 series (Scale Factor: 3)
+                if (deviceName.contains("15") || model.contains("15")) {
+                    log.info("Detected iPhone 15 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 14 series (Scale Factor: 3)
+                if (deviceName.contains("14") || model.contains("14")) {
+                    log.info("Detected iPhone 14 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 13 series (Scale Factor: 3)
+                if (deviceName.contains("13") || model.contains("13")) {
+                    log.info("Detected iPhone 13 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 12 series (Scale Factor: 3)
+                if (deviceName.contains("12") || model.contains("12")) {
+                    log.info("Detected iPhone 12 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 11 series (Scale Factor: 3)
+                if (deviceName.contains("11") || model.contains("11")) {
+                    log.info("Detected iPhone 11 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone X series (Scale Factor: 3)
+                if (deviceName.contains("x") || model.contains("x")) {
+                    log.info("Detected iPhone X series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 8 series (Scale Factor: 3)
+                if (deviceName.contains("8") || model.contains("8")) {
+                    log.info("Detected iPhone 8 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 7 series (Scale Factor: 3)
+                if (deviceName.contains("7") || model.contains("7")) {
+                    log.info("Detected iPhone 7 series, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 6 Plus (Scale Factor: 3)
+                if (deviceName.contains("6 plus") || model.contains("6 plus")) {
+                    log.info("Detected iPhone 6 Plus, using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // iPhone 6 (Scale Factor: 2)
+                if (deviceName.contains("6") || model.contains("6")) {
+                    log.info("Detected iPhone 6, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPhone 5 series (Scale Factor: 2)
+                if (deviceName.contains("5") || model.contains("5")) {
+                    log.info("Detected iPhone 5 series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPhone 4 series (Scale Factor: 2)
+                if (deviceName.contains("4") || model.contains("4")) {
+                    log.info("Detected iPhone 4 series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPhone SE series (Scale Factor: 2)
+                if (deviceName.contains("se") || model.contains("se")) {
+                    log.info("Detected iPhone SE series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPhone 3GS and earlier (Scale Factor: 1)
+                if (deviceName.contains("3") || model.contains("3")) {
+                    log.info("Detected iPhone 3GS or earlier, using DPR: 1.0 (Scale Factor: 1)");
+                    return 1.0;
+                }
+                // Future iPhone models (Scale Factor: 3) - for iPhone 17+ and beyond
+                if (extractIPhoneNumber(deviceName, model) > 16) {
+                    log.info("Detected future iPhone model (17+), using DPR: 3.0 (Scale Factor: 3)");
+                    return 3.0;
+                }
+                // Default for other iPhones (Scale Factor: 3)
+                log.info("Detected iPhone (unknown model), using DPR: 3.0 (Scale Factor: 3)");
+                return 3.0;
+            }
+            
+            // iPad DPR Map based on ios-resolution.com scale factors
+            if (deviceName.contains("ipad") || model.contains("ipad")) {
+                // iPad Pro series (Scale Factor: 2)
+                if (deviceName.contains("pro") || model.contains("pro")) {
+                    log.info("Detected iPad Pro series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPad Air series (Scale Factor: 2)
+                if (deviceName.contains("air") || model.contains("air")) {
+                    log.info("Detected iPad Air series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPad mini series (Scale Factor: 2)
+                if (deviceName.contains("mini") || model.contains("mini")) {
+                    log.info("Detected iPad mini series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPad (regular) series (Scale Factor: 2)
+                if (deviceName.contains("ipad") || model.contains("ipad")) {
+                    log.info("Detected iPad (regular) series, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // Default for other iPads (Scale Factor: 2)
+                log.info("Detected iPad (unknown model), using DPR: 2.0 (Scale Factor: 2)");
+                return 2.0;
+            }
+            
+            // iPod touch DPR Map based on ios-resolution.com scale factors
+            if (deviceName.contains("ipod") || model.contains("ipod")) {
+                // iPod touch 5th gen and later (Scale Factor: 2)
+                if (deviceName.contains("5") || model.contains("5") || 
+                    deviceName.contains("6") || model.contains("6") || 
+                    deviceName.contains("7") || model.contains("7")) {
+                    log.info("Detected iPod touch 5th gen+, using DPR: 2.0 (Scale Factor: 2)");
+                    return 2.0;
+                }
+                // iPod touch 4th gen and earlier (Scale Factor: 1)
+                log.info("Detected iPod touch 4th gen or earlier, using DPR: 1.0 (Scale Factor: 1)");
+                return 1.0;
+            }
+            
+            // Fallback for iOS devices
+            log.info("iOS device detected but model unknown, using DPR: 3.0 (Scale Factor: 3)");
+            return 3.0;
+            
+        } catch (Exception e) {
+            log.warning("Failed to get iOS device pixel ratio: " + e.getMessage());
+            log.info("Using default iOS DPR: 3.0 (Scale Factor: 3)");
+            return 3.0;
+        }
+    }
+
+    /**
+     * Extract iPhone number from device name or model for future device detection
+     */
+    private int extractIPhoneNumber(String deviceName, String model) {
+        try {
+            // Look for patterns like "iPhone 17", "iPhone17", "17 Pro", etc.
+            String combined = (deviceName + " " + model).toLowerCase();
+            
+            // Extract numbers that could be iPhone versions
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("iphone\\s*(\\d+)");
+            java.util.regex.Matcher matcher = pattern.matcher(combined);
+            
+            if (matcher.find()) {
+                int version = Integer.parseInt(matcher.group(1));
+                log.info("Extracted iPhone version: " + version);
+                return version;
+            }
+            
+            // If no specific iPhone pattern, try to find standalone numbers that might be versions
+            pattern = java.util.regex.Pattern.compile("\\b(\\d{2,})\\b");
+            matcher = pattern.matcher(combined);
+            
+            if (matcher.find()) {
+                int version = Integer.parseInt(matcher.group(1));
+                // Only consider reasonable iPhone version numbers (17+ for future devices)
+                if (version >= 17) {
+                    log.info("Extracted potential future iPhone version: " + version);
+                    return version;
+                }
+            }
+            
+            return 0; // No version found
+        } catch (Exception e) {
+            log.warning("Failed to extract iPhone number: " + e.getMessage());
+            return 0;
         }
     }
 

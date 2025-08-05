@@ -107,7 +107,7 @@ public class FullPageScreenshotUtil {
 
     private int scrollDown() {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(200); // Very short wait time between scrolls
             return scrollOnDevice();
         } catch (Exception e) {
             log.warning("Error during scroll operation: " + e.getMessage());
@@ -151,7 +151,7 @@ public class FullPageScreenshotUtil {
             int scrollWidth = 3; // Narrow width for precise control
             int scrollLeft = screenWidth / 2; // Center the narrow scroll area
             
-            log.info("Android scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollWidth);
+                        log.info("Android scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollWidth);
             
 
 
@@ -174,8 +174,8 @@ public class FullPageScreenshotUtil {
         }
     }
 
-    /**
-     * iOS-specific scroll method using dragFromToForDuration
+        /**
+     * iOS-specific scroll method using dragFromToForDuration (compatible with older Appium versions)
      */
     private int scrollIOS() {
         try {
@@ -185,21 +185,21 @@ public class FullPageScreenshotUtil {
             
             // Use precise scroll parameters
             int scrollEndY = (int) (screenHeight * 0.3); // End at 30% of screen height
-            int scrollHeight = (int) (screenHeight * 0.35); // Scroll distance = 35% of screen height
-            int scrollWidth = 3; // Narrow width for precise control
+            int scrollHeight = (int) (screenHeight * 0.3); // Scroll distance = 35% of screen height
             int scrollLeft = screenWidth / 2; // Center the narrow scroll area
             
-            log.info("iOS scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollWidth);
+            log.info("iOS scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollLeft);
 
-            int fromY = scrollEndY + scrollHeight; // Start from bottom of scroll area
-            int toY = scrollEndY; // End at top of scroll area
+            int startY = scrollEndY + scrollHeight; // Start from bottom of scroll area
+            int endY = scrollEndY; // End at top of scroll area
             
+            // Use dragFromToForDuration which is compatible with older Appium versions
             Map<String, Object> swipeObj = new HashMap<>();
             swipeObj.put("fromX", scrollLeft);
-            swipeObj.put("fromY", fromY);
+            swipeObj.put("fromY", startY);
             swipeObj.put("toX", scrollLeft);
-            swipeObj.put("toY", toY);
-            swipeObj.put("duration", 3.5); // Very slow duration for precise controlled scrolling
+            swipeObj.put("toY", endY);
+            swipeObj.put("duration", 0.5); // Slower duration for more controlled scrolling
             
             ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
             log.info("iOS dragFromTo scroll succeeded");
