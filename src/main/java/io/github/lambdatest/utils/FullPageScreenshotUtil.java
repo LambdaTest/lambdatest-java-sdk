@@ -152,6 +152,8 @@ public class FullPageScreenshotUtil {
             int scrollLeft = screenWidth / 2; // Center the narrow scroll area
             
             log.info("Android scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollWidth);
+            
+
 
             Map<String, Object> scrollParams = new HashMap<>();
             scrollParams.put("left", scrollLeft);
@@ -160,7 +162,7 @@ public class FullPageScreenshotUtil {
             scrollParams.put("height", scrollHeight);
             scrollParams.put("direction", "down");
             scrollParams.put("percent", 1.0);
-            scrollParams.put("speed", 500); // Very slow speed for precise controlled scrolling
+                            scrollParams.put("speed", 300); // Very slow speed for precise controlled scrolling
             
             ((JavascriptExecutor) driver).executeScript("mobile:scrollGesture", scrollParams);
             log.info("Android scrollGesture succeeded");
@@ -294,16 +296,10 @@ public class FullPageScreenshotUtil {
                 return false;
             }
             if (currentPageSource.equals(prevPageSource)) {
-                samePageCounter++;
-                log.info("Same page content detected, counter: " + samePageCounter);
-                if (samePageCounter >= 3) {
-                    log.info("Reached the bottom of the page — no new content found.");
-                    samePageCounter = 0;
-                    return true;
-                }
+                log.info("Same page content detected — reached the bottom of the page.");
+                return true;
             } else {
                 prevPageSource = currentPageSource;
-                samePageCounter = 0;
             }
         } catch (Exception e) {
             log.warning("Error checking if reached bottom: " + e.getMessage());
