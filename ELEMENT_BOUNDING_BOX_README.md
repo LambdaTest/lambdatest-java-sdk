@@ -15,7 +15,6 @@ The element bounding box detection feature allows you to capture the positions a
 
 - **Multi-Platform Support**: Works with iOS, Android, Native apps, and WebView
 - **Automatic Coordinate Conversion**: Converts viewport-relative to absolute page coordinates
-- **Deduplication**: Prevents duplicate element detection using position proximity
 - **Viewport Filtering**: Only detects elements completely within the current viewport
 - **Comprehensive Logging**: Detailed logs for element detection and processing
 - **Upload Pipeline**: Prepares element data for backend processing
@@ -104,7 +103,7 @@ List<File> screenshots = screenshotUtil.captureFullPage(10);
 
 ```
 XPath List → Platform Detection → Element Detection → Coordinate Conversion → 
-Deduplication → Aggregation → Upload Preparation
+Aggregation → Upload Preparation
 ```
 
 ## Element Detection Process
@@ -123,11 +122,6 @@ Deduplication → Aggregation → Upload Preparation
 - Converts viewport-relative to absolute page coordinates
 - Accounts for current scroll position
 - Provides pixel-perfect positioning
-
-### 4. Deduplication
-- Uses position proximity (10-pixel threshold)
-- Prevents duplicate element detection across chunks
-- Maintains element uniqueness
 
 ## Output Format
 
@@ -159,9 +153,7 @@ Deduplication → Aggregation → Upload Preparation
 INFO: Element detection enabled for 3 XPaths
 INFO: Element found: ElementBoundingBox{xpath='//button[@id='submit']', position=(100,250), size=(80,40), chunk=2, platform='ios_webview'}
 INFO: Detected 2 elements in chunk 2
-INFO: Deduplicating element: ElementBoundingBox{...} (too close to: ElementBoundingBox{...})
-INFO: Deduplication complete: 8 -> 5 elements
-INFO: Element detection complete: 8 total, 5 unique elements
+INFO: Element detection complete: 5 total elements
 ```
 
 ## Platform Support
@@ -185,6 +177,59 @@ INFO: Element detection complete: 8 total, 5 unique elements
 - Uses standard Selenium XPath evaluation
 - Handles web page elements
 - Supports all web element types
+
+## Platform-Specific Scrolling
+
+The element bounding box detection uses platform-specific scrolling methods to ensure optimal performance and reliability across different environments.
+
+### iOS Scrolling
+- **Method**: Uses `mobile:dragFromToForDuration` Appium command
+- **Parameters**:
+  - `fromX`, `fromY`: Starting coordinates (center of screen)
+  - `toX`, `toY`: Ending coordinates (calculated based on screen height)
+  - `duration`: 5.0 seconds (slow, controlled scrolling)
+- **Scroll Distance**: Calculated as 80% of screen height for optimal coverage
+- **Wait Time**: 200ms between scrolls for stability
+- **Advantages**: Precise control, works with all iOS versions, reliable element detection
+
+### Android Scrolling
+- **Method**: Uses `mobile:scrollGesture` Appium command
+- **Parameters**:
+  - `left`, `top`, `width`, `height`: Viewport dimensions
+  - `direction`: "down" for vertical scrolling
+  - `percent`: 0.8 (80% of screen height)
+  - `speed`: 500ms (slow, controlled scrolling)
+- **Scroll Distance**: 80% of screen height for optimal coverage
+- **Wait Time**: 200ms between scrolls for stability
+- **Advantages**: Native Android gesture, smooth scrolling, reliable detection
+
+### Web Scrolling
+- **Method**: Uses JavaScript `window.scrollBy()` function
+- **Parameters**:
+  - `x`: 0 (no horizontal scroll)
+  - `y`: Calculated scroll distance (80% of viewport height)
+- **Scroll Distance**: 80% of viewport height for optimal coverage
+- **Wait Time**: 200ms between scrolls for stability
+- **Advantages**: Standard web scrolling, works across all browsers, predictable behavior
+
+### Scroll End Detection
+- **Method**: Page source comparison
+- **Process**: Compares current page source with previous page source
+- **Logic**: If page source is identical, scrolling has reached the bottom
+- **Wait Time**: 1 second after each scroll before checking
+- **Fallback**: Assumes bottom reached if comparison fails
+
+### Scroll Position Tracking
+- **CSS Pixels**: All scroll positions tracked in CSS pixels for consistency
+- **Cumulative Tracking**: Maintains total scroll distance across all chunks
+- **Platform Agnostic**: Same tracking method for all platforms
+- **Absolute Position**: Used for accurate element coordinate calculation
+
+### Performance Optimization
+- **Slow Scrolling**: All platforms use slow scroll speeds for reliable element detection
+- **Minimal Wait Times**: 200ms between scrolls balances precision and performance
+- **Consistent Coverage**: 80% scroll distance ensures no content is missed
+- **Platform Detection**: Automatic detection ensures correct scroll method is used
 
 ## Configuration
 
@@ -232,11 +277,6 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 }
 ```
 
-### Proximity Threshold
-- Default: 10 pixels
-- Configurable in `ElementBoundingBoxUtil.PROXIMITY_THRESHOLD`
-- Used for deduplication logic
-
 ### Viewport Filtering
 - Only detects elements completely within viewport
 - Prevents partial element detection
@@ -268,7 +308,7 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 
 ### Memory Management
 - Clears temporary data after each chunk
-- Efficient deduplication algorithms
+- Efficient element detection algorithms
 - Minimal memory footprint
 
 ### Future Enhancements
@@ -314,12 +354,7 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
    - Check element visibility
    - Confirm platform compatibility
 
-2. **Duplicate Elements**
-   - Adjust proximity threshold
-   - Review XPath specificity
-   - Check element positioning
-
-3. **Coordinate Issues**
+2. **Coordinate Issues**
    - Verify scroll position calculation
    - Check viewport size detection
    - Validate platform detection
@@ -332,7 +367,64 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 ## Future Roadmap
 
 - **Asynchronous Processing**: Improve performance with async element detection
-- **Advanced Deduplication**: Content-based and visual similarity matching
 - **Element State Tracking**: Track visibility and state changes
 - **Performance Metrics**: Add timing and memory usage tracking
 - **Enhanced Platform Support**: Additional platform-specific optimizations 
+
+---
+
+## Bounding Box Detection & Calculation Context
+
+### 1. Coordinate System
+- All calculations (element location, size, scroll position, viewport checks) are performed in CSS pixels.
+- Device pixel ratio (DPR) is applied only once at the end to convert bounding box coordinates and dimensions from CSS pixels to device pixels for final output.
+
+### 2. Bounding Box Creation
+- For each detected element:
+  - Location and size are obtained in CSS pixels.
+  - Absolute position is calculated as:
+    absoluteY = elementViewportY + cumulativeScrollY (all in CSS pixels)
+  - Bounding box is created and stored in CSS pixels during all intermediate steps.
+
+### Absolute Position Calculation
+- The element's Y coordinate (`elementViewportY`) is relative to the current viewport (in CSS pixels).
+- The current scroll position (`cumulativeScrollY`, in CSS pixels) is tracked as the user scrolls.
+- The **absolute Y position** of the bounding box with respect to the top of the screen is calculated as:
+  - `absoluteY = elementViewportY + cumulativeScrollY` (all in CSS pixels)
+- At the end, this value is multiplied by the device pixel ratio (DPR) to convert to device pixels for upload:
+  - `deviceAbsoluteY = absoluteY * DPR`
+- This approach is consistent for both web and native apps, as scroll position is always tracked in CSS pixels.
+
+### 3. Viewport Filtering
+- Viewport size is obtained in CSS pixels.
+- Element is considered in viewport if:
+  - viewportRelativeY >= 0
+  - viewportRelativeY + elementHeight <= viewportHeight
+  - (and similarly for X axis)
+- All viewport checks are done in CSS pixels.
+
+### 4. Final Conversion
+- At the end of detection, all bounding boxes are converted from CSS pixels to device pixels:
+  - deviceX = cssX * DPR
+  - deviceY = cssY * DPR
+  - deviceWidth = cssWidth * DPR
+  - deviceHeight = cssHeight * DPR
+- This is done via a dedicated method:
+  convertBoundingBoxesToDevicePixels(List<ElementBoundingBox> cssElements)
+
+### 5. Platform Handling
+- DPR is determined via:
+  - JavaScript for web
+  - Hardcoded map for iOS/iPad (using ios-resolution.com)
+  - Capabilities or default for Android
+- Scroll position is tracked in CSS pixels for all platforms.
+
+### 6. Logging & Debugging
+- Extensive logging is present for:
+  - Element coordinates (CSS and device pixels)
+  - Viewport checks
+  - Conversion steps
+
+---
+
+This context ensures all bounding box logic is consistent, pixel-perfect, and platform-agnostic, with a single DPR conversion at the end for output. 

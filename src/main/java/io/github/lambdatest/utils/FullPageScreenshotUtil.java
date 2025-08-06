@@ -199,7 +199,7 @@ public class FullPageScreenshotUtil {
             swipeObj.put("fromY", startY);
             swipeObj.put("toX", scrollLeft);
             swipeObj.put("toY", endY);
-            swipeObj.put("duration", 0.5); // Slower duration for more controlled scrolling
+            swipeObj.put("duration", 0.3); // Slower duration for more controlled scrolling
             
             ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
             log.info("iOS dragFromTo scroll succeeded");
