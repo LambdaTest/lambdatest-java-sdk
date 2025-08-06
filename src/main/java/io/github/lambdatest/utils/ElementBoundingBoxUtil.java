@@ -85,12 +85,14 @@ public class ElementBoundingBoxUtil {
         }
 
         log.info("Element detection completed for chunk " + chunkIndex + ". Total elements detected: " + detectedElements.size());
-        return detectedElements;
+        
+        // Convert all bounding boxes from CSS pixels to device pixels for final storage
+        return convertBoundingBoxesToDevicePixels(detectedElements);
     }
 
     /**
      * Create bounding box from WebElement with absolute coordinates
-     * All computations done in CSS pixels, converted to device pixels only at the end
+     * All computations done in CSS pixels - no device pixel conversion here
      */
     private ElementBoundingBox createBoundingBox(WebElement element, String xpath, int chunkIndex, String platform) {
         try {
@@ -122,16 +124,9 @@ public class ElementBoundingBoxUtil {
             int width = size.getWidth();
             int height = size.getHeight();
             
-            // Convert to device pixels only for final bounding box storage
-            int deviceX = (int) (absoluteX * devicePixelRatio);
-            int deviceY = (int) (absoluteY * devicePixelRatio);
-            int deviceWidth = (int) (width * devicePixelRatio);
-            int deviceHeight = (int) (height * devicePixelRatio);
-            
-            log.info("Final device pixel coordinates: (" + deviceX + ", " + deviceY + ") size: " + deviceWidth + "x" + deviceHeight);
-            
-            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, deviceX, deviceY, deviceWidth, deviceHeight, chunkIndex, platform);
-            log.info("Successfully created bounding box: " + boundingBox.toString());
+            // Store bounding box with CSS pixel coordinates
+            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, width, height, chunkIndex, platform);
+            log.info("Successfully created bounding box (CSS pixels): " + boundingBox.toString());
             
             return boundingBox;
             
@@ -145,7 +140,7 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Check if element is completely within current viewport
-     * Converts device pixel coordinates to CSS pixels for viewport comparison
+     * Works directly with CSS pixel coordinates (no conversion needed)
      */
     private boolean isElementFullyInViewport(ElementBoundingBox boundingBox) {
         try {
@@ -157,13 +152,12 @@ public class ElementBoundingBoxUtil {
             log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight() + " CSS pixels");
             log.info("Current scroll position: " + scrollY + " CSS pixels");
             
-            // Convert bounding box coordinates from device pixels to CSS pixels for viewport comparison
-            int cssX = (int) Math.round(boundingBox.getX() / devicePixelRatio);
-            int cssY = (int) Math.round(boundingBox.getY() / devicePixelRatio);
-            int cssWidth = (int) Math.round(boundingBox.getWidth() / devicePixelRatio);
-            int cssHeight = (int) Math.round(boundingBox.getHeight() / devicePixelRatio);
+            // Bounding box coordinates are already in CSS pixels
+            int cssX = boundingBox.getX();
+            int cssY = boundingBox.getY();
+            int cssWidth = boundingBox.getWidth();
+            int cssHeight = boundingBox.getHeight();
             
-            log.info("Element device pixel coordinates: (" + boundingBox.getX() + ", " + boundingBox.getY() + ") size: " + boundingBox.getWidth() + "x" + boundingBox.getHeight());
             log.info("Element CSS pixel coordinates: (" + cssX + ", " + cssY + ") size: " + cssWidth + "x" + cssHeight);
             
             // Calculate viewport-relative position in CSS pixels
@@ -550,7 +544,33 @@ public class ElementBoundingBoxUtil {
         }
     }
 
+    /**
+     * Convert a list of bounding boxes from CSS pixels to device pixels
+     */
+    private List<ElementBoundingBox> convertBoundingBoxesToDevicePixels(List<ElementBoundingBox> cssElements) {
+        List<ElementBoundingBox> devicePixelElements = new ArrayList<>();
+        for (ElementBoundingBox cssElement : cssElements) {
+            int deviceX = (int) (cssElement.getX() * devicePixelRatio);
+            int deviceY = (int) (cssElement.getY() * devicePixelRatio);
+            int deviceWidth = (int) (cssElement.getWidth() * devicePixelRatio);
+            int deviceHeight = (int) (cssElement.getHeight() * devicePixelRatio);
 
+            ElementBoundingBox deviceElement = new ElementBoundingBox(
+                cssElement.getXpath(),
+                deviceX,
+                deviceY,
+                deviceWidth,
+                deviceHeight,
+                cssElement.getChunkIndex(),
+                cssElement.getPlatform()
+            );
+
+            devicePixelElements.add(deviceElement);
+            log.info("Converted CSS pixel element to device pixel element: " + deviceElement.toString());
+        }
+        log.info("Converted " + cssElements.size() + " elements from CSS pixels to device pixels");
+        return devicePixelElements;
+    }
 
     /**
      * Prepare element data for upload
