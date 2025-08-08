@@ -1,18 +1,20 @@
 package io.github.lambdatest;
 
 import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.*;
 import io.github.lambdatest.utils.FullPageScreenshotUtil;
 import io.github.lambdatest.utils.GitUtils;
 import io.github.lambdatest.utils.SmartUIUtil;
+import io.github.lambdatest.utils.ElementBoundingBoxUtil;
+import io.github.lambdatest.utils.ElementBoundingBox;
 import org.openqa.selenium.*;
 
 import java.io.File;
 import java.util.*;
 import java.util.logging.Logger;
 import io.github.lambdatest.utils.LoggerUtil;
-import io.github.lambdatest.utils.ElementBoundingBoxUtil;
 
 public class SmartUIAppSnapshot {
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
@@ -191,6 +193,16 @@ public class SmartUIAppSnapshot {
         return request;
     }
 
+    private void logUploadRequest(UploadSnapshotRequest request) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writeValueAsString(request);
+            log.info("Final UploadSnapshotRequest: " + json);
+        } catch (Exception e) {
+            log.warning("Failed to serialize UploadSnapshotRequest for logging: " + e.getMessage());
+        }
+    }
+
     public void smartuiAppSnapshot(WebDriver driver, String screenshotName, Map<String, String> options)
             throws Exception {
         try {
@@ -240,19 +252,51 @@ public class SmartUIAppSnapshot {
                 File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
                 log.info("Screenshot captured: " + screenshotName);
                 uploadSnapshotRequest.setFullPage("false");
+                logUploadRequest(uploadSnapshotRequest);
                 util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
 
             } else {
                 uploadSnapshotRequest.setFullPage("true");
+                
                 FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
                 
                 // Extract XPaths from options for element detection
                 List<String> xpaths = extractXPathsFromOptions(options);
                 
                 List<File> ssDir;
+                List<ElementBoundingBox> allDetectedElements = new ArrayList<>();
+                
                 if (xpaths != null && !xpaths.isEmpty()) {
                     log.info("Element detection enabled for " + xpaths.size() + " XPaths");
                     ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, xpaths);
+                    
+                    // Collect all detected elements for bounding box data
+                    ElementBoundingBoxUtil elementUtil = new ElementBoundingBoxUtil(driver);
+                    for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
+                        List<ElementBoundingBox> chunkElements = elementUtil.detectElements(xpaths, chunkIndex);
+                        allDetectedElements.addAll(chunkElements);
+                    }
+                    
+                    // Create bounding box data in the format {left, top, right, bottom}
+                    if (!allDetectedElements.isEmpty()) {
+                        List<Map<String, Integer>> boundingBoxes = new ArrayList<>();
+                        for (ElementBoundingBox element : allDetectedElements) {
+                            Map<String, Integer> box = new HashMap<>();
+                            box.put("left", element.getX());
+                            box.put("top", element.getY());
+                            box.put("right", element.getX() + element.getWidth());
+                            box.put("bottom", element.getY() + element.getHeight());
+                            boundingBoxes.add(box);
+                        }
+                        
+                        // Create ignoreBoxes structure with bounding boxes
+                        Map<String, Object> ignoreBoxesData = new HashMap<>();
+                        ignoreBoxesData.put("boxes", boundingBoxes);
+                        
+                        String ignoreBoxesJson = gson.toJson(ignoreBoxesData);
+                        uploadSnapshotRequest.setIgnoreBoxes(ignoreBoxesJson);
+                        log.info("ignoreBoxes set with bounding boxes: " + ignoreBoxesJson);
+                    }
                 } else {
                     ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
                 }
@@ -263,16 +307,19 @@ public class SmartUIAppSnapshot {
                 int pageCountInSsDir = ssDir.size(); int i;
                 if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
                     uploadSnapshotRequest.setFullPage("false");
+                    logUploadRequest(uploadSnapshotRequest);
                     util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
                     return;
                 }
                 for( i = 0; i < pageCountInSsDir -1; ++i){
                     uploadSnapshotRequest.setIsLastChunk("false");
                     uploadSnapshotRequest.setChunkCount(i);
+                    logUploadRequest(uploadSnapshotRequest);
                     util.uploadScreenshot(ssDir.get(i), uploadSnapshotRequest, this.buildData);
                 }
                 uploadSnapshotRequest.setIsLastChunk("true");
                 uploadSnapshotRequest.setChunkCount(i);
+                logUploadRequest(uploadSnapshotRequest);
                 util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
             }
         } catch (Exception e) {

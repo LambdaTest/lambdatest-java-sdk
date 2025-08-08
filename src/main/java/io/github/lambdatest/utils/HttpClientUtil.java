@@ -385,6 +385,11 @@ public class HttpClientUtil {
             builder.addTextBody("cropFooter", request.getCropFooter());
         }
 
+        // Add ignoreBoxes field if present
+        if (Objects.nonNull(request.getIgnoreBoxes()) && !request.getIgnoreBoxes().isEmpty()) {
+            builder.addTextBody("ignoreBoxes", request.getIgnoreBoxes());
+        }
+
         // Execute the request
         HttpEntity multipart = builder.build();
         uploadRequest.setEntity(multipart);
