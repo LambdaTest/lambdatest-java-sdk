@@ -107,6 +107,144 @@ public class FullPageScreenshotUtil {
         return screenshotDir;
     }
 
+    /**
+     * Capture full page screenshots and return both screenshots and detected elements
+     * This method allows the caller to get both the screenshot files and the detected elements
+     * without having to do duplicate element detection
+     */
+    public Map<String, Object> captureFullPageWithElements(int pageCount, Map<String, List<String>> selectors, String purpose) {
+        if (pageCount <= 0) {
+            pageCount = maxCount;
+        }
+        if (pageCount < maxCount) {
+            maxCount = pageCount;
+        }
+        int chunkCount = 0;
+        boolean isLastScroll = false;
+        List<File> screenshotDir = new ArrayList<>();
+        List<ElementBoundingBox> allElements = new ArrayList<>();
+        ElementBoundingBoxUtil elementUtil = null;
+        
+        // Initialize element detection if selectors provided
+        if (selectors != null && !selectors.isEmpty()) {
+            elementUtil = new ElementBoundingBoxUtil(driver);
+            log.info("Element detection enabled for " + purpose + " selectors: " + selectors);
+        }
+        
+        while (!isLastScroll && chunkCount < maxCount) {
+            File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
+            if (screenshotFile != null) {
+                screenshotDir.add(screenshotFile);
+                
+                // Detect elements after screenshot if selectors provided
+                if (elementUtil != null) {
+                    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, purpose);
+                    allElements.addAll(chunkElements);
+                    log.info("Detected " + chunkElements.size() + " " + purpose + " elements in chunk " + chunkCount);
+                }
+                
+                chunkCount++;
+            }
+            // Perform scroll
+            int scrollDistance = scrollDown();
+            log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
+            
+            // Update scroll position for element detection
+            if (elementUtil != null) {
+                elementUtil.updateScrollPosition(scrollDistance);
+            }
+            // Detect end of page
+            isLastScroll = hasReachedBottom();
+        }
+        
+        // Process and log final element data
+        if (elementUtil != null && !allElements.isEmpty()) {
+            log.info("Element detection complete: " + allElements.size() + " total " + purpose + " elements");
+        }
+        
+        log.info("Finished capturing all screenshots for full page with " + purpose + " elements.");
+        
+        // Return both screenshots and elements
+        Map<String, Object> result = new HashMap<>();
+        result.put("screenshots", screenshotDir);
+        result.put("elements", allElements);
+        return result;
+    }
+
+    /**
+     * Capture full page screenshots and detect elements for both ignore and select purposes
+     * This method captures screenshots once and processes both selector types efficiently
+     */
+    public Map<String, Object> captureFullPageWithBothSelectors(int pageCount, 
+                                                              Map<String, List<String>> ignoreSelectors, 
+                                                              Map<String, List<String>> selectSelectors) {
+        if (pageCount <= 0) {
+            pageCount = maxCount;
+        }
+        if (pageCount < maxCount) {
+            maxCount = pageCount;
+        }
+        int chunkCount = 0;
+        boolean isLastScroll = false;
+        List<File> screenshotDir = new ArrayList<>();
+        List<ElementBoundingBox> ignoreElements = new ArrayList<>();
+        List<ElementBoundingBox> selectElements = new ArrayList<>();
+        ElementBoundingBoxUtil elementUtil = new ElementBoundingBoxUtil(driver);
+        
+        log.info("Element detection enabled for both ignore and select selectors");
+        if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
+            log.info("Ignore selectors: " + ignoreSelectors);
+        }
+        if (selectSelectors != null && !selectSelectors.isEmpty()) {
+            log.info("Select selectors: " + selectSelectors);
+        }
+        
+        while (!isLastScroll && chunkCount < maxCount) {
+            File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
+            if (screenshotFile != null) {
+                screenshotDir.add(screenshotFile);
+                
+                // Detect ignore elements
+                if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
+                    List<ElementBoundingBox> chunkIgnoreElements = elementUtil.detectElements(ignoreSelectors, chunkCount, "ignore");
+                    ignoreElements.addAll(chunkIgnoreElements);
+                    log.info("Detected " + chunkIgnoreElements.size() + " ignore elements in chunk " + chunkCount);
+                }
+                
+                // Detect select elements
+                if (selectSelectors != null && !selectSelectors.isEmpty()) {
+                    List<ElementBoundingBox> chunkSelectElements = elementUtil.detectElements(selectSelectors, chunkCount, "select");
+                    selectElements.addAll(chunkSelectElements);
+                    log.info("Detected " + chunkSelectElements.size() + " select elements in chunk " + chunkCount);
+                }
+                
+                chunkCount++;
+            }
+            // Perform scroll
+            int scrollDistance = scrollDown();
+            log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
+            
+            // Update scroll position for element detection
+            elementUtil.updateScrollPosition(scrollDistance);
+            // Detect end of page
+            isLastScroll = hasReachedBottom();
+        }
+        
+        // Process and log final element data
+        int totalIgnoreElements = ignoreElements.size();
+        int totalSelectElements = selectElements.size();
+        log.info("Element detection complete: " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements");
+        
+        log.info("Finished capturing all screenshots for full page with both selector types.");
+        
+        // Return screenshots and both types of elements
+        Map<String, Object> result = new HashMap<>();
+        result.put("screenshots", screenshotDir);
+        result.put("ignoreElements", ignoreElements);
+        result.put("selectElements", selectElements);
+        return result;
+    }
+
     private File captureAndSaveScreenshot(String ssDir, int index) {
         File destinationFile = new File(ssDir + "/" + ssDir + "_" + index + ".png");
         try {

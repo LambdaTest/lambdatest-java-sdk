@@ -387,42 +387,22 @@ public class SmartUIAppSnapshot {
                 if (selectorData.containsKey("ignore") || selectorData.containsKey("select")) {
                     log.info("Element detection enabled");
                     
-                    // Create single ElementBoundingBoxUtil instance for all processing
-                    ElementBoundingBoxUtil elementUtil = new ElementBoundingBoxUtil(driver);
+                    // Get both selector types
+                    Map<String, List<String>> ignoreSelectors = selectorData.containsKey("ignore") ? 
+                        (Map<String, List<String>>) selectorData.get("ignore") : null;
+                    Map<String, List<String>> selectSelectors = selectorData.containsKey("select") ? 
+                        (Map<String, List<String>>) selectorData.get("select") : null;
                     
-                    // Process ignore selectors
-                    if (selectorData.containsKey("ignore")) {
-                        Map<String, List<String>> ignoreSelectors = (Map<String, List<String>>) selectorData.get("ignore");
-                        log.info("Processing ignore selectors: " + ignoreSelectors);
-                        
-                        if (ssDir == null) {
-                            ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, ignoreSelectors);
-                        }
-                        
-                        // Collect all detected ignore elements for bounding box data
-                        for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
-                            List<ElementBoundingBox> chunkElements = elementUtil.detectElements(ignoreSelectors, chunkIndex, "ignore");
-                            ignoredElements.addAll(chunkElements);
-                        }
-                        log.info("Detected " + ignoredElements.size() + " ignore elements");
-                    }
+                    // Capture full page once and detect both types of elements efficiently
+                    Map<String, Object> result = fullPageCapture.captureFullPageWithBothSelectors(
+                        userInputtedPageCount, ignoreSelectors, selectSelectors);
                     
-                    // Process select selectors
-                    if (selectorData.containsKey("select")) {
-                        Map<String, List<String>> selectSelectors = (Map<String, List<String>>) selectorData.get("select");
-                        log.info("Processing select selectors: " + selectSelectors);
-                        
-                        if (ssDir == null) {
-                            ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, selectSelectors);
-                        }
-                        
-                        // Collect all detected select elements for bounding box data
-                        for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
-                            List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectSelectors, chunkIndex, "select");
-                            selectedElements.addAll(chunkElements);
-                        }
-                        log.info("Detected " + selectedElements.size() + " select elements");
-                    }
+                    ssDir = (List<File>) result.get("screenshots");
+                    ignoredElements = (List<ElementBoundingBox>) result.get("ignoreElements");
+                    selectedElements = (List<ElementBoundingBox>) result.get("selectElements");
+                    
+                    log.info("Captured full page with " + ssDir.size() + " screenshots");
+                    log.info("Detected " + ignoredElements.size() + " ignore elements and " + selectedElements.size() + " select elements");
                     
                     // Create bounding box data for ignore elements
                     if (!ignoredElements.isEmpty()) {

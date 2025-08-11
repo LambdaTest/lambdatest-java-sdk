@@ -612,10 +612,11 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
    options.put("ignoreBoxes", gson.toJson(ignoreBoxesMap));
    ```
 
-2. **Element Detection**
+2. **Element Detection (Optimized)**
    - `SmartUIAppSnapshot` extracts both ignore and select selectors
-   - `FullPageScreenshotUtil` captures screenshots with element detection
-   - `ElementBoundingBoxUtil` detects elements with appropriate purpose ("ignore" or "select")
+   - `FullPageScreenshotUtil` captures screenshots **once** (without element detection)
+   - `ElementBoundingBoxUtil` processes both selector types from the same screenshots
+   - Elements are detected with appropriate purpose ("ignore" or "select")
 
 3. **Bounding Box Creation**
    - Ignore elements → `ignoreBoxes` payload
@@ -632,6 +633,40 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 - Includes metadata and element information
 - Compatible with existing upload mechanisms
 - **NEW**: Sends both ignore and select element data
+
+### Performance Optimization
+
+The system is optimized to capture full-page screenshots only **once** and detect both ignore and select elements in a single pass. This approach:
+
+- **Eliminates Duplicate Work**: No more double `captureFullPage()` calls
+- **Eliminates Duplicate Element Detection**: Elements detected once during screenshot capture
+- **Improves Performance**: Faster execution and significantly reduced resource usage
+- **Maintains Consistency**: Both selector types work with identical screenshot data
+- **Prevents Conflicts**: Avoids potential issues from multiple screenshot capture sessions
+
+**Before (Inefficient):**
+```java
+// ❌ Called captureFullPage twice + duplicate element detection
+ssDir = fullPageCapture.captureFullPage(pageCount, ignoreSelectors);
+ssDir = fullPageCapture.captureFullPage(pageCount, selectSelectors);
+
+// ❌ Then did element detection again separately
+for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
+    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(ignoreSelectors, chunkIndex, "ignore");
+    ignoredElements.addAll(chunkElements);
+}
+```
+
+**After (Fully Optimized):**
+```java
+// ✅ Capture once + detect both element types in single pass
+Map<String, Object> result = fullPageCapture.captureFullPageWithBothSelectors(
+    pageCount, ignoreSelectors, selectSelectors);
+
+ssDir = (List<File>) result.get("screenshots");
+ignoredElements = (List<ElementBoundingBox>) result.get("ignoreElements");
+selectedElements = (List<ElementBoundingBox>) result.get("selectElements");
+```
 
 ### Upload Payload Structure
 
