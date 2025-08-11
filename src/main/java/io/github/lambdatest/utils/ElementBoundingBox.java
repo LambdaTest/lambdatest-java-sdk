@@ -3,7 +3,10 @@ package io.github.lambdatest.utils;
 import java.util.Objects;
 
 public class ElementBoundingBox {
-    private String xpath;
+    private String selectorKey; // Generic selector key (e.g., "xpath:value", "class:value")
+    private String selectorType; // Type of selector (xpath, class, accessibilityid, name, id, css)
+    private String selectorValue; // The actual selector value
+    private String purpose; // "ignore" or "select"
     private int x;
     private int y;
     private int width;
@@ -12,8 +15,8 @@ public class ElementBoundingBox {
     private long timestamp;
     private String platform;
 
-    public ElementBoundingBox(String xpath, int x, int y, int width, int height, int chunkIndex, String platform) {
-        this.xpath = xpath;
+    public ElementBoundingBox(String selectorKey, int x, int y, int width, int height, int chunkIndex, String platform, String purpose) {
+        this.selectorKey = selectorKey;
         this.x = x;
         this.y = y;
         this.width = width;
@@ -21,10 +24,43 @@ public class ElementBoundingBox {
         this.chunkIndex = chunkIndex;
         this.timestamp = System.currentTimeMillis();
         this.platform = platform;
+        this.purpose = purpose;
+        
+        // Parse selectorKey to extract type and value
+        parseSelectorKey(selectorKey);
+    }
+
+    /**
+     * Parse selectorKey to extract selectorType and selectorValue
+     * Format: "type:value" (e.g., "xpath://button", "class:header")
+     */
+    private void parseSelectorKey(String selectorKey) {
+        if (selectorKey != null && selectorKey.contains(":")) {
+            String[] parts = selectorKey.split(":", 2);
+            if (parts.length == 2) {
+                this.selectorType = parts[0];
+                this.selectorValue = parts[1];
+            } else {
+                // Fallback for backward compatibility
+                this.selectorType = "xpath";
+                this.selectorValue = selectorKey;
+            }
+        } else {
+            // Fallback for backward compatibility
+            this.selectorType = "xpath";
+            this.selectorValue = selectorKey;
+        }
     }
 
     // Getters
-    public String getXpath() { return xpath; }
+    public String getSelectorKey() { return selectorKey; }
+    public String getSelectorType() { return selectorType; }
+    public String getSelectorValue() { return selectorValue; }
+    public String getPurpose() { return purpose; }
+    
+    // Backward compatibility getter
+    public String getXpath() { return selectorValue; }
+    
     public int getX() { return x; }
     public int getY() { return y; }
     public int getWidth() { return width; }
@@ -49,19 +85,19 @@ public class ElementBoundingBox {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         ElementBoundingBox that = (ElementBoundingBox) obj;
-        return Objects.equals(xpath, that.xpath) &&
+        return Objects.equals(selectorKey, that.selectorKey) &&
                Math.abs(x - that.x) < 10 &&
                Math.abs(y - that.y) < 10;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(xpath, x / 10, y / 10);
+        return Objects.hash(selectorKey, x / 10, y / 10);
     }
 
     @Override
     public String toString() {
-        return String.format("ElementBoundingBox{xpath='%s', position=(%d,%d), size=(%d,%d), chunk=%d, platform='%s'}", 
-                           xpath, x, y, width, height, chunkIndex, platform);
+        return String.format("ElementBoundingBox{selector='%s', type='%s', value='%s', purpose='%s', position=(%d,%d), size=(%d,%d), chunk=%d, platform='%s'}", 
+                           selectorKey, selectorType, selectorValue, purpose, x, y, width, height, chunkIndex, platform);
     }
 } 

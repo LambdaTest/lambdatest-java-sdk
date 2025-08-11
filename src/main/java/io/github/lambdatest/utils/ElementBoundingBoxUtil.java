@@ -21,66 +21,96 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Detect elements for given XPaths in current viewport
+     * @deprecated Use detectElements(Map selectors, int chunkIndex, String purpose) instead
      */
+    @Deprecated
     public List<ElementBoundingBox> detectElements(List<String> xpaths, int chunkIndex) {
+        // Convert XPaths to the new selector format for backward compatibility
+        Map<String, List<String>> selectors = new HashMap<>();
+        selectors.put("xpath", xpaths);
+        return detectElements(selectors, chunkIndex, "select"); // Default to select for backward compatibility
+    }
+
+    /**
+     * Detect elements for given selectors in current viewport
+     * Supports XPath, class name, accessibility ID, name, ID, and CSS selectors
+     * @param selectors Map of selector types to their values
+     * @param chunkIndex Current chunk index for tracking
+     * @param purpose Purpose of the elements ("ignore" or "select")
+     * @return List of detected ElementBoundingBox objects
+     */
+    public List<ElementBoundingBox> detectElements(Map<String, List<String>> selectors, int chunkIndex, String purpose) {
         List<ElementBoundingBox> detectedElements = new ArrayList<>();
         String platform = detectPlatform();
 
-        log.info("Starting element detection for chunk " + chunkIndex + " with " + (xpaths != null ? xpaths.size() : 0) + " XPaths");
+        log.info("Starting element detection for chunk " + chunkIndex + " with selectors: " + selectors);
         log.info("Detected platform: " + platform);
 
-        if (xpaths == null || xpaths.isEmpty()) {
-            log.info("No XPaths provided for element detection");
+        if (selectors == null || selectors.isEmpty()) {
+            log.info("No selectors provided for element detection");
             return detectedElements;
         }
 
-        for (int i = 0; i < xpaths.size(); i++) {
-            String xpath = xpaths.get(i);
+        // Process each selector type
+        for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
+            String selectorType = entry.getKey();
+            List<String> selectorValues = entry.getValue();
             
-            // Skip XPath if it has already been found in a previous chunk
-            if (foundXPaths.contains(xpath)) {
-                log.info("Skipping XPath " + (i + 1) + "/" + xpaths.size() + " (already found): " + xpath);
+            if (selectorValues == null || selectorValues.isEmpty()) {
                 continue;
             }
             
-            log.info("Processing XPath " + (i + 1) + "/" + xpaths.size() + ": " + xpath);
+            log.info("Processing " + selectorType + " selectors: " + selectorValues.size() + " items");
             
-            try {
-                List<WebElement> elements = driver.findElements(By.xpath(xpath));
-                log.info("Found " + elements.size() + " elements for XPath: " + xpath);
+            for (int i = 0; i < selectorValues.size(); i++) {
+                String selectorValue = selectorValues.get(i);
+                String selectorKey = selectorType + ":" + selectorValue;
                 
-                boolean xpathHasVisibleElements = false; // Track if any elements from this XPath are in viewport
+                // Skip selector if it has already been found in a previous chunk
+                if (foundXPaths.contains(selectorKey)) {
+                    log.info("Skipping " + selectorType + " selector " + (i + 1) + "/" + selectorValues.size() + " (already found): " + selectorValue);
+                    continue;
+                }
                 
-                for (int j = 0; j < elements.size(); j++) {
-                    WebElement element = elements.get(j);
-                    log.info("Processing element " + (j + 1) + "/" + elements.size() + " for XPath: " + xpath);
+                log.info("Processing " + selectorType + " selector " + (i + 1) + "/" + selectorValues.size() + ": " + selectorValue);
+                
+                try {
+                    List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
+                    log.info("Found " + elements.size() + " elements for " + selectorType + " selector: " + selectorValue);
                     
-                    ElementBoundingBox boundingBox = createBoundingBox(element, xpath, chunkIndex, platform);
-                    if (boundingBox != null) {
-                        log.info("Created bounding box: " + boundingBox.toString());
+                    boolean selectorHasVisibleElements = false;
+                    
+                    for (int j = 0; j < elements.size(); j++) {
+                        WebElement element = elements.get(j);
+                        log.info("Processing element " + (j + 1) + "/" + elements.size() + " for " + selectorType + " selector: " + selectorValue);
                         
-                        if (isElementFullyInViewport(boundingBox)) {
-                            detectedElements.add(boundingBox);
-                            xpathHasVisibleElements = true; // Mark that this XPath has visible elements
-                            log.info("Element added to detected list: " + boundingBox.toString());
+                        ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, chunkIndex, platform, purpose);
+                        if (boundingBox != null) {
+                            log.info("Created bounding box: " + boundingBox.toString());
+                            
+                            if (isElementFullyInViewport(boundingBox)) {
+                                detectedElements.add(boundingBox);
+                                selectorHasVisibleElements = true;
+                                log.info("Element added to detected list: " + boundingBox.toString());
+                            } else {
+                                log.info("Element not fully in viewport, skipping: " + boundingBox.toString());
+                            }
                         } else {
-                            log.info("Element not fully in viewport, skipping: " + boundingBox.toString());
+                            log.warning("Failed to create bounding box for element " + (j + 1) + " of " + selectorType + " selector: " + selectorValue);
                         }
-                    } else {
-                        log.warning("Failed to create bounding box for element " + (j + 1) + " of XPath: " + xpath);
                     }
+                    
+                    // Only mark selector as found if it has visible elements in the current viewport
+                    if (selectorHasVisibleElements) {
+                        foundXPaths.add(selectorKey);
+                        log.info(selectorType + " selector marked as found (has visible elements), will be skipped in future chunks: " + selectorValue);
+                    } else {
+                        log.info(selectorType + " selector has elements but none are in viewport, will be checked again in future chunks: " + selectorValue);
+                    }
+                } catch (Exception e) {
+                    log.warning("Failed to detect elements for " + selectorType + " selector '" + selectorValue + "': " + e.getMessage());
+                    log.warning("Exception details: " + e.getClass().getSimpleName() + " - " + e.getMessage());
                 }
-                
-                // Only mark XPath as found if it has visible elements in the current viewport
-                if (xpathHasVisibleElements) {
-                    foundXPaths.add(xpath);
-                    log.info("XPath marked as found (has visible elements), will be skipped in future chunks: " + xpath);
-                } else {
-                    log.info("XPath has elements but none are in viewport, will be checked again in future chunks: " + xpath);
-                }
-            } catch (Exception e) {
-                log.warning("Failed to detect elements for XPath '" + xpath + "': " + e.getMessage());
-                log.warning("Exception details: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             }
         }
 
@@ -94,9 +124,9 @@ public class ElementBoundingBoxUtil {
      * Create bounding box from WebElement with absolute coordinates
      * All computations done in CSS pixels - no device pixel conversion here
      */
-    private ElementBoundingBox createBoundingBox(WebElement element, String xpath, int chunkIndex, String platform) {
+    private ElementBoundingBox createBoundingBox(WebElement element, String selectorKey, int chunkIndex, String platform, String purpose) {
         try {
-            log.info("Creating bounding box for XPath: " + xpath);
+            log.info("Creating bounding box for selector: " + selectorKey);
             
             // Get element location and size relative to viewport (in CSS pixels)
             Point location = element.getLocation();
@@ -125,13 +155,13 @@ public class ElementBoundingBoxUtil {
             int height = size.getHeight();
             
             // Store bounding box with CSS pixel coordinates
-            ElementBoundingBox boundingBox = new ElementBoundingBox(xpath, absoluteX, absoluteY, width, height, chunkIndex, platform);
+            ElementBoundingBox boundingBox = new ElementBoundingBox(selectorKey, absoluteX, absoluteY, width, height, chunkIndex, platform, purpose);
             log.info("Successfully created bounding box (CSS pixels): " + boundingBox.toString());
             
             return boundingBox;
             
         } catch (Exception e) {
-            log.warning("Failed to create bounding box for element with XPath '" + xpath + "': " + e.getMessage());
+            log.warning("Failed to create bounding box for element with selector '" + selectorKey + "': " + e.getMessage());
             log.warning("Exception type: " + e.getClass().getSimpleName());
             log.warning("Exception stack trace: " + e.getMessage());
             return null;
@@ -556,13 +586,14 @@ public class ElementBoundingBoxUtil {
             int deviceHeight = (int) (cssElement.getHeight() * devicePixelRatio);
 
             ElementBoundingBox deviceElement = new ElementBoundingBox(
-                cssElement.getXpath(),
+                cssElement.getSelectorKey(),
                 deviceX,
                 deviceY,
                 deviceWidth,
                 deviceHeight,
                 cssElement.getChunkIndex(),
-                cssElement.getPlatform()
+                cssElement.getPlatform(),
+                cssElement.getPurpose()
             );
 
             devicePixelElements.add(deviceElement);
@@ -598,7 +629,15 @@ public class ElementBoundingBoxUtil {
                 log.info("Processing element " + (i + 1) + "/" + elements.size() + " for upload: " + element.toString());
                 
                 Map<String, Object> elementMap = new HashMap<>();
+                
+                // Add selector information
+                elementMap.put("selectorType", element.getSelectorType());
+                elementMap.put("selectorValue", element.getSelectorValue());
+                elementMap.put("selectorKey", element.getSelectorKey());
+                
+                // Keep xpath for backward compatibility
                 elementMap.put("xpath", element.getXpath());
+                
                 elementMap.put("x", element.getX());
                 elementMap.put("y", element.getY());
                 elementMap.put("width", element.getWidth());
@@ -606,6 +645,7 @@ public class ElementBoundingBoxUtil {
                 elementMap.put("chunkIndex", element.getChunkIndex());
                 elementMap.put("timestamp", element.getTimestamp());
                 elementMap.put("platform", element.getPlatform());
+                elementMap.put("purpose", element.getPurpose());
                 
                 elementData.add(elementMap);
                 log.info("Added element data to upload: " + elementMap.toString());
@@ -616,5 +656,29 @@ public class ElementBoundingBoxUtil {
         
         log.info("Upload data preparation complete. Total elements in upload data: " + elementData.size());
         return uploadData;
+    }
+
+    /**
+     * Find elements using different selector types
+     */
+    private List<WebElement> findElementsBySelector(String selectorType, String selectorValue) {
+        switch (selectorType.toLowerCase()) {
+            case "xpath":
+                return driver.findElements(By.xpath(selectorValue));
+            case "class":
+                return driver.findElements(By.className(selectorValue));
+            case "accessibilityid":
+            case "accessibility_id":
+                return driver.findElements(By.xpath("//*[@content-desc='" + selectorValue + "']"));
+            case "name":
+                return driver.findElements(By.name(selectorValue));
+            case "id":
+                return driver.findElements(By.id(selectorValue));
+            case "css":
+                return driver.findElements(By.cssSelector(selectorValue));
+            default:
+                log.warning("Unsupported selector type: " + selectorType + ", falling back to XPath");
+                return driver.findElements(By.xpath(selectorValue));
+        }
     }
 } 

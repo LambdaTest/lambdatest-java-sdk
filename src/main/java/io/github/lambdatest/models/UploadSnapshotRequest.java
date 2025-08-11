@@ -24,6 +24,7 @@ public class UploadSnapshotRequest {
     private String navigationBarHeight;
     private String statusBarHeight;
     private String ignoreBoxes;
+    private String selectBoxes;
 
     // Default constructor
     public UploadSnapshotRequest() {
@@ -34,7 +35,7 @@ public class UploadSnapshotRequest {
                                  String projectToken, String buildId, String buildName,
                                  String screenshotName, String screenshotHash ,String deviceName,String fullPage, String  cropFooter,
                                  String cropStatusBar, String isLastChunk, Integer chunkCount, String uploadChunk,
-                                 String navigationBarHeight, String statusBarHeight, String ignoreBoxes) {
+                                 String navigationBarHeight, String statusBarHeight, String ignoreBoxes, String selectBoxes) {
         this.browserName = browserName;
         this.os = os;
         this.viewport = viewport;
@@ -53,6 +54,7 @@ public class UploadSnapshotRequest {
         this.navigationBarHeight = navigationBarHeight;
         this.statusBarHeight = statusBarHeight;
         this.ignoreBoxes = ignoreBoxes;
+        this.selectBoxes = selectBoxes;
     }
 
     // Getters and setters
@@ -188,5 +190,13 @@ public class UploadSnapshotRequest {
 
     public void setIgnoreBoxes(String ignoreBoxes) {
         this.ignoreBoxes = ignoreBoxes;
+    }
+
+    public String getSelectBoxes() {
+        return selectBoxes;
+    }
+
+    public void setSelectBoxes(String selectBoxes) {
+        this.selectBoxes = selectBoxes;
     }
 }

@@ -102,14 +102,14 @@ public class SmartUIAppSnapshot {
         return "";
     }
 
-    private List<String> extractXPathsFromOptions(Map<String, String> options) {
-        List<String> xpaths = new ArrayList<>();
+    private Map<String, Object> extractSelectorsFromOptions(Map<String, String> options) {
+        Map<String, Object> selectorData = new HashMap<>();
         
-        log.info("Extracting XPaths from options map");
+        log.info("Extracting selectors from options map");
         
         if (options == null) {
-            log.info("Options map is null, returning empty XPath list");
-            return xpaths;
+            log.info("Options map is null, returning empty selector data");
+            return selectorData;
         }
         
         // Check for ignoreBoxes option with nested structure
@@ -125,35 +125,100 @@ public class SmartUIAppSnapshot {
                 if (ignoreBoxesMap != null) {
                     log.info("Successfully parsed ignoreBoxes map with " + ignoreBoxesMap.size() + " keys");
                     
+                    // Check for ignoreBoxes (new format)
+                    if (ignoreBoxesMap.containsKey("ignoreBoxes")) {
+                        log.info("Found ignoreBoxes key in ignoreBoxes map");
+                        Object ignoreBoxesObj = ignoreBoxesMap.get("ignoreBoxes");
+                        
+                        if (ignoreBoxesObj instanceof Map) {
+                            Map<String, List<String>> ignoreSelectors = parseSelectors(ignoreBoxesObj);
+                            selectorData.put("ignore", ignoreSelectors);
+                            log.info("Added ignore selectors from ignoreBoxes: " + ignoreSelectors);
+                        } else {
+                            log.warning("ignoreBoxes value is not a Map: " + (ignoreBoxesObj != null ? ignoreBoxesObj.getClass().getSimpleName() : "null"));
+                        }
+                    }
+                    
+                    // Check for selectBoxes (new format)
+                    if (ignoreBoxesMap.containsKey("selectBoxes")) {
+                        log.info("Found selectBoxes key in ignoreBoxes map");
+                        Object selectBoxesObj = ignoreBoxesMap.get("selectBoxes");
+                        
+                        if (selectBoxesObj instanceof Map) {
+                            Map<String, List<String>> selectSelectors = parseSelectors(selectBoxesObj);
+                            selectorData.put("select", selectSelectors);
+                            log.info("Added select selectors from selectBoxes: " + selectSelectors);
+                        } else {
+                            log.warning("selectBoxes value is not a Map: " + (selectBoxesObj != null ? selectBoxesObj.getClass().getSimpleName() : "null"));
+                        }
+                    }
+                    
+                    // Check for legacy "ignore" key (old format)
+                    if (ignoreBoxesMap.containsKey("ignore")) {
+                        log.info("Found legacy ignore key in ignoreBoxes map");
+                        Object ignoreObj = ignoreBoxesMap.get("ignore");
+                        
+                        if (ignoreObj instanceof Map) {
+                            Map<String, List<String>> ignoreSelectors = parseSelectors(ignoreObj);
+                            selectorData.put("ignore", ignoreSelectors);
+                            log.info("Added ignore selectors from legacy ignore key: " + ignoreSelectors);
+                        } else {
+                            log.warning("ignore value is not a Map: " + (ignoreObj != null ? ignoreObj.getClass().getSimpleName() : "null"));
+                        }
+                    }
+                    
+                    // Check for legacy "select" key (old format)
+                    if (ignoreBoxesMap.containsKey("select")) {
+                        log.info("Found legacy select key in ignoreBoxes map");
+                        Object selectObj = ignoreBoxesMap.get("select");
+                        
+                        if (selectObj instanceof Map) {
+                            Map<String, List<String>> selectSelectors = parseSelectors(selectObj);
+                            selectorData.put("select", selectSelectors);
+                            log.info("Added select selectors from legacy select key: " + selectSelectors);
+                        } else {
+                            log.warning("select value is not a Map: " + (selectObj != null ? selectObj.getClass().getSimpleName() : "null"));
+                        }
+                    }
+                    
+                    // Support for legacy "xpaths" format (backward compatibility)
                     if (ignoreBoxesMap.containsKey("xpaths")) {
-                        log.info("Found xpaths key in ignoreBoxes map");
+                        log.info("Found legacy xpaths key in ignoreBoxes map");
                         Object xpathsObj = ignoreBoxesMap.get("xpaths");
                         
                         if (xpathsObj instanceof List) {
                             List<?> xpathsList = (List<?>) xpathsObj;
-                            log.info("XPaths list contains " + xpathsList.size() + " items");
+                            List<String> xpaths = new ArrayList<>();
                             
-                            for (int i = 0; i < xpathsList.size(); i++) {
-                                Object xpathObj = xpathsList.get(i);
-                                log.info("Processing XPath item " + (i + 1) + "/" + xpathsList.size() + ": " + xpathObj);
-                                
+                            for (Object xpathObj : xpathsList) {
                                 if (xpathObj instanceof String) {
                                     String xpath = ((String) xpathObj).trim();
                                     if (!xpath.isEmpty()) {
                                         xpaths.add(xpath);
-                                        log.info("Added XPath: " + xpath);
-                                    } else {
-                                        log.warning("Empty XPath found at index " + i + ", skipping");
                                     }
-                                } else {
-                                    log.warning("Non-string XPath found at index " + i + ": " + xpathObj.getClass().getSimpleName() + ", skipping");
                                 }
                             }
-                        } else {
-                            log.warning("xpaths value is not a List: " + (xpathsObj != null ? xpathsObj.getClass().getSimpleName() : "null"));
+                            
+                            if (!xpaths.isEmpty()) {
+                                // Convert legacy xpaths to new format
+                                Map<String, List<String>> legacySelectors = new HashMap<>();
+                                legacySelectors.put("xpath", xpaths);
+                                
+                                // Check if user wants to use "select" instead of "ignore"
+                                if (ignoreBoxesMap.containsKey("purpose") && "select".equals(ignoreBoxesMap.get("purpose"))) {
+                                    selectorData.put("select", legacySelectors);
+                                    log.info("Converted legacy xpaths to select selectors: " + xpaths);
+                                } else {
+                                    // Default to ignore (backward compatibility)
+                                    selectorData.put("ignore", legacySelectors);
+                                    log.info("Converted legacy xpaths to ignore selectors: " + xpaths);
+                                }
+                            }
                         }
-                    } else {
-                        log.info("No xpaths key found in ignoreBoxes map. Available keys: " + ignoreBoxesMap.keySet());
+                    }
+                    
+                    if (!selectorData.containsKey("ignore") && !selectorData.containsKey("select")) {
+                        log.info("No ignoreBoxes, selectBoxes, ignore, select, or xpaths keys found in ignoreBoxes map. Available keys: " + ignoreBoxesMap.keySet());
                     }
                 } else {
                     log.warning("Failed to parse ignoreBoxes map - result is null");
@@ -166,8 +231,60 @@ public class SmartUIAppSnapshot {
             log.info("No ignoreBoxes option found in options map");
         }
         
-        log.info("Extracted " + xpaths.size() + " XPaths from options");
-        return xpaths;
+        log.info("Extracted selector data with keys: " + selectorData.keySet());
+        return selectorData;
+    }
+
+    /**
+     * Parse selectors from a selector map object
+     */
+    private Map<String, List<String>> parseSelectors(Object selectorsObj) {
+        Map<String, List<String>> selectors = new HashMap<>();
+        
+        if (selectorsObj instanceof Map) {
+            Map<?, ?> selectorsMap = (Map<?, ?>) selectorsObj;
+            log.info("Selectors map contains " + selectorsMap.size() + " selector types");
+            
+            for (Map.Entry<?, ?> entry : selectorsMap.entrySet()) {
+                String selectorType = entry.getKey().toString();
+                Object selectorValuesObj = entry.getValue();
+                
+                if (selectorValuesObj instanceof List) {
+                    List<?> selectorValuesList = (List<?>) selectorValuesObj;
+                    List<String> selectorValues = new ArrayList<>();
+                    
+                    log.info("Processing " + selectorType + " selectors: " + selectorValuesList.size() + " items");
+                    
+                    for (int i = 0; i < selectorValuesList.size(); i++) {
+                        Object selectorValueObj = selectorValuesList.get(i);
+                        log.info("Processing " + selectorType + " selector " + (i + 1) + "/" + selectorValuesList.size() + ": " + selectorValueObj);
+                        
+                        if (selectorValueObj instanceof String) {
+                            String selectorValue = ((String) selectorValueObj).trim();
+                            if (!selectorValue.isEmpty()) {
+                                selectorValues.add(selectorValue);
+                                log.info("Added " + selectorType + " selector: " + selectorValue);
+                            } else {
+                                log.warning("Empty " + selectorType + " selector found at index " + i + ", skipping");
+                            }
+                        } else {
+                            log.warning("Non-string " + selectorType + " selector found at index " + i + ": " + selectorValueObj.getClass().getSimpleName() + ", skipping");
+                        }
+                    }
+                    
+                    if (!selectorValues.isEmpty()) {
+                        selectors.put(selectorType, selectorValues);
+                        log.info("Added " + selectorType + " selectors: " + selectorValues);
+                    }
+                } else {
+                    log.warning(selectorType + " value is not a List: " + (selectorValuesObj != null ? selectorValuesObj.getClass().getSimpleName() : "null"));
+                }
+            }
+        } else {
+            log.warning("Selectors object is not a Map: " + (selectorsObj != null ? selectorsObj.getClass().getSimpleName() : "null"));
+        }
+        
+        return selectors;
     }
 
     private UploadSnapshotRequest initializeUploadRequest(String screenshotName, String viewport) {
@@ -260,43 +377,97 @@ public class SmartUIAppSnapshot {
                 
                 FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
                 
-                // Extract XPaths from options for element detection
-                List<String> xpaths = extractXPathsFromOptions(options);
+                // Extract selectors from options for element detection
+                Map<String, Object> selectorData = extractSelectorsFromOptions(options);
                 
-                List<File> ssDir;
-                List<ElementBoundingBox> allDetectedElements = new ArrayList<>();
+                List<File> ssDir = null;
+                List<ElementBoundingBox> ignoredElements = new ArrayList<>();
+                List<ElementBoundingBox> selectedElements = new ArrayList<>();
                 
-                if (xpaths != null && !xpaths.isEmpty()) {
-                    log.info("Element detection enabled for " + xpaths.size() + " XPaths");
-                    ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, xpaths);
+                if (selectorData.containsKey("ignore") || selectorData.containsKey("select")) {
+                    log.info("Element detection enabled");
                     
-                    // Collect all detected elements for bounding box data
+                    // Create single ElementBoundingBoxUtil instance for all processing
                     ElementBoundingBoxUtil elementUtil = new ElementBoundingBoxUtil(driver);
-                    for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
-                        List<ElementBoundingBox> chunkElements = elementUtil.detectElements(xpaths, chunkIndex);
-                        allDetectedElements.addAll(chunkElements);
+                    
+                    // Process ignore selectors
+                    if (selectorData.containsKey("ignore")) {
+                        Map<String, List<String>> ignoreSelectors = (Map<String, List<String>>) selectorData.get("ignore");
+                        log.info("Processing ignore selectors: " + ignoreSelectors);
+                        
+                        if (ssDir == null) {
+                            ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, ignoreSelectors);
+                        }
+                        
+                        // Collect all detected ignore elements for bounding box data
+                        for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
+                            List<ElementBoundingBox> chunkElements = elementUtil.detectElements(ignoreSelectors, chunkIndex, "ignore");
+                            ignoredElements.addAll(chunkElements);
+                        }
+                        log.info("Detected " + ignoredElements.size() + " ignore elements");
                     }
                     
-                    // Create bounding box data in the format {left, top, right, bottom}
-                    if (!allDetectedElements.isEmpty()) {
-                        List<Map<String, Integer>> boundingBoxes = new ArrayList<>();
-                        for (ElementBoundingBox element : allDetectedElements) {
+                    // Process select selectors
+                    if (selectorData.containsKey("select")) {
+                        Map<String, List<String>> selectSelectors = (Map<String, List<String>>) selectorData.get("select");
+                        log.info("Processing select selectors: " + selectSelectors);
+                        
+                        if (ssDir == null) {
+                            ssDir = fullPageCapture.captureFullPage(userInputtedPageCount, selectSelectors);
+                        }
+                        
+                        // Collect all detected select elements for bounding box data
+                        for (int chunkIndex = 0; chunkIndex < ssDir.size(); chunkIndex++) {
+                            List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectSelectors, chunkIndex, "select");
+                            selectedElements.addAll(chunkElements);
+                        }
+                        log.info("Detected " + selectedElements.size() + " select elements");
+                    }
+                    
+                    // Create bounding box data for ignore elements
+                    if (!ignoredElements.isEmpty()) {
+                        List<Map<String, Integer>> ignoreBoxes = new ArrayList<>();
+                        for (ElementBoundingBox element : ignoredElements) {
                             Map<String, Integer> box = new HashMap<>();
                             box.put("left", element.getX());
                             box.put("top", element.getY());
                             box.put("right", element.getX() + element.getWidth());
                             box.put("bottom", element.getY() + element.getHeight());
-                            boundingBoxes.add(box);
+                            ignoreBoxes.add(box);
                         }
                         
                         // Create ignoreBoxes structure with bounding boxes
                         Map<String, Object> ignoreBoxesData = new HashMap<>();
-                        ignoreBoxesData.put("boxes", boundingBoxes);
+                        ignoreBoxesData.put("boxes", ignoreBoxes);
                         
                         String ignoreBoxesJson = gson.toJson(ignoreBoxesData);
                         uploadSnapshotRequest.setIgnoreBoxes(ignoreBoxesJson);
-                        log.info("ignoreBoxes set with bounding boxes: " + ignoreBoxesJson);
+                        log.info("ignoreBoxes set with " + ignoreBoxes.size() + " ignore bounding boxes: " + ignoreBoxesJson);
                     }
+                    
+                    // Create bounding box data for select elements
+                    if (!selectedElements.isEmpty()) {
+                        List<Map<String, Integer>> selectBoxes = new ArrayList<>();
+                        for (ElementBoundingBox element : selectedElements) {
+                            Map<String, Integer> box = new HashMap<>();
+                            box.put("left", element.getX());
+                            box.put("top", element.getY());
+                            box.put("right", element.getX() + element.getWidth());
+                            box.put("bottom", element.getY() + element.getHeight());
+                            selectBoxes.add(box);
+                        }
+                        
+                        // Create selectBoxes structure with bounding boxes
+                        Map<String, Object> selectBoxesData = new HashMap<>();
+                        selectBoxesData.put("boxes", selectBoxes);
+                        
+                        String selectBoxesJson = gson.toJson(selectBoxesData);
+                        uploadSnapshotRequest.setSelectBoxes(selectBoxesJson);
+                        log.info("selectBoxes set with " + selectBoxes.size() + " select bounding boxes: " + selectBoxesJson);
+                    }
+                    
+                    // Log summary of detected elements
+                    log.info("Element detection summary - Ignore: " + ignoredElements.size() + ", Select: " + selectedElements.size());
                 } else {
                     ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
                 }

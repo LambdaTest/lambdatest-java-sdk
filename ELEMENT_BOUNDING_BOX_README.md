@@ -46,15 +46,45 @@ snapshotOptions.put("platform", "iOS");
 snapshotOptions.put("fullPage", "true");
 snapshotOptions.put("pageCount", "5");
 
-// Add XPaths for element detection using ignoreBoxes structure
-List<String> xpaths = Arrays.asList(
+// Add multiple selector types for element detection using ignoreBoxes structure
+Map<String, List<String>> selectors = new HashMap<>();
+
+// XPath selectors
+selectors.put("xpath", Arrays.asList(
     "//button[@id='submit']",
     "//input[@type='text']",
     "//div[@class='header']"
-);
+));
+
+// CSS class selectors
+selectors.put("class", Arrays.asList(
+    "header",
+    "footer",
+    "navigation"
+));
+
+// Accessibility ID selectors (for mobile apps)
+selectors.put("accessibilityid", Arrays.asList(
+    "submit-button",
+    "search-input"
+));
+
+// Name selectors
+selectors.put("name", Arrays.asList(
+    "username",
+    "password"
+));
+
+// ID selectors
+selectors.put("id", Arrays.asList(
+    "login-form",
+    "search-box"
+));
 
 Map<String, Object> ignoreBoxesMap = new HashMap<>();
-ignoreBoxesMap.put("xpaths", xpaths);
+ignoreBoxesMap.put("selectors", selectors);
+
+
 
 // Convert to JSON string for options
 Gson gson = new Gson();
@@ -63,33 +93,55 @@ snapshotOptions.put("ignoreBoxes", gson.toJson(ignoreBoxesMap));
 // Take snapshot with element detection
 smartUI.smartuiAppSnapshot(driver, "test-screenshot", snapshotOptions);
 
+// Alternative: Use FullPageScreenshotUtil directly for more control
+FullPageScreenshotUtil screenshotUtil = new FullPageScreenshotUtil(driver, "/path/to/screenshots");
+
+// Multi-selector approach (recommended)
+Map<String, List<String>> selectors = new HashMap<>();
+selectors.put("xpath", Arrays.asList("//button[@id='submit']"));
+selectors.put("class", Arrays.asList("header", "footer"));
+selectors.put("accessibilityid", Arrays.asList("submit-button"));
+selectors.put("name", Arrays.asList("username", "password"));
+selectors.put("id", Arrays.asList("login-form"));
+selectors.put("css", Arrays.asList(".container .header"));
+
+List<File> screenshots = screenshotUtil.captureFullPage(10, selectors);
+
+
+
 // Stop the session
 smartUI.stop();
 ```
 
 ### Direct FullPageScreenshotUtil Usage
 
+#### Multi-Selector Approach
 ```java
 import io.github.lambdatest.utils.FullPageScreenshotUtil;
 import java.util.Arrays;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-// Define XPaths to detect
-List<String> xpaths = Arrays.asList(
-    "//button[@id='submit']",
-    "//input[@type='text']",
-    "//div[@class='header']"
-);
+// Define multiple selector types
+Map<String, List<String>> selectors = new HashMap<>();
+selectors.put("xpath", Arrays.asList("//button[@id='submit']", "//input[@type='text']"));
+selectors.put("class", Arrays.asList("header", "footer", "navigation"));
+selectors.put("accessibilityid", Arrays.asList("submit-button", "search-input"));
+selectors.put("name", Arrays.asList("username", "password"));
+selectors.put("id", Arrays.asList("login-form", "search-box"));
+selectors.put("css", Arrays.asList(".container .header", "#main-content"));
 
 // Create screenshot utility
 FullPageScreenshotUtil screenshotUtil = new FullPageScreenshotUtil(driver, "/path/to/screenshots");
 
-// Capture full page with element detection
-List<File> screenshots = screenshotUtil.captureFullPage(10, xpaths);
-
-// Capture without element detection (original behavior)
-List<File> screenshots = screenshotUtil.captureFullPage(10);
+// Capture full page with multi-selector element detection
+List<File> screenshots = screenshotUtil.captureFullPage(10, selectors);
 ```
+
+
+
+
 
 ## Architecture
 
@@ -97,7 +149,18 @@ List<File> screenshots = screenshotUtil.captureFullPage(10);
 
 1. **ElementBoundingBox**: Data class representing element position and metadata
 2. **ElementBoundingBoxUtil**: Utility class for element detection and processing
-3. **FullPageScreenshotUtil**: Enhanced with element detection capabilities
+3. **FullPageScreenshotUtil**: Enhanced with element detection capabilities and multi-selector support
+
+### API Methods
+
+#### FullPageScreenshotUtil Methods
+- **`captureFullPage(int pageCount)`**: Capture without element detection
+- **`captureFullPage(int pageCount, List<String> xpaths)`**: XPath-only approach (deprecated)
+- **`captureFullPage(int pageCount, Map<String, List<String>> selectors)`**: Multi-selector approach (recommended)
+
+#### ElementBoundingBoxUtil Methods
+- **`detectElements(List<String> xpaths, int chunkIndex)`**: XPath-only approach (deprecated)
+- **`detectElements(Map<String, List<String>> selectors, int chunkIndex)`**: Multi-selector approach (recommended)
 
 ### Data Flow
 
@@ -114,7 +177,7 @@ Aggregation → Upload Preparation
 - Handles platform-specific element structures
 
 ### 2. Element Detection
-- Evaluates XPaths in current viewport
+- Evaluates selectors in current viewport
 - Filters elements completely within viewport bounds
 - Captures element location and dimensions
 
@@ -134,7 +197,10 @@ Aggregation → Upload Preparation
   "platform": "ios_webview",
   "elements": [
     {
-      "xpath": "//button[@id='submit']",
+      "selectorType": "xpath",
+      "selectorValue": "//button[@id='submit']",
+      "selectorKey": "xpath://button[@id='submit']",
+      "purpose": "select",
       "x": 100,
       "y": 250,
       "width": 80,
@@ -147,36 +213,74 @@ Aggregation → Upload Preparation
 }
 ```
 
+**Note**: The `purpose` field indicates whether the element is for:
+- **`"ignore"`**: Elements that should be ignored during validation (e.g., ads, timestamps)
+- **`"select"`**: Elements that should be selected for validation (e.g., buttons, forms)
+
 ### Log Output
 
 ```
-INFO: Element detection enabled for 3 XPaths
+INFO: Element detection enabled for 3 selectors
 INFO: Element found: ElementBoundingBox{xpath='//button[@id='submit']', position=(100,250), size=(80,40), chunk=2, platform='ios_webview'}
 INFO: Detected 2 elements in chunk 2
 INFO: Element detection complete: 5 total elements
 ```
+
+## Supported Selector Types
+
+The element bounding box detection now supports multiple selector types for maximum flexibility:
+
+### XPath Selectors
+- **Usage**: `"xpath": ["//button[@id='submit']", "//input[@type='text']"]`
+- **Best for**: Complex element selection, attribute-based selection
+- **Platforms**: All platforms (iOS, Android, Web)
+
+### CSS Class Selectors
+- **Usage**: `"class": ["header", "footer", "navigation"]`
+- **Best for**: Styling-based element selection
+- **Platforms**: Web, WebView
+
+### Accessibility ID Selectors
+- **Usage**: `"accessibilityid": ["submit-button", "search-input"]`
+- **Best for**: Mobile app testing, accessibility testing
+- **Platforms**: iOS Native, Android Native
+
+### Name Selectors
+- **Usage**: `"name": ["username", "password", "email"]`
+- **Best for**: Form elements, named elements
+- **Platforms**: Web, WebView
+
+### ID Selectors
+- **Usage**: `"id": ["login-form", "search-box", "submit-btn"]`
+- **Best for**: Unique element identification
+- **Platforms**: Web, WebView
+
+### CSS Selectors
+- **Usage**: `"css": [".container .header", "#main-content", "button[type='submit']"]`
+- **Best for**: Complex CSS-based selection
+- **Platforms**: Web, WebView
 
 ## Platform Support
 
 ### iOS Native
 - Uses iOS-specific XPath evaluation
 - Handles native UI elements
-- Supports accessibility attributes
+- Supports accessibility attributes and accessibility IDs
 
 ### Android Native
 - Uses Android-specific XPath evaluation
 - Handles native UI elements
-- Supports resource IDs and accessibility
+- Supports resource IDs, accessibility IDs, and accessibility attributes
 
 ### WebView (iOS/Android)
-- Uses standard Selenium XPath evaluation
+- Uses standard Selenium evaluation for all selector types
 - Handles web content within native apps
-- Supports CSS selectors and web elements
+- Supports all selector types (XPath, CSS, class, name, ID)
 
 ### Web Browser
-- Uses standard Selenium XPath evaluation
+- Uses standard Selenium evaluation for all selector types
 - Handles web page elements
-- Supports all web element types
+- Supports all selector types (XPath, CSS, class, name, ID)
 
 ## Platform-Specific Scrolling
 
@@ -235,30 +339,208 @@ The element bounding box detection uses platform-specific scrolling methods to e
 
 ### ignoreBoxes Options Format
 
-The element detection uses the `ignoreBoxes` key with a nested map structure to support future extensibility:
+The element detection uses the `ignoreBoxes` key with a nested map structure to support multiple selector types. The system now supports multiple formats for maximum flexibility:
 
-#### Current Structure (XPath Support)
+1. **New Flexible Structure**: Users can send `ignoreBoxes` and/or `selectBoxes` directly
+2. **Legacy Structure**: Users can send `ignore` and/or `select` keys  
+3. **Legacy XPath Format**: Users can send `xpaths` list for backward compatibility
+
+### Supported Input Formats
+
+#### Format 1: Direct ignoreBoxes/selectBoxes (Recommended)
 ```java
-// Create the ignoreBoxes structure
+Map<String, Object> mainMap = new HashMap<>();
+
+// Send ignoreBoxes with various selector types
+Map<String, List<String>> ignoreSelectors = new HashMap<>();
+ignoreSelectors.put("xpath", Arrays.asList("//button[@id='submit']"));
+ignoreSelectors.put("accessibilityid", Arrays.asList("submit-button"));
+ignoreSelectors.put("class", Arrays.asList("header", "footer"));
+mainMap.put("ignoreBoxes", ignoreSelectors);
+
+// Send selectBoxes with various selector types
+Map<String, List<String>> selectSelectors = new HashMap<>();
+selectSelectors.put("xpath", Arrays.asList("//input[@type='text']"));
+selectSelectors.put("id", Arrays.asList("login-form"));
+mainMap.put("selectBoxes", selectSelectors);
+
+// Convert to JSON
+Gson gson = new Gson();
+options.put("ignoreBoxes", gson.toJson(mainMap));
+```
+
+#### Format 2: Legacy ignore/select keys
+```java
+Map<String, Object> mainMap = new HashMap<>();
+
+// Create selectors map
+Map<String, List<String>> selectors = new HashMap<>();
+selectors.put("xpath", Arrays.asList("//button[@id='submit']"));
+selectors.put("accessibilityid", Arrays.asList("submit-button"));
+
+// Use legacy keys
+mainMap.put("ignore", selectors);  // or "select"
+
+// Convert to JSON
+Gson gson = new Gson();
+options.put("ignoreBoxes", gson.toJson(mainMap));
+```
+
+#### Format 3: Legacy XPath-only (Backward Compatible)
+```java
+// Simple XPath list
 List<String> xpaths = Arrays.asList(
+    "//*[@text=\"Terms of Service | Privacy Policy\"]",
+    "//*[@text=\"Sauce Labs Bolt T-Shirt\"]"
+);
+
+Map<String, Object> mainMap = new HashMap<>();
+mainMap.put("xpaths", xpaths);
+
+// Convert to JSON
+Gson gson = new Gson();
+options.put("ignoreBoxes", gson.toJson(mainMap));
+```
+
+#### New Flexible Structure (Recommended)
+```java
+// Create selectors with multiple selector types
+Map<String, List<String>> ignoreSelectors = new HashMap<>();
+
+// XPath selectors
+ignoreSelectors.put("xpath", Arrays.asList(
     "//button[@id='submit']",
     "//input[@type='text']",
     "//div[@class='header']"
-);
+));
+
+// CSS class selectors
+ignoreSelectors.put("class", Arrays.asList(
+    "header",
+    "footer",
+    "navigation"
+));
+
+// Accessibility ID selectors (for mobile apps)
+ignoreSelectors.put("accessibilityid", Arrays.asList(
+    "submit-button",
+    "search-input"
+));
+
+// Name selectors
+ignoreSelectors.put("name", Arrays.asList(
+    "username",
+    "password"
+));
+
+// ID selectors
+ignoreSelectors.put("id", Arrays.asList(
+    "login-form",
+    "search-box"
+));
+
+// CSS selectors
+ignoreSelectors.put("css", Arrays.asList(
+    ".container .header",
+    "#main-content"
+));
+
+// Create the main structure - user can send either ignoreBoxes or selectBoxes
+Map<String, Object> mainMap = new HashMap<>();
+
+// Option 1: Send ignoreBoxes
+mainMap.put("ignoreBoxes", ignoreSelectors);
+
+// Option 2: Send selectBoxes (or both)
+Map<String, List<String>> selectSelectors = new HashMap<>();
+selectSelectors.put("xpath", Arrays.asList("//button[@id='submit']"));
+selectSelectors.put("class", Arrays.asList("important-button"));
+mainMap.put("selectBoxes", selectSelectors);
+
+// Convert to JSON string for options
+Gson gson = new Gson();
+snapshotOptions.put("ignoreBoxes", gson.toJson(mainMap));
+```
+
+#### Legacy Structure (Still Supported)
+```java
+// Create the ignoreBoxes structure with multiple selector types
+Map<String, List<String>> selectors = new HashMap<>();
+
+// XPath selectors
+selectors.put("xpath", Arrays.asList(
+    "//button[@id='submit']",
+    "//input[@type='text']",
+    "//div[@class='header']"
+));
+
+// CSS class selectors
+selectors.put("class", Arrays.asList(
+    "header",
+    "footer",
+    "navigation"
+));
+
+// Accessibility ID selectors (for mobile apps)
+selectors.put("accessibilityid", Arrays.asList(
+    "submit-button",
+    "search-input"
+));
+
+// Name selectors
+selectors.put("name", Arrays.asList(
+    "username",
+    "password"
+));
+
+// ID selectors
+selectors.put("id", Arrays.asList(
+    "login-form",
+    "search-box"
+));
+
+// CSS selectors
+selectors.put("css", Arrays.asList(
+    ".container .header",
+    "#main-content"
+));
 
 Map<String, Object> ignoreBoxesMap = new HashMap<>();
-ignoreBoxesMap.put("xpaths", xpaths);
+ignoreBoxesMap.put("ignore", selectors);  // or "select" depending on your needs
 
 // Convert to JSON string for options
 Gson gson = new Gson();
 snapshotOptions.put("ignoreBoxes", gson.toJson(ignoreBoxesMap));
 ```
 
+#### Legacy XPath-Only Format (Backward Compatible)
+```java
+// Simple XPath list format (automatically converted to new format)
+List<String> xpaths = Arrays.asList(
+    "//*[@text=\"Terms of Service | Privacy Policy\"]",
+    "//*[@text=\"Sauce Labs Bolt T-Shirt\"]"
+);
+
+Map<String, Object> ignoreBoxesMap = new HashMap<>();
+ignoreBoxesMap.put("xpaths", xpaths);
+
+// Optional: specify purpose (defaults to "ignore" if not specified)
+// ignoreBoxesMap.put("purpose", "select");  // Use "select" instead of "ignore"
+
+Gson gson = new Gson();
+Map<String, String> options = new HashMap<>();
+options.put("ignoreBoxes", gson.toJson(ignoreBoxesMap));
+options.put("fullPage", "true");
+options.put("cropStatusBar", "false");
+```
+
+
+
 #### Future Extensibility
 The structure is designed to support additional selector types in the future:
 ```json
 {
-  "xpaths": ["//button[@id='submit']", "//input[@type='text']"],
+  "xpath": ["//button[@id='submit']", "//input[@type='text']"],
   "classes": ["header", "footer", "navigation"],
   "accessibilityIds": ["submit-button", "search-input"],
   "resourceIds": ["com.example:id/button", "com.example:id/input"]
@@ -269,7 +551,7 @@ The structure is designed to support additional selector types in the future:
 The `ignoreBoxes` option expects a JSON string with the following structure:
 ```json
 {
-  "xpaths": [
+  "xpath": [
     "//button[@id='submit']",
     "//input[@type='text']",
     "//div[@class='header']"
@@ -284,8 +566,8 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 
 ## Error Handling
 
-### XPath Failures
-- Logs warning and continues with other XPaths
+### Selector Failures
+- Logs warning and continues with other selectors
 - Does not fail the entire capture process
 - Provides detailed error information
 
@@ -318,10 +600,101 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 
 ## Integration with Backend
 
+### Complete Flow from Start to End
+
+1. **Input Configuration**
+   ```java
+   Map<String, Object> ignoreBoxesMap = new HashMap<>();
+   ignoreBoxesMap.put("ignore", ignoreSelectors);
+   ignoreBoxesMap.put("select", selectSelectors);
+   
+   Map<String, String> options = new HashMap<>();
+   options.put("ignoreBoxes", gson.toJson(ignoreBoxesMap));
+   ```
+
+2. **Element Detection**
+   - `SmartUIAppSnapshot` extracts both ignore and select selectors
+   - `FullPageScreenshotUtil` captures screenshots with element detection
+   - `ElementBoundingBoxUtil` detects elements with appropriate purpose ("ignore" or "select")
+
+3. **Bounding Box Creation**
+   - Ignore elements → `ignoreBoxes` payload
+   - Select elements → `selectBoxes` payload
+   - Both include coordinates: `left`, `top`, `right`, `bottom`
+
+4. **Upload API**
+   - `uploadSnapshotRequest.setIgnoreBoxes(ignoreBoxesJson)`
+   - `uploadSnapshotRequest.setSelectBoxes(selectBoxesJson)`
+   - Backend receives both payloads for processing
+
 ### Upload Pipeline
 - Prepares structured data for backend processing
 - Includes metadata and element information
 - Compatible with existing upload mechanisms
+- **NEW**: Sends both ignore and select element data
+
+### Upload Payload Structure
+
+The upload API now sends both `ignoreBoxes` and `selectBoxes` in the payload, allowing the backend to distinguish between elements that should be ignored versus those that should be selected for validation.
+
+#### Upload Payload Example
+```json
+{
+  "ignoreBoxes": {
+    "boxes": [
+      {
+        "left": 100,
+        "top": 200,
+        "right": 180,
+        "bottom": 240
+      }
+    ]
+  },
+  "selectBoxes": {
+    "boxes": [
+      {
+        "left": 150,
+        "top": 300,
+        "right": 230,
+        "bottom": 340
+      }
+    ]
+  }
+}
+```
+
+### Distinguishing Ignore vs Select Elements
+
+When processing the detected elements later in your code, you can easily distinguish between ignore and select elements using the `purpose` field:
+
+```java
+// Process detected elements based on their purpose
+for (ElementBoundingBox element : allDetectedElements) {
+    if ("ignore".equals(element.getPurpose())) {
+        // This element should be ignored during validation
+        log.info("Ignoring element: " + element.getSelectorValue());
+        // Add to ignore boxes for screenshot processing
+        ignoreBoxes.add(createIgnoreBox(element));
+        
+    } else if ("select".equals(element.getPurpose())) {
+        // This element should be validated
+        log.info("Selecting element for validation: " + element.getSelectorValue());
+        // Add to validation list
+        validationElements.add(element);
+    }
+}
+
+// Store elements separately for different purposes
+List<ElementBoundingBox> ignoredElements = allDetectedElements.stream()
+    .filter(e -> "ignore".equals(e.getPurpose()))
+    .collect(Collectors.toList());
+
+List<ElementBoundingBox> selectedElements = allDetectedElements.stream()
+    .filter(e -> "select".equals(e.getPurpose()))
+    .collect(Collectors.toList());
+
+log.info("Found " + ignoredElements.size() + " ignore elements and " + selectedElements.size() + " select elements");
+```
 
 ### Stitching Support
 - Provides element data for server-side stitching
@@ -330,8 +703,8 @@ The `ignoreBoxes` option expects a JSON string with the following structure:
 
 ## Best Practices
 
-### XPath Selection
-- Use specific, unique XPaths
+### Selector Selection
+- Use specific, unique selectors
 - Avoid overly broad selectors
 - Consider element importance and frequency
 

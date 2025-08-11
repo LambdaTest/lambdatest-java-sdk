@@ -33,10 +33,24 @@ public class FullPageScreenshotUtil {
     private int maxCount = 10;
 
     public List<File> captureFullPage(int pageCount) {
-        return captureFullPage(pageCount, null);
+        return captureFullPage(pageCount, (Map<String, List<String>>) null);
     }
 
     public List<File> captureFullPage(int pageCount, List<String> xpaths) {
+        // Convert XPaths to the new selector format for backward compatibility
+        Map<String, List<String>> selectors = null;
+        if (xpaths != null && !xpaths.isEmpty()) {
+            selectors = new HashMap<>();
+            selectors.put("xpath", xpaths);
+        }
+        return captureFullPage(pageCount, selectors);
+    }
+
+    /**
+     * Capture full page screenshots with multi-selector element detection
+     * Supports XPath, class, accessibility ID, name, ID, and CSS selectors
+     */
+    public List<File> captureFullPage(int pageCount, Map<String, List<String>> selectors) {
         if (pageCount <= 0) {
             pageCount = maxCount;
         }
@@ -49,10 +63,10 @@ public class FullPageScreenshotUtil {
         List<ElementBoundingBox> allElements = new ArrayList<>();
         ElementBoundingBoxUtil elementUtil = null;
         
-        // Initialize element detection if XPaths provided
-        if (xpaths != null && !xpaths.isEmpty()) {
+        // Initialize element detection if selectors provided
+        if (selectors != null && !selectors.isEmpty()) {
             elementUtil = new ElementBoundingBoxUtil(driver);
-            log.info("Element detection enabled for " + xpaths.size() + " XPaths");
+            log.info("Element detection enabled for selectors: " + selectors);
         }
         
         while (!isLastScroll && chunkCount < maxCount) {
@@ -60,9 +74,9 @@ public class FullPageScreenshotUtil {
             if (screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
                 
-                // Detect elements after screenshot if XPaths provided
+                // Detect elements after screenshot if selectors provided
                 if (elementUtil != null) {
-                    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(xpaths, chunkCount);
+                    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, "ignore"); // Default to ignore for backward compatibility
                     allElements.addAll(chunkElements);
                     log.info("Detected " + chunkElements.size() + " elements in chunk " + chunkCount);
                 }
