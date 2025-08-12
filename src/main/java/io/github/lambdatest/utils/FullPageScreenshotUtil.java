@@ -2,10 +2,13 @@ package io.github.lambdatest.utils;
 
 import org.openqa.selenium.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -125,10 +128,25 @@ public class FullPageScreenshotUtil {
         List<ElementBoundingBox> allElements = new ArrayList<>();
         ElementBoundingBoxUtil elementUtil = null;
         
+        // iOS optimization: Detect all elements once before scrolling starts
+        List<ElementBoundingBox> iosAllElements = new ArrayList<>();
+        boolean isIOSOptimized = false;
+        
         // Initialize element detection if selectors provided
         if (selectors != null && !selectors.isEmpty()) {
             elementUtil = new ElementBoundingBoxUtil(driver);
             log.info("Element detection enabled for " + purpose + " selectors: " + selectors);
+            
+            // Check if this is iOS platform for optimization
+            if (platform.equals("ios")) {
+                log.info("iOS platform detected - detecting all elements once before scrolling starts");
+                iosAllElements = elementUtil.detectAllElementsIOS(selectors, purpose);
+                isIOSOptimized = true;
+                log.info("iOS optimization: Detected " + iosAllElements.size() + " elements before scrolling - will use for all chunks");
+                
+                // Add all iOS elements to the final result immediately
+                allElements.addAll(iosAllElements);
+            }
         }
         
         while (!isLastScroll && chunkCount < maxCount) {
@@ -136,11 +154,18 @@ public class FullPageScreenshotUtil {
             if (screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
                 
-                // Detect elements after screenshot if selectors provided
+                // Element detection logic
                 if (elementUtil != null) {
-                    List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, purpose);
-                    allElements.addAll(chunkElements);
-                    log.info("Detected " + chunkElements.size() + " " + purpose + " elements in chunk " + chunkCount);
+                    if (isIOSOptimized) {
+                        // iOS optimization: No element detection needed during scrolling
+                        // Elements were already detected and added to allElements before scrolling started
+                        // No logging needed since we're doing nothing with elements during scrolling
+                    } else {
+                        // Standard approach for Android/Web: Detect elements after screenshot
+                        List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, purpose);
+                        allElements.addAll(chunkElements);
+                        log.info("Detected " + chunkElements.size() + " " + purpose + " elements in chunk " + chunkCount);
+                    }
                 }
                 
                 chunkCount++;
@@ -149,17 +174,22 @@ public class FullPageScreenshotUtil {
             int scrollDistance = scrollDown();
             log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
             
-            // Update scroll position for element detection
-            if (elementUtil != null) {
+            // Update scroll position for element detection (only needed for non-iOS platforms)
+            if (elementUtil != null && !isIOSOptimized) {
                 elementUtil.updateScrollPosition(scrollDistance);
             }
+            
             // Detect end of page
             isLastScroll = hasReachedBottom();
         }
         
         // Process and log final element data
         if (elementUtil != null && !allElements.isEmpty()) {
-            log.info("Element detection complete: " + allElements.size() + " total " + purpose + " elements");
+            if (isIOSOptimized) {
+                log.info("iOS optimization: Element detection complete - " + allElements.size() + " total " + purpose + " elements (detected once before scrolling)");
+            } else {
+                log.info("Element detection complete: " + allElements.size() + " total " + purpose + " elements");
+            }
         }
         
         log.info("Finished capturing all screenshots for full page with " + purpose + " elements.");
@@ -191,12 +221,43 @@ public class FullPageScreenshotUtil {
         List<ElementBoundingBox> selectElements = new ArrayList<>();
         ElementBoundingBoxUtil elementUtil = new ElementBoundingBoxUtil(driver);
         
+        // iOS optimization: Detect all elements once before scrolling starts
+        List<ElementBoundingBox> iosIgnoreElements = new ArrayList<>();
+        List<ElementBoundingBox> iosSelectElements = new ArrayList<>();
+        boolean isIOSOptimized = false;
+        
         log.info("Element detection enabled for both ignore and select selectors");
-        if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
-            log.info("Ignore selectors: " + ignoreSelectors);
-        }
-        if (selectSelectors != null && !selectSelectors.isEmpty()) {
-            log.info("Select selectors: " + selectSelectors);
+        
+        // Check if this is iOS platform for optimization
+        if (platform.equals("ios")) {
+            log.info("iOS platform detected - detecting all elements once before scrolling starts");
+            isIOSOptimized = true;
+            
+            if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
+                log.info("iOS: Detecting ignore selectors before scrolling: " + ignoreSelectors);
+                iosIgnoreElements = elementUtil.detectAllElementsIOS(ignoreSelectors, "ignore");
+                log.info("iOS optimization: Detected " + iosIgnoreElements.size() + " ignore elements before scrolling - will use for all chunks");
+                
+                // Add all iOS ignore elements to the final result immediately
+                ignoreElements.addAll(iosIgnoreElements);
+            }
+            
+            if (selectSelectors != null && !selectSelectors.isEmpty()) {
+                log.info("iOS: Detecting select selectors before scrolling: " + selectSelectors);
+                iosSelectElements = elementUtil.detectAllElementsIOS(selectSelectors, "select");
+                log.info("iOS optimization: Detected " + iosSelectElements.size() + " select elements before scrolling - will use for all chunks");
+                
+                // Add all iOS select elements to the final result immediately
+                selectElements.addAll(iosSelectElements);
+            }
+        } else {
+            // Standard logging for non-iOS platforms
+            if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
+                log.info("Ignore selectors: " + ignoreSelectors);
+            }
+            if (selectSelectors != null && !selectSelectors.isEmpty()) {
+                log.info("Select selectors: " + selectSelectors);
+            }
         }
         
         while (!isLastScroll && chunkCount < maxCount) {
@@ -204,18 +265,23 @@ public class FullPageScreenshotUtil {
             if (screenshotFile != null) {
                 screenshotDir.add(screenshotFile);
                 
-                // Detect ignore elements
-                if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
-                    List<ElementBoundingBox> chunkIgnoreElements = elementUtil.detectElements(ignoreSelectors, chunkCount, "ignore");
-                    ignoreElements.addAll(chunkIgnoreElements);
-                    log.info("Detected " + chunkIgnoreElements.size() + " ignore elements in chunk " + chunkCount);
-                }
-                
-                // Detect select elements
-                if (selectSelectors != null && !selectSelectors.isEmpty()) {
-                    List<ElementBoundingBox> chunkSelectElements = elementUtil.detectElements(selectSelectors, chunkCount, "select");
-                    selectElements.addAll(chunkSelectElements);
-                    log.info("Detected " + chunkSelectElements.size() + " select elements in chunk " + chunkCount);
+                if (isIOSOptimized) {
+                    // iOS optimization: No element detection needed during scrolling
+                    // Elements were already detected and added to ignoreElements/selectElements before scrolling started
+                    // No logging needed since we're doing nothing with elements during scrolling
+                } else {
+                    // Standard approach for Android/Web: Detect elements after screenshot
+                    if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
+                        List<ElementBoundingBox> chunkIgnoreElements = elementUtil.detectElements(ignoreSelectors, chunkCount, "ignore");
+                        ignoreElements.addAll(chunkIgnoreElements);
+                        log.info("Detected " + chunkIgnoreElements.size() + " ignore elements in chunk " + chunkCount);
+                    }
+                    
+                    if (selectSelectors != null && !selectSelectors.isEmpty()) {
+                        List<ElementBoundingBox> chunkSelectElements = elementUtil.detectElements(selectSelectors, chunkCount, "select");
+                        selectElements.addAll(chunkSelectElements);
+                        log.info("Detected " + chunkSelectElements.size() + " select elements in chunk " + chunkCount);
+                    }
                 }
                 
                 chunkCount++;
@@ -224,8 +290,11 @@ public class FullPageScreenshotUtil {
             int scrollDistance = scrollDown();
             log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
             
-            // Update scroll position for element detection
-            elementUtil.updateScrollPosition(scrollDistance);
+            // Update scroll position for element detection (only needed for non-iOS platforms)
+            if (!isIOSOptimized) {
+                elementUtil.updateScrollPosition(scrollDistance);
+            }
+            
             // Detect end of page
             isLastScroll = hasReachedBottom();
         }
@@ -233,7 +302,12 @@ public class FullPageScreenshotUtil {
         // Process and log final element data
         int totalIgnoreElements = ignoreElements.size();
         int totalSelectElements = selectElements.size();
-        log.info("Element detection complete: " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements");
+        
+        if (isIOSOptimized) {
+            log.info("iOS optimization: Element detection complete - " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements (detected once before scrolling)");
+        } else {
+            log.info("Element detection complete: " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements");
+        }
         
         log.info("Finished capturing all screenshots for full page with both selector types.");
         
@@ -327,7 +401,8 @@ public class FullPageScreenshotUtil {
     }
 
         /**
-     * iOS-specific scroll method using dragFromToForDuration (compatible with older Appium versions)
+     * iOS-specific scroll method using mobile:scroll for better inertia control
+     * Falls back to dragFromToForDuration if mobile:scroll fails
      */
     private int scrollIOS() {
         try {
@@ -335,30 +410,38 @@ public class FullPageScreenshotUtil {
             int screenHeight = size.getHeight();
             int screenWidth = size.getWidth();
             
-            // Use precise scroll parameters
-            int scrollEndY = (int) (screenHeight * 0.3); // End at 30% of screen height
-            int scrollHeight = (int) (screenHeight * 0.3); // Scroll distance = 35% of screen height
-            int scrollLeft = screenWidth / 2; // Center the narrow scroll area
+            // Calculate scroll distance
+            int scrollHeight = (int) (screenHeight * 0.3); // Scroll distance = 30% of screen height
             
-            log.info("iOS scroll parameters - scrollEndY: " + scrollEndY + ", height: " + scrollHeight + ", width: " + scrollLeft);
+            log.info("iOS scroll distance: " + scrollHeight + " pixels");
 
-            int startY = scrollEndY + scrollHeight; // Start from bottom of scroll area
-            int endY = scrollEndY; // End at top of scroll area
+            // Use W3C Actions API for precise iOS scrolling with zero inertia
+            log.info("Using iOS W3C Actions API for precise scrolling");
             
-            // Use dragFromToForDuration which is compatible with older Appium versions
-            Map<String, Object> swipeObj = new HashMap<>();
-            swipeObj.put("fromX", scrollLeft);
-            swipeObj.put("fromY", startY);
-            swipeObj.put("toX", scrollLeft);
-            swipeObj.put("toY", endY);
-            swipeObj.put("duration", 0.3); // Slower duration for more controlled scrolling
+            PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+            Sequence dragSequence = new Sequence(finger, 1);
             
-            ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
-            log.info("iOS dragFromTo scroll succeeded");
+            // Calculate precise coordinates
+            int startY = (int) (screenHeight * 0.7); // Start at 70% of screen height
+            int endY = (int) (screenHeight * 0.4);   // End at 40% of screen height (30% scroll distance)
+            int x = screenWidth / 2; // Center horizontally
+            
+            log.info("iOS scroll coordinates - startY: " + startY + ", endY: " + endY + ", x: " + x);
+            
+            // Create controlled touch gesture without momentum
+            dragSequence.addAction(finger.createPointerMove(Duration.ZERO, 
+                PointerInput.Origin.viewport(), x, startY));
+            dragSequence.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            dragSequence.addAction(finger.createPointerMove(Duration.ofMillis(1500),
+                PointerInput.Origin.viewport(), x, endY));
+            dragSequence.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+            
+            ((RemoteWebDriver) driver).perform(Arrays.asList(dragSequence));
+            log.info("iOS W3C Actions API scroll completed");
             return scrollHeight;
             
         } catch (Exception e) {
-            log.severe("iOS scroll failed: " + e.getMessage());
+            log.severe("iOS scroll failed completely: " + e.getMessage());
             return 0;
         }
     }
@@ -389,7 +472,6 @@ public class FullPageScreenshotUtil {
      */
     private String detectPlatform() {
         try {
-            log.info("Detecting platform...");
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
             
             String platformName = "";
@@ -399,20 +481,10 @@ public class FullPageScreenshotUtil {
                 // Try to get platform name
                 if (caps.getCapability("platformName") != null) {
                     platformName = caps.getCapability("platformName").toString().toLowerCase();
-                    log.info("Found platformName capability: " + platformName);
                 } else if (caps.getCapability("platform") != null) {
                     platformName = caps.getCapability("platform").toString().toLowerCase();
-                    log.info("Found platform capability: " + platformName);
                 } else {
                     log.warning("No platform capability found");
-                }
-                
-                // Try to get browser name
-                if (caps.getCapability("browserName") != null) {
-                    browserName = caps.getCapability("browserName").toString().toLowerCase();
-                    log.info("Found browserName capability: " + browserName);
-                } else {
-                    log.warning("No browserName capability found");
                 }
                 
                 String detectedPlatform;
@@ -423,8 +495,7 @@ public class FullPageScreenshotUtil {
                 } else {
                     detectedPlatform = "web";
                 }
-                
-                log.info("Detected platform: " + detectedPlatform);
+
                 return detectedPlatform;
                 
             } catch (Exception e) {

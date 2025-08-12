@@ -527,24 +527,18 @@ public class ElementBoundingBoxUtil {
             String browserName = "";
             
             try {
-                // Log all available capabilities for debugging
-                log.info("Available capabilities: " + caps.asMap().keySet());
                 
-                // Try to get platform name using the old API
                 if (caps.getCapability("platformName") != null) {
                     platformName = caps.getCapability("platformName").toString().toLowerCase();
-                    log.info("Found platformName capability: " + platformName);
                 } else if (caps.getCapability("platform") != null) {
                     platformName = caps.getCapability("platform").toString().toLowerCase();
-                    log.info("Found platform capability: " + platformName);
+
                 } else {
                     log.warning("No platform capability found");
                 }
                 
-                // Try to get browser name
                 if (caps.getCapability("browserName") != null) {
                     browserName = caps.getCapability("browserName").toString().toLowerCase();
-                    log.info("Found browserName capability: " + browserName);
                 } else {
                     log.warning("No browserName capability found");
                 }
@@ -557,8 +551,6 @@ public class ElementBoundingBoxUtil {
                 } else {
                     detectedPlatform = "web";
                 }
-                
-                log.info("Detected platform: " + detectedPlatform);
                 return detectedPlatform;
                 
             } catch (Exception e) {
@@ -681,4 +673,69 @@ public class ElementBoundingBoxUtil {
                 return driver.findElements(By.xpath(selectorValue));
         }
     }
+
+    /**
+     * iOS-optimized: Detect all elements once at start with absolute positions
+     * No viewport filtering needed since iOS makes all elements accessible
+     */
+    public List<ElementBoundingBox> detectAllElementsIOS(Map<String, List<String>> selectors, String purpose) {
+        try {
+            log.info("iOS optimization: Detecting all elements once at start with absolute positions");
+            List<ElementBoundingBox> allElements = new ArrayList<>();
+            String platform = detectPlatform();
+            
+            if (selectors == null || selectors.isEmpty()) {
+                log.info("No selectors provided for iOS element detection");
+                return allElements;
+            }
+            
+            // Process each selector type
+            for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
+                String selectorType = entry.getKey();
+                List<String> selectorValues = entry.getValue();
+                
+                if (selectorValues == null || selectorValues.isEmpty()) {
+                    continue;
+                }
+                
+                log.info("iOS: Processing " + selectorType + " selectors: " + selectorValues.size() + " items");
+                
+                for (String selectorValue : selectorValues) {
+                    String selectorKey = selectorType + ":" + selectorValue;
+                    
+                    try {
+                        List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
+                        log.info("iOS: Found " + elements.size() + " elements for " + selectorType + " selector: " + selectorValue);
+                        
+                        for (WebElement element : elements) {
+                            // Create bounding box with absolute position (no scroll offset needed for iOS)
+                            ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, 0, platform, purpose);
+                            
+                            if (boundingBox != null) {
+                                allElements.add(boundingBox);
+                                log.info("iOS: Added element with absolute position: " + boundingBox.toString());
+                            } else {
+                                log.warning("iOS: Failed to create bounding box for element: " + selectorKey);
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warning("iOS: Failed to detect elements for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
+                    }
+                }
+            }
+            
+            log.info("iOS optimization: Detected " + allElements.size() + " elements with absolute positions");
+            
+            // Convert CSS pixels to device pixels for iOS elements (same as Android/Web)
+            List<ElementBoundingBox> devicePixelElements = convertBoundingBoxesToDevicePixels(allElements);
+            log.info("iOS optimization: Converted " + allElements.size() + " elements from CSS pixels to device pixels using DPR: " + devicePixelRatio);
+            
+            return devicePixelElements;
+            
+        } catch (Exception e) {
+            log.severe("iOS element detection failed: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
 } 
