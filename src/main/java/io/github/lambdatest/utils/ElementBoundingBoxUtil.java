@@ -12,11 +12,23 @@ public class ElementBoundingBoxUtil {
     private int cumulativeScrollPosition = 0; // Track cumulative scroll position in CSS pixels for native apps
     private double devicePixelRatio = 1.0; // Track device pixel ratio for scaling
     private Set<String> foundXPaths = new HashSet<>(); // Track XPaths that have already been found
+    private final String testType; // Store test type (web or app)
+    private final String deviceName; // Store device name
 
     public ElementBoundingBoxUtil(WebDriver driver) {
         this.driver = driver;
+        this.testType = "web"; // Default to web for backward compatibility
+        this.deviceName = detectDeviceName();
         this.devicePixelRatio = getDevicePixelRatio();
-        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels, device pixel ratio: " + devicePixelRatio);
+        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels, device pixel ratio: " + devicePixelRatio + ", testType: " + testType + ", deviceName: " + deviceName);
+    }
+
+    public ElementBoundingBoxUtil(WebDriver driver, String testType, String deviceName) {
+        this.driver = driver;
+        this.testType = testType;
+        this.deviceName = deviceName;
+        this.devicePixelRatio = getDevicePixelRatio();
+        log.info("ElementBoundingBoxUtil initialized with cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels, device pixel ratio: " + devicePixelRatio + ", testType: " + testType + ", deviceName: " + deviceName);
     }
 
     /**
@@ -515,6 +527,235 @@ public class ElementBoundingBoxUtil {
     }
 
     /**
+     * Get status bar height for iOS devices in CSS pixels
+     * Similar to Golang implementation with device-specific height detection
+     */
+    public int getStatusBarHeightForIOS() {
+        try {
+            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            String deviceName = "";
+            
+            // Try to get device information from capabilities
+            if (caps.getCapability("deviceName") != null) {
+                deviceName = caps.getCapability("deviceName").toString();
+            }
+            
+            if (deviceName.isEmpty()) {
+                log.info("No device name found, using default status bar height: 20 CSS pixels");
+                return 20;
+            }
+            
+            String lowerName = deviceName.toLowerCase();
+            log.info("Calculating status bar height for device: " + deviceName);
+            
+            // iPad handling
+            if (lowerName.contains("ipad")) {
+                int height = getIPadStatusBarHeight(lowerName);
+                log.info("iPad status bar height: " + height + " CSS pixels");
+                return height;
+            }
+            
+            if (lowerName.contains("iphone")) {
+                int height = getIPhoneStatusBarHeight(lowerName);
+                log.info("iPhone status bar height: " + height + " CSS pixels");
+                return height;
+            }
+            
+            log.info("Unknown iOS device, using default status bar height: 20 CSS pixels");
+            return 20;
+            
+        } catch (Exception e) {
+            log.warning("Failed to get iOS status bar height: " + e.getMessage());
+            log.info("Using default status bar height: 20 CSS pixels");
+            return 20;
+        }
+    }
+
+    /**
+     * Get iPad status bar height in CSS pixels
+     */
+    private int getIPadStatusBarHeight(String deviceName) {
+        // Newer iPad Pro models have taller status bars
+        if (deviceName.contains("pro")) {
+            String[] newerYears = {"2018", "2020", "2021", "2022", "2024", "2025"};
+            for (String year : newerYears) {
+                if (deviceName.contains(year)) {
+                    log.info("Detected newer iPad Pro (" + year + "), using status bar height: 24 CSS pixels");
+                    return 24;
+                }
+            }
+        }
+        log.info("Detected iPad (regular or older Pro), using status bar height: 20 CSS pixels");
+        return 20;
+    }
+
+    /**
+     * Get iPhone status bar height in CSS pixels
+     */
+    private int getIPhoneStatusBarHeight(String deviceName) {
+        if (hasDynamicIsland(deviceName)) {
+            log.info("Detected iPhone with Dynamic Island, using status bar height: 54 CSS pixels");
+            return 54;
+        }
+        
+        if (hasNotch(deviceName)) {
+            log.info("Detected iPhone with notch, using status bar height: 47 CSS pixels");
+            return 47;
+        }
+        
+        if (isTraditionalIPhone(deviceName)) {
+            log.info("Detected traditional iPhone, using status bar height: 20 CSS pixels");
+            return 20;
+        }
+        
+        log.info("Unknown iPhone model, using default status bar height: 20 CSS pixels");
+        return 20;
+    }
+
+    /**
+     * Check if the iPhone has Dynamic Island
+     */
+    private boolean hasDynamicIsland(String deviceName) {
+        String[] dynamicIslandDevices = {
+            "14 pro", "14pro",
+            "15",
+            "16",
+            "17" // All iPhone 17 models expected to have Dynamic Island
+        };
+        
+        for (String device : dynamicIslandDevices) {
+            if (deviceName.contains(device)) {
+                log.info("Detected Dynamic Island device: " + device);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if the iPhone has notch
+     */
+    private boolean hasNotch(String deviceName) {
+        String[] notchDevices = {
+            "x", "xs", "xr",
+            "11",
+            "12",
+            "13",
+            "14"
+        };
+        
+        for (String device : notchDevices) {
+            if (deviceName.contains(device)) {
+                // Special case: iPhone 14 Pro models are handled by Dynamic Island
+                if (device.equals("14") && (deviceName.contains("pro") || deviceName.contains("14 pro"))) {
+                    continue;
+                }
+                log.info("Detected notch device: " + device);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if the iPhone is a traditional model without notch
+     */
+    private boolean isTraditionalIPhone(String deviceName) {
+        String[] traditionalDevices = {
+            "se", "8", "7", "6", "5", "4"
+        };
+        
+        for (String device : traditionalDevices) {
+            if (deviceName.contains(device)) {
+                log.info("Detected traditional iPhone: " + device);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if status bar height should be added for web tests on iOS devices
+     */
+    private boolean shouldAddStatusBarHeight() {
+        try {
+            log.info("Checking status bar height - testType: " + testType + ", deviceName: " + deviceName);
+            
+            // Only apply status bar height for web tests on iOS devices
+            if (testType.toLowerCase().contains("web") && (deviceName.toLowerCase().contains("iphone") || deviceName.toLowerCase().contains("ipad") || deviceName.toLowerCase().contains("ipod"))) {
+                log.info("Web test on iOS device detected: " + deviceName + " - status bar height adjustment will be applied");
+                return true;
+            }
+            
+            log.info("Not a web test on iOS device, no status bar height adjustment needed");
+            return false;
+            
+        } catch (Exception e) {
+            log.warning("Failed to check if status bar height should be added: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get status bar height in device pixels for web tests on iOS devices
+     * This method should be used when testType is web and deviceName is iOS device
+     * Returns status bar height * device pixel ratio for proper scaling
+     */
+    public int getStatusBarHeightInDevicePixels() {
+        try {
+            if (shouldAddStatusBarHeight()) {
+                int cssStatusBarHeight = getStatusBarHeightForIOS();
+                int devicePixelStatusBarHeight = (int) (cssStatusBarHeight * devicePixelRatio);
+                log.info("Web test on iOS device: Status bar height " + cssStatusBarHeight + " CSS pixels * DPR " + devicePixelRatio + " = " + devicePixelStatusBarHeight + " device pixels");
+                return devicePixelStatusBarHeight;
+            }
+            
+            log.info("Status bar height adjustment not needed, returning 0");
+            return 0;
+            
+        } catch (Exception e) {
+            log.warning("Failed to get status bar height in device pixels: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Detect device name from WebDriver capabilities
+     */
+    private String detectDeviceName() {
+        try {
+            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            String deviceName = "";
+            
+            try {
+                // Try to get device name from various capability keys
+                if (caps.getCapability("deviceName") != null) {
+                    deviceName = caps.getCapability("deviceName").toString();
+                } else if (caps.getCapability("device") != null) {
+                    deviceName = caps.getCapability("device").toString();
+                } else if (caps.getCapability("deviceModel") != null) {
+                    deviceName = caps.getCapability("deviceModel").toString();
+                } else if (caps.getCapability("deviceType") != null) {
+                    deviceName = caps.getCapability("deviceType").toString();
+                } else {
+                    log.info("No device name capability found, using platform as device identifier");
+                    deviceName = detectPlatform(); // Use platform as fallback
+                }
+                
+                return deviceName;
+                
+            } catch (Exception e) {
+                log.warning("Error accessing device capabilities: " + e.getMessage());
+                return detectPlatform(); // Default to platform name
+            }
+            
+        } catch (Exception e) {
+            log.warning("Failed to detect device name: " + e.getMessage());
+            return "unknown"; // Default to unknown
+        }
+    }
+
+    /**
      * Extract iPhone number from device name or model for future device detection
      */
     private int extractIPhoneNumber(String deviceName, String model) {
@@ -662,6 +903,14 @@ public class ElementBoundingBoxUtil {
         
         log.info("Upload metadata - timestamp: " + timestamp + ", totalElements: " + (elements != null ? elements.size() : 0) + ", platform: " + platform);
         
+        // Check if we need to add status bar height for web tests on iOS devices
+        int statusBarHeightToAdd = 0;
+        
+        if (shouldAddStatusBarHeight()) {
+            statusBarHeightToAdd = getStatusBarHeightInDevicePixels();
+            log.info("Web test on iOS device detected - will add status bar height: " + statusBarHeightToAdd + " device pixels to element Y coordinates");
+        }
+        
         // Add element data
         List<Map<String, Object>> elementData = new ArrayList<>();
         if (elements != null) {
@@ -679,8 +928,15 @@ public class ElementBoundingBoxUtil {
                 // Keep xpath for backward compatibility
                 elementMap.put("xpath", element.getXpath());
                 
+                // Add status bar height to Y coordinate if needed
+                int adjustedY = element.getY();
+                if (shouldAddStatusBarHeight()) {
+                    adjustedY += statusBarHeightToAdd;
+                    log.info("Element " + (i + 1) + ": Adjusted Y from " + element.getY() + " to " + adjustedY + " (added " + statusBarHeightToAdd + " device pixels for status bar)");
+                }
+                
                 elementMap.put("x", element.getX());
-                elementMap.put("y", element.getY());
+                elementMap.put("y", adjustedY);
                 elementMap.put("width", element.getWidth());
                 elementMap.put("height", element.getHeight());
                 elementMap.put("chunkIndex", element.getChunkIndex());
@@ -696,6 +952,9 @@ public class ElementBoundingBoxUtil {
         uploadData.put("elements", elementData);
         
         log.info("Upload data preparation complete. Total elements in upload data: " + elementData.size());
+        if (shouldAddStatusBarHeight()) {
+            log.info("Status bar height adjustment applied: " + statusBarHeightToAdd + " device pixels added to Y coordinates");
+        }
         return uploadData;
     }
 
@@ -888,6 +1147,8 @@ public class ElementBoundingBoxUtil {
             return fallback;
         }
     }
+
+
 
     /**
      * iOS-optimized: Detect all elements once at start with absolute positions
