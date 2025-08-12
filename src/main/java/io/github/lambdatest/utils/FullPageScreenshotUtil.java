@@ -453,11 +453,17 @@ public class FullPageScreenshotUtil {
         try {
             Dimension size = driver.manage().window().getSize();
             int screenHeight = size.getHeight();
-            int scrollHeight = (int) (screenHeight * 0.35); // Scroll distance = 35% of screen height
+            int scrollHeight = (int) (screenHeight * 0.8); // Scroll distance = 80% of screen height
             
             log.info("Web scroll parameters - height: " + scrollHeight);
 
-            ((JavascriptExecutor) driver).executeScript("window.scrollBy(0, arguments[0]);", scrollHeight);
+            // Use smooth scrolling with more control
+            String scrollScript = "window.scrollBy({top: arguments[0], left: 0, behavior: 'smooth'});";
+            ((JavascriptExecutor) driver).executeScript(scrollScript, scrollHeight);
+            
+            // Alternative: Force immediate scroll if smooth scrolling doesn't work well
+            // ((JavascriptExecutor) driver).executeScript("window.scrollBy(0, arguments[0]);", scrollHeight);
+            
             log.info("Web JavaScript scroll succeeded");
             return scrollHeight;
             

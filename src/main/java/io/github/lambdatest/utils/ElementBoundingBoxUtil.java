@@ -67,6 +67,7 @@ public class ElementBoundingBoxUtil {
                 String selectorKey = selectorType + ":" + selectorValue;
                 
                 // Skip selector if it has already been found in a previous chunk
+                // For web platforms, we might want to be less strict about this
                 if (foundXPaths.contains(selectorKey)) {
                     log.info("Skipping " + selectorType + " selector " + (i + 1) + "/" + selectorValues.size() + " (already found): " + selectorValue);
                     continue;
@@ -123,14 +124,27 @@ public class ElementBoundingBoxUtil {
     /**
      * Create bounding box from WebElement with absolute coordinates
      * All computations done in CSS pixels - no device pixel conversion here
+     * For web platforms, uses JavaScript for more accurate positioning
      */
     private ElementBoundingBox createBoundingBox(WebElement element, String selectorKey, int chunkIndex, String platform, String purpose) {
         try {
             log.info("Creating bounding box for selector: " + selectorKey);
             
-            // Get element location and size relative to viewport (in CSS pixels)
-            Point location = element.getLocation();
-            Dimension size = element.getSize();
+            Point location;
+            Dimension size;
+            
+            if (platform.contains("web")) {
+                // Use JavaScript for web platforms - more accurate positioning
+                Map<String, Object> elementData = getElementBoundingBoxWeb(element);
+                location = new Point(((Number) elementData.get("x")).intValue(), ((Number) elementData.get("y")).intValue());
+                size = new Dimension(((Number) elementData.get("width")).intValue(), ((Number) elementData.get("height")).intValue());
+                log.info("Using JavaScript for web element positioning");
+            } else {
+                // Use standard Selenium methods for mobile platforms
+                location = element.getLocation();
+                size = element.getSize();
+                log.info("Using standard Selenium for mobile element positioning");
+            }
             
             log.info("Element viewport location (CSS pixels): (" + location.getX() + ", " + location.getY() + ")");
             log.info("Element size (CSS pixels): " + size.getWidth() + "x" + size.getHeight());
@@ -169,8 +183,9 @@ public class ElementBoundingBoxUtil {
     }
 
     /**
-     * Check if element is completely within current viewport
-     * Works directly with CSS pixel coordinates (no conversion needed)
+     * Check if element is visible in current viewport
+     * For web platforms: element must be at least partially visible
+     * For mobile platforms: element must be fully visible (stricter)
      */
     private boolean isElementFullyInViewport(ElementBoundingBox boundingBox) {
         try {
@@ -178,9 +193,11 @@ public class ElementBoundingBoxUtil {
             
             Dimension viewportSize = driver.manage().window().getSize();
             int scrollY = getCurrentScrollPosition();
+            String platform = detectPlatform();
             
             log.info("Viewport size: " + viewportSize.getWidth() + "x" + viewportSize.getHeight() + " CSS pixels");
             log.info("Current scroll position: " + scrollY + " CSS pixels");
+            log.info("Platform: " + platform);
             
             // Bounding box coordinates are already in CSS pixels
             int cssX = boundingBox.getX();
@@ -195,15 +212,25 @@ public class ElementBoundingBoxUtil {
             int viewportY = cssY - scrollY;
             log.info("Element viewport-relative Y position: " + viewportY + " CSS pixels");
             
-            // Check if element is completely within viewport (all in CSS pixels)
+            // X bounds check: element must be within viewport width
             boolean xInBounds = cssX >= 0 && 
                                cssX + cssWidth <= viewportSize.getWidth();
             
-            // Y bounds check: element must be within viewport height
-            // viewportY >= 0: element is not above the viewport
-            // viewportY + cssHeight <= viewportSize.getHeight(): element is not below the viewport
-            boolean yInBounds = viewportY >= 0 && 
-                               viewportY + cssHeight <= viewportSize.getHeight();
+            // Y bounds check: different logic for web vs mobile
+            boolean yInBounds;
+            if (platform.contains("web")) {
+                // For web: element must be at least partially visible (more lenient)
+                // Element is visible if any part of it is in the viewport
+                boolean elementPartiallyVisible = (viewportY < viewportSize.getHeight()) && 
+                                                (viewportY + cssHeight > 0);
+                yInBounds = elementPartiallyVisible;
+                log.info("Web platform: Using partial visibility check - element partially visible: " + elementPartiallyVisible);
+            } else {
+                // For mobile: element must be fully visible (stricter)
+                yInBounds = viewportY >= 0 && 
+                           viewportY + cssHeight <= viewportSize.getHeight();
+                log.info("Mobile platform: Using full visibility check");
+            }
             
             // Additional checks for edge cases
             boolean elementAboveViewport = viewportY < 0;
@@ -212,12 +239,12 @@ public class ElementBoundingBoxUtil {
             log.info("X bounds check: " + xInBounds + " (CSS X: " + cssX + ", CSS width: " + cssWidth + ", viewport width: " + viewportSize.getWidth() + ")");
             log.info("Y bounds check: " + yInBounds + " (CSS viewport Y: " + viewportY + ", CSS height: " + cssHeight + ", viewport height: " + viewportSize.getHeight() + ")");
             log.info("Element above viewport: " + elementAboveViewport + " (viewportY < 0: " + viewportY + " < 0)");
-            log.info("Element below viewport: " + elementBelowViewport + " (viewportY + height > viewportHeight: " + (viewportY + cssHeight) + " > " + viewportSize.getHeight() + ")");
+            log.info("Element below viewport: " + elementBelowViewport + " (CSS viewport Y + height > viewportHeight: " + (viewportY + cssHeight) + " > " + viewportSize.getHeight() + ")");
             
-            boolean isFullyInViewport = xInBounds && yInBounds;
-            log.info("Element fully in viewport: " + isFullyInViewport);
+            boolean isVisible = xInBounds && yInBounds;
+            log.info("Element visible in viewport: " + isVisible);
             
-            return isFullyInViewport;
+            return isVisible;
                    
         } catch (Exception e) {
             log.warning("Failed to check viewport bounds: " + e.getMessage());
@@ -236,11 +263,22 @@ public class ElementBoundingBoxUtil {
             if (platform.contains("web")) {
                 // For web apps, use JavaScript to get current scroll position
                 try {
-                    Long scrollPosition = (Long) ((JavascriptExecutor) driver).executeScript(
+                    Object scrollResult = ((JavascriptExecutor) driver).executeScript(
                         "return window.pageYOffset || document.documentElement.scrollTop || 0;"
                     );
+                    
+                    int scrollPosition;
+                    if (scrollResult instanceof Number) {
+                        scrollPosition = ((Number) scrollResult).intValue();
+                    } else if (scrollResult instanceof String) {
+                        scrollPosition = Integer.parseInt((String) scrollResult);
+                    } else {
+                        log.warning("Unexpected scroll position type: " + scrollResult.getClass().getSimpleName() + ", using tracked position: " + cumulativeScrollPosition);
+                        scrollPosition = cumulativeScrollPosition;
+                    }
+                    
                     log.info("Retrieved scroll position from JavaScript: " + scrollPosition);
-                    return scrollPosition.intValue();
+                    return scrollPosition;
                 } catch (Exception e) {
                     log.warning("Failed to get scroll position from JavaScript: " + e.getMessage());
                     log.info("Using tracked cumulative scroll position: " + cumulativeScrollPosition + " CSS pixels");
@@ -269,9 +307,20 @@ public class ElementBoundingBoxUtil {
             if (platform.contains("web")) {
                 // For web apps, use JavaScript to get device pixel ratio
                 try {
-                    Double dpr = (Double) ((JavascriptExecutor) driver).executeScript(
+                    Object dprResult = ((JavascriptExecutor) driver).executeScript(
                         "return window.devicePixelRatio || 1;"
                     );
+                    
+                    double dpr;
+                    if (dprResult instanceof Number) {
+                        dpr = ((Number) dprResult).doubleValue();
+                    } else if (dprResult instanceof String) {
+                        dpr = Double.parseDouble((String) dprResult);
+                    } else {
+                        log.warning("Unexpected device pixel ratio type: " + dprResult.getClass().getSimpleName() + ", using default: 1.0");
+                        dpr = 1.0;
+                    }
+                    
                     log.info("Retrieved device pixel ratio from JavaScript: " + dpr);
                     return dpr;
                 } catch (Exception e) {
@@ -652,8 +701,116 @@ public class ElementBoundingBoxUtil {
 
     /**
      * Find elements using different selector types
+     * For web platforms, uses JavaScript for more reliable element detection
      */
     private List<WebElement> findElementsBySelector(String selectorType, String selectorValue) {
+        String platform = detectPlatform();
+        
+        if (platform.contains("web")) {
+            // Use JavaScript for web platforms - more reliable for XPath and other selectors
+            return findElementsBySelectorWeb(selectorType, selectorValue);
+        } else {
+            // Use standard Selenium methods for mobile platforms
+            return findElementsBySelectorMobile(selectorType, selectorValue);
+        }
+    }
+
+    /**
+     * Find elements using JavaScript for web platforms
+     * Uses the same approach as Golang implementation with getBoundingClientRect
+     */
+    private List<WebElement> findElementsBySelectorWeb(String selectorType, String selectorValue) {
+        try {
+            List<WebElement> elements = new ArrayList<>();
+            
+            // Build JavaScript script based on selector type (similar to Golang implementation)
+            String script = buildDOMBoxScript(selectorType, selectorValue);
+            
+            if (script.isEmpty()) {
+                log.warning("Unsupported selector type for web: " + selectorType + ", falling back to standard method");
+                return findElementsBySelectorMobile(selectorType, selectorValue);
+            }
+            
+            log.info("Using JavaScript for web element detection: " + selectorType + " = " + selectorValue);
+            
+            // Execute JavaScript to get bounding rect
+            Object result = ((JavascriptExecutor) driver).executeScript(script);
+            
+            if (result != null) {
+                // If we got a bounding rect, the element exists - create a WebElement reference
+                WebElement element = createWebElementFromSelector(selectorType, selectorValue);
+                if (element != null) {
+                    elements.add(element);
+                }
+            }
+            
+            log.info("JavaScript found " + elements.size() + " elements for " + selectorType + " selector: " + selectorValue);
+            return elements;
+            
+        } catch (Exception e) {
+            log.warning("JavaScript element detection failed for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
+            log.info("Falling back to standard Selenium method");
+            return findElementsBySelectorMobile(selectorType, selectorValue);
+        }
+    }
+
+    /**
+     * Build JavaScript script for getting element bounding rect (similar to Golang implementation)
+     * Ignores index parameter as requested
+     */
+    private String buildDOMBoxScript(String selectorType, String elementSelector) {
+        switch (selectorType.toLowerCase()) {
+            case "class":
+                return "return document.getElementsByClassName(`" + elementSelector + "`)[0].getBoundingClientRect();";
+            case "id":
+                return "return document.getElementById(`" + elementSelector + "`).getBoundingClientRect();";
+            case "xpath":
+                return "var element = document.evaluate(`" + elementSelector + "`, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotItem(0); return element ? element.getBoundingClientRect() : null;";
+            case "css":
+                return "return document.querySelectorAll(`" + elementSelector + "`)[0].getBoundingClientRect();";
+            case "name":
+                return "return document.getElementsByName(`" + elementSelector + "`)[0].getBoundingClientRect();";
+            case "accessibilityid":
+            case "accessibility_id":
+                // For web, accessibility ID is typically aria-label or title
+                return "var element = document.querySelector('[aria-label=\"" + elementSelector + "\"], [title=\"" + elementSelector + "\"], [content-desc=\"" + elementSelector + "\"]'); return element ? element.getBoundingClientRect() : null;";
+            default:
+                return "";
+        }
+    }
+
+    /**
+     * Create a WebElement reference from selector for the found element
+     */
+    private WebElement createWebElementFromSelector(String selectorType, String selectorValue) {
+        try {
+            switch (selectorType.toLowerCase()) {
+                case "xpath":
+                    return driver.findElement(By.xpath(selectorValue));
+                case "class":
+                    return driver.findElement(By.className(selectorValue));
+                case "id":
+                    return driver.findElement(By.id(selectorValue));
+                case "css":
+                    return driver.findElement(By.cssSelector(selectorValue));
+                case "name":
+                    return driver.findElement(By.name(selectorValue));
+                case "accessibilityid":
+                case "accessibility_id":
+                    return driver.findElement(By.xpath("//*[@aria-label='" + selectorValue + "' or @title='" + selectorValue + "' or @content-desc='" + selectorValue + "']"));
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            log.warning("Failed to create WebElement reference for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Find elements using standard Selenium methods for mobile platforms
+     */
+    private List<WebElement> findElementsBySelectorMobile(String selectorType, String selectorValue) {
         switch (selectorType.toLowerCase()) {
             case "xpath":
                 return driver.findElements(By.xpath(selectorValue));
@@ -671,6 +828,64 @@ public class ElementBoundingBoxUtil {
             default:
                 log.warning("Unsupported selector type: " + selectorType + ", falling back to XPath");
                 return driver.findElements(By.xpath(selectorValue));
+        }
+    }
+
+    /**
+     * Reset the found XPaths tracking - useful for debugging or when switching contexts
+     */
+    public void resetFoundXPathsTracking() {
+        foundXPaths.clear();
+        log.info("Reset found XPaths tracking - cleared " + foundXPaths.size() + " previously found selectors");
+    }
+
+    /**
+     * Get the current count of found XPaths for debugging
+     */
+    public int getFoundXPathsCount() {
+        return foundXPaths.size();
+    }
+
+    /**
+     * Get element bounding box using JavaScript for web platforms
+     * Uses the same approach as Golang implementation with getBoundingClientRect
+     */
+    private Map<String, Object> getElementBoundingBoxWeb(WebElement element) {
+        try {
+            // Use the same JavaScript approach as Golang implementation
+            String script = 
+                "var rect = arguments[0].getBoundingClientRect();" +
+                "var scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;" +
+                "var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;" +
+                "return {" +
+                "  x: rect.left + scrollX," +
+                "  y: rect.top + scrollY," +
+                "  width: rect.width," +
+                "  height: rect.height" +
+                "};";
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = (Map<String, Object>) ((JavascriptExecutor) driver).executeScript(script, element);
+            
+            log.info("JavaScript bounding box (Golang-style): x=" + result.get("x") + ", y=" + result.get("y") + 
+                    ", width=" + result.get("width") + ", height=" + result.get("height"));
+            
+            return result;
+            
+        } catch (Exception e) {
+            log.warning("JavaScript bounding box failed, falling back to Selenium: " + e.getMessage());
+            
+            // Fallback to Selenium methods
+            Point location = element.getLocation();
+            Dimension size = element.getSize();
+            
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("x", location.getX());
+            fallback.put("y", location.getY());
+            fallback.put("width", size.getWidth());
+            fallback.put("height", size.getHeight());
+            
+            return fallback;
         }
     }
 
