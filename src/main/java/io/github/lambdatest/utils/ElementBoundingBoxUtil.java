@@ -743,65 +743,8 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    /**
-     * Get Chrome address bar height for Android devices in CSS pixels
-     * Uses JavaScript to calculate the difference between screen height and viewport height
-     */
-    public int getChromeAddressBarHeightForAndroid() {
-        try {
-            if (!shouldAddAndroidChromeBarHeight()) {
-                log.info("Android Chrome address bar height not needed, returning 0");
-                return 0;
-            }
-            
-            log.info("Calculating Chrome address bar height for Android device: " + deviceName);
-            
-            // Use JavaScript to get the address bar height (screen height - viewport height)
-            String script = 
-                "function getChromeBarHeight() {" +
-                "    // Get screen height vs viewport height difference" +
-                "    const screenHeight = window.screen.height;" +
-                "    const viewportHeight = window.innerHeight;" +
-                "    const addressBarHeight = screenHeight - viewportHeight;" +
-                "    " +
-                "    return addressBarHeight;" +
-                "}" +
-                "return getChromeBarHeight();";
-            
-            Object result = ((JavascriptExecutor) driver).executeScript(script);
-            
-            int chromeBarHeight = 0;
-            if (result instanceof Number) {
-                chromeBarHeight = ((Number) result).intValue();
-            } else if (result instanceof String) {
-                chromeBarHeight = Integer.parseInt((String) result);
-            } else {
-                log.warning("Unexpected Chrome bar height result type: " + (result != null ? result.getClass().getSimpleName() : "null"));
-                chromeBarHeight = getDefaultAndroidChromeBarHeight();
-            }
-            
-            // Validate the result (should be reasonable for a mobile device)
-            if (chromeBarHeight < 0 || chromeBarHeight > 200) {
-                log.warning("Chrome bar height seems unreasonable: " + chromeBarHeight + " pixels, using default");
-                chromeBarHeight = getDefaultAndroidChromeBarHeight();
-            }
-            
-            log.info("Chrome address bar height for Android: " + chromeBarHeight + " CSS pixels");
-            return chromeBarHeight;
-            
-        } catch (Exception e) {
-            log.warning("Failed to get Chrome address bar height from JavaScript: " + e.getMessage());
-            int defaultHeight = getDefaultAndroidChromeBarHeight();
-            log.info("Using default Android Chrome bar height: " + defaultHeight + " CSS pixels");
-            return defaultHeight;
-        }
-    }
-
-    /**
-     * Get default Chrome address bar height for Android devices
-     * Fallback values based on common Android Chrome configurations
-     */
-    private int getDefaultAndroidChromeBarHeight() {
+    // Get default Chrome address bar height for Android devices
+    private int getChromeAddressBarHeightForAndroid() {
         try {
             // Common Chrome address bar heights on Android (in CSS pixels)
             // These values account for status bar + Chrome address bar
