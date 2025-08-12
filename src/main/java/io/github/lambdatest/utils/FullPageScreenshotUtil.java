@@ -4,6 +4,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -183,154 +184,10 @@ public class FullPageScreenshotUtil {
     }
 
     /**
-     * Capture full page screenshots and return both screenshots and detected elements
-     * This method allows the caller to get both the screenshot files and the detected elements
-     * without having to do duplicate element detection
-     */
-    public Map<String, Object> captureFullPageWithElements(int pageCount, Map<String, List<String>> selectors, String purpose) {
-        if (pageCount <= 0) {
-            pageCount = maxCount;
-        }
-        if (pageCount < maxCount) {
-            maxCount = pageCount;
-        }
-        int chunkCount = 0;
-        boolean isLastScroll = false;
-        List<File> screenshotDir = new ArrayList<>();
-        List<ElementBoundingBox> allElements = new ArrayList<>();
-        ElementBoundingBoxUtil elementUtil = null;
-        
-        // iOS optimization: Detect all elements once before scrolling starts
-        List<ElementBoundingBox> iosAllElements = new ArrayList<>();
-        boolean isIOSOptimized = false;
-        
-        // Initialize element detection if selectors provided
-        if (selectors != null && !selectors.isEmpty()) {
-            elementUtil = new ElementBoundingBoxUtil(driver, testType, deviceName);
-            log.info("Element detection enabled for " + purpose + " selectors: " + selectors);
-            
-                    // Check if this is iOS platform or web testType for optimization
-        if (platform.equals("ios") || testType.toLowerCase().equals("web")) {
-            log.info("iOS platform or web testType detected - detecting all elements once before scrolling starts");
-            iosAllElements = elementUtil.detectAllElementsIOS(selectors, purpose);
-            isIOSOptimized = true;
-            log.info("Optimization: Detected " + iosAllElements.size() + " elements before scrolling - will use for all chunks");
-            
-            // Add all iOS elements to the final result immediately
-            allElements.addAll(iosAllElements);
-        }
-        }
-        
-        while (!isLastScroll && chunkCount < maxCount) {
-            File screenshotFile = captureAndSaveScreenshot(this.saveDirectoryName, chunkCount);
-            if (screenshotFile != null) {
-                screenshotDir.add(screenshotFile);
-                
-                // Element detection logic
-                if (elementUtil != null) {
-                    if (isIOSOptimized) {
-                        // Optimization: No element detection needed during scrolling
-                        // Elements were already detected and added to allElements before scrolling started
-                        // No logging needed since we're doing nothing with elements during scrolling
-                    } else {
-                        // Standard approach for Android app: Detect elements after screenshot
-                        List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, purpose);
-                        allElements.addAll(chunkElements);
-                        log.info("Detected " + chunkElements.size() + " " + purpose + " elements in chunk " + chunkCount);
-                    }
-                }
-                
-                chunkCount++;
-            }
-            // Perform scroll
-            int scrollDistance = scrollDown();
-            log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
-            
-            // Update scroll position for element detection (only needed when optimization is not used)
-            if (elementUtil != null && !isIOSOptimized) {
-                elementUtil.updateScrollPosition(scrollDistance);
-            }
-            
-            // Detect end of page
-            isLastScroll = hasReachedBottom();
-        }
-        
-        // Process and log final element data
-        if (elementUtil != null && !allElements.isEmpty()) {
-            int heightToAdd = 0;
-            String adjustmentReason = "";
-            
-            // Apply status bar height adjustment for web tests on iOS devices
-            if (testType.toLowerCase().contains("web") && 
-                (deviceName.toLowerCase().contains("iphone") || 
-                 deviceName.toLowerCase().contains("ipad") || 
-                 deviceName.toLowerCase().contains("ipod"))) {
-                
-                heightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
-                adjustmentReason = "iOS status bar height";
-                log.info("Web test on iOS device detected - applying status bar height: " + heightToAdd + " device pixels to all " + purpose + " elements");
-            }
-            // Apply Chrome address bar height adjustment for web tests on Android devices
-            else if (testType.toLowerCase().contains("web") && 
-                     (deviceName.toLowerCase().contains("android") || 
-                      platform.toLowerCase().contains("android"))) {
-                
-                heightToAdd = elementUtil.getAndroidChromeBarHeightInDevicePixels();
-                adjustmentReason = "Android Chrome address bar height";
-                log.info("Web test on Android device detected - applying Chrome address bar height: " + heightToAdd + " device pixels to all " + purpose + " elements");
-            }
-            
-            // Apply height adjustment if needed
-            if (heightToAdd > 0) {
-                List<ElementBoundingBox> adjustedElements = new ArrayList<>();
-                for (ElementBoundingBox element : allElements) {
-                    int originalY = element.getY();
-                    int adjustedY = originalY + heightToAdd;
-                    
-                    // Create new ElementBoundingBox with adjusted Y coordinate
-                    ElementBoundingBox adjustedElement = new ElementBoundingBox(
-                        element.getSelectorKey(),
-                        element.getX(),
-                        adjustedY,
-                        element.getWidth(),
-                        element.getHeight(),
-                        element.getChunkIndex(),
-                        element.getPlatform(),
-                        element.getPurpose()
-                    );
-                    
-                    adjustedElements.add(adjustedElement);
-                    log.info("Element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + heightToAdd + " device pixels for " + adjustmentReason + ")");
-                }
-                
-                // Replace the original list with adjusted elements
-                allElements.clear();
-                allElements.addAll(adjustedElements);
-                
-                log.info(adjustmentReason + " adjustment applied to " + allElements.size() + " " + purpose + " elements");
-            }
-            
-            if (isIOSOptimized) {
-                log.info("Optimization: Element detection complete - " + allElements.size() + " total " + purpose + " elements (detected once before scrolling)");
-            } else {
-                log.info("Element detection complete: " + allElements.size() + " total " + purpose + " elements");
-            }
-        }
-        
-        log.info("Finished capturing all screenshots for full page with " + purpose + " elements.");
-        
-        // Return both screenshots and elements
-        Map<String, Object> result = new HashMap<>();
-        result.put("screenshots", screenshotDir);
-        result.put("elements", allElements);
-        return result;
-    }
-
-    /**
      * Capture full page screenshots and detect elements for both ignore and select purposes
      * This method captures screenshots once and processes both selector types efficiently
      */
-    public Map<String, Object> captureFullPageWithBothSelectors(int pageCount, 
+    public Map<String, Object> captureFullPageWithBothSelectors(int pageCount,
                                                               Map<String, List<String>> ignoreSelectors, 
                                                               Map<String, List<String>> selectSelectors) {
         if (pageCount <= 0) {
@@ -721,6 +578,8 @@ public class FullPageScreenshotUtil {
                 } else {
                     log.warning("No platform capability found");
                 }
+
+                log.info("platform is ," + platformName);
                 
                 String detectedPlatform;
                 if (platformName.contains("ios")) {
