@@ -119,19 +119,35 @@ public class FullPageScreenshotUtil {
         
         // Process and log final element data
         if (elementUtil != null && !allElements.isEmpty()) {
+            int heightToAdd = 0;
+            String adjustmentReason = "";
+            
             // Apply status bar height adjustment for web tests on iOS devices
             if (testType.toLowerCase().contains("web") && 
                 (deviceName.toLowerCase().contains("iphone") || 
                  deviceName.toLowerCase().contains("ipad") || 
                  deviceName.toLowerCase().contains("ipod"))) {
                 
-                int statusBarHeightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
-                log.info("Web test on iOS device detected - applying status bar height: " + statusBarHeightToAdd + " device pixels to all elements");
+                heightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
+                adjustmentReason = "iOS status bar height";
+                log.info("Web test on iOS device detected - applying status bar height: " + heightToAdd + " device pixels to all elements");
+            }
+            // Apply Chrome address bar height adjustment for web tests on Android devices
+            else if (testType.toLowerCase().contains("web") && 
+                     (deviceName.toLowerCase().contains("android") || 
+                      platform.toLowerCase().contains("android"))) {
                 
+                heightToAdd = elementUtil.getAndroidChromeBarHeightInDevicePixels();
+                adjustmentReason = "Android Chrome address bar height";
+                log.info("Web test on Android device detected - applying Chrome address bar height: " + heightToAdd + " device pixels to all elements");
+            }
+            
+            // Apply height adjustment if needed
+            if (heightToAdd > 0) {
                 List<ElementBoundingBox> adjustedElements = new ArrayList<>();
                 for (ElementBoundingBox element : allElements) {
                     int originalY = element.getY();
-                    int adjustedY = originalY + statusBarHeightToAdd;
+                    int adjustedY = originalY + heightToAdd;
                     
                     // Create new ElementBoundingBox with adjusted Y coordinate
                     ElementBoundingBox adjustedElement = new ElementBoundingBox(
@@ -146,14 +162,14 @@ public class FullPageScreenshotUtil {
                     );
                     
                     adjustedElements.add(adjustedElement);
-                    log.info("Element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + statusBarHeightToAdd + " device pixels for status bar)");
+                    log.info("Element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + heightToAdd + " device pixels for " + adjustmentReason + ")");
                 }
                 
                 // Replace the original list with adjusted elements
                 allElements.clear();
                 allElements.addAll(adjustedElements);
                 
-                log.info("Status bar height adjustment applied to " + allElements.size() + " elements");
+                log.info(adjustmentReason + " adjustment applied to " + allElements.size() + " elements");
             }
             
             Map<String, Object> uploadData = elementUtil.prepareUploadData(allElements);
@@ -193,16 +209,16 @@ public class FullPageScreenshotUtil {
             elementUtil = new ElementBoundingBoxUtil(driver, testType, deviceName);
             log.info("Element detection enabled for " + purpose + " selectors: " + selectors);
             
-            // Check if this is iOS platform for optimization
-            if (platform.equals("ios")) {
-                log.info("iOS platform detected - detecting all elements once before scrolling starts");
-                iosAllElements = elementUtil.detectAllElementsIOS(selectors, purpose);
-                isIOSOptimized = true;
-                log.info("iOS optimization: Detected " + iosAllElements.size() + " elements before scrolling - will use for all chunks");
-                
-                // Add all iOS elements to the final result immediately
-                allElements.addAll(iosAllElements);
-            }
+                    // Check if this is iOS platform or web testType for optimization
+        if (platform.equals("ios") || testType.toLowerCase().equals("web")) {
+            log.info("iOS platform or web testType detected - detecting all elements once before scrolling starts");
+            iosAllElements = elementUtil.detectAllElementsIOS(selectors, purpose);
+            isIOSOptimized = true;
+            log.info("Optimization: Detected " + iosAllElements.size() + " elements before scrolling - will use for all chunks");
+            
+            // Add all iOS elements to the final result immediately
+            allElements.addAll(iosAllElements);
+        }
         }
         
         while (!isLastScroll && chunkCount < maxCount) {
@@ -213,11 +229,11 @@ public class FullPageScreenshotUtil {
                 // Element detection logic
                 if (elementUtil != null) {
                     if (isIOSOptimized) {
-                        // iOS optimization: No element detection needed during scrolling
+                        // Optimization: No element detection needed during scrolling
                         // Elements were already detected and added to allElements before scrolling started
                         // No logging needed since we're doing nothing with elements during scrolling
                     } else {
-                        // Standard approach for Android/Web: Detect elements after screenshot
+                        // Standard approach for Android app: Detect elements after screenshot
                         List<ElementBoundingBox> chunkElements = elementUtil.detectElements(selectors, chunkCount, purpose);
                         allElements.addAll(chunkElements);
                         log.info("Detected " + chunkElements.size() + " " + purpose + " elements in chunk " + chunkCount);
@@ -230,7 +246,7 @@ public class FullPageScreenshotUtil {
             int scrollDistance = scrollDown();
             log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
             
-            // Update scroll position for element detection (only needed for non-iOS platforms)
+            // Update scroll position for element detection (only needed when optimization is not used)
             if (elementUtil != null && !isIOSOptimized) {
                 elementUtil.updateScrollPosition(scrollDistance);
             }
@@ -241,19 +257,35 @@ public class FullPageScreenshotUtil {
         
         // Process and log final element data
         if (elementUtil != null && !allElements.isEmpty()) {
+            int heightToAdd = 0;
+            String adjustmentReason = "";
+            
             // Apply status bar height adjustment for web tests on iOS devices
             if (testType.toLowerCase().contains("web") && 
                 (deviceName.toLowerCase().contains("iphone") || 
                  deviceName.toLowerCase().contains("ipad") || 
                  deviceName.toLowerCase().contains("ipod"))) {
                 
-                int statusBarHeightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
-                log.info("Web test on iOS device detected - applying status bar height: " + statusBarHeightToAdd + " device pixels to all " + purpose + " elements");
+                heightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
+                adjustmentReason = "iOS status bar height";
+                log.info("Web test on iOS device detected - applying status bar height: " + heightToAdd + " device pixels to all " + purpose + " elements");
+            }
+            // Apply Chrome address bar height adjustment for web tests on Android devices
+            else if (testType.toLowerCase().contains("web") && 
+                     (deviceName.toLowerCase().contains("android") || 
+                      platform.toLowerCase().contains("android"))) {
                 
+                heightToAdd = elementUtil.getAndroidChromeBarHeightInDevicePixels();
+                adjustmentReason = "Android Chrome address bar height";
+                log.info("Web test on Android device detected - applying Chrome address bar height: " + heightToAdd + " device pixels to all " + purpose + " elements");
+            }
+            
+            // Apply height adjustment if needed
+            if (heightToAdd > 0) {
                 List<ElementBoundingBox> adjustedElements = new ArrayList<>();
                 for (ElementBoundingBox element : allElements) {
                     int originalY = element.getY();
-                    int adjustedY = originalY + statusBarHeightToAdd;
+                    int adjustedY = originalY + heightToAdd;
                     
                     // Create new ElementBoundingBox with adjusted Y coordinate
                     ElementBoundingBox adjustedElement = new ElementBoundingBox(
@@ -268,18 +300,18 @@ public class FullPageScreenshotUtil {
                     );
                     
                     adjustedElements.add(adjustedElement);
-                    log.info("Element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + statusBarHeightToAdd + " device pixels for status bar)");
+                    log.info("Element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + heightToAdd + " device pixels for " + adjustmentReason + ")");
                 }
                 
                 // Replace the original list with adjusted elements
                 allElements.clear();
                 allElements.addAll(adjustedElements);
                 
-                log.info("Status bar height adjustment applied to " + allElements.size() + " " + purpose + " elements");
+                log.info(adjustmentReason + " adjustment applied to " + allElements.size() + " " + purpose + " elements");
             }
             
             if (isIOSOptimized) {
-                log.info("iOS optimization: Element detection complete - " + allElements.size() + " total " + purpose + " elements (detected once before scrolling)");
+                log.info("Optimization: Element detection complete - " + allElements.size() + " total " + purpose + " elements (detected once before scrolling)");
             } else {
                 log.info("Element detection complete: " + allElements.size() + " total " + purpose + " elements");
             }
@@ -321,30 +353,30 @@ public class FullPageScreenshotUtil {
         
         log.info("Element detection enabled for both ignore and select selectors");
         
-        // Check if this is iOS platform for optimization
-        if (platform.equals("ios")) {
-            log.info("iOS platform detected - detecting all elements once before scrolling starts");
+        // Check if this is iOS platform or web testType for optimization
+        if (platform.equals("ios") || testType.toLowerCase().equals("web")) {
+            log.info("iOS platform or web testType detected - detecting all elements once before scrolling starts");
             isIOSOptimized = true;
             
             if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
-                log.info("iOS: Detecting ignore selectors before scrolling: " + ignoreSelectors);
+                log.info("Optimization: Detecting ignore selectors before scrolling: " + ignoreSelectors);
                 iosIgnoreElements = elementUtil.detectAllElementsIOS(ignoreSelectors, "ignore");
-                log.info("iOS optimization: Detected " + iosIgnoreElements.size() + " ignore elements before scrolling - will use for all chunks");
+                log.info("Optimization: Detected " + iosIgnoreElements.size() + " ignore elements before scrolling - will use for all chunks");
                 
                 // Add all iOS ignore elements to the final result immediately
                 ignoreElements.addAll(iosIgnoreElements);
             }
             
             if (selectSelectors != null && !selectSelectors.isEmpty()) {
-                log.info("iOS: Detecting select selectors before scrolling: " + selectSelectors);
+                log.info("Optimization: Detecting select selectors before scrolling: " + selectSelectors);
                 iosSelectElements = elementUtil.detectAllElementsIOS(selectSelectors, "select");
-                log.info("iOS optimization: Detected " + iosSelectElements.size() + " select elements before scrolling - will use for all chunks");
+                log.info("Optimization: Detected " + iosSelectElements.size() + " select elements before scrolling - will use for all chunks");
                 
                 // Add all iOS select elements to the final result immediately
                 selectElements.addAll(iosSelectElements);
             }
         } else {
-            // Standard logging for non-iOS platforms
+            // Standard logging for non-optimized platforms
             if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
                 log.info("Ignore selectors: " + ignoreSelectors);
             }
@@ -359,11 +391,11 @@ public class FullPageScreenshotUtil {
                 screenshotDir.add(screenshotFile);
                 
                 if (isIOSOptimized) {
-                    // iOS optimization: No element detection needed during scrolling
+                    // Optimization: No element detection needed during scrolling
                     // Elements were already detected and added to ignoreElements/selectElements before scrolling started
                     // No logging needed since we're doing nothing with elements during scrolling
                 } else {
-                    // Standard approach for Android/Web: Detect elements after screenshot
+                    // Standard approach for Android app: Detect elements after screenshot
                     if (ignoreSelectors != null && !ignoreSelectors.isEmpty()) {
                         List<ElementBoundingBox> chunkIgnoreElements = elementUtil.detectElements(ignoreSelectors, chunkCount, "ignore");
                         ignoreElements.addAll(chunkIgnoreElements);
@@ -383,7 +415,7 @@ public class FullPageScreenshotUtil {
             int scrollDistance = scrollDown();
             log.info("Scrolling attempt # " + chunkCount + " with distance: " + scrollDistance);
             
-            // Update scroll position for element detection (only needed for non-iOS platforms)
+            // Update scroll position for element detection (only needed when optimization is not used)
             if (!isIOSOptimized) {
                 elementUtil.updateScrollPosition(scrollDistance);
             }
@@ -396,21 +428,37 @@ public class FullPageScreenshotUtil {
         int totalIgnoreElements = ignoreElements.size();
         int totalSelectElements = selectElements.size();
         
+        int heightToAdd = 0;
+        String adjustmentReason = "";
+        
         // Apply status bar height adjustment for web tests on iOS devices
         if (testType.toLowerCase().contains("web") && 
             (deviceName.toLowerCase().contains("iphone") || 
              deviceName.toLowerCase().contains("ipad") || 
              deviceName.toLowerCase().contains("ipod"))) {
             
-            int statusBarHeightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
-            log.info("Web test on iOS device detected - applying status bar height: " + statusBarHeightToAdd + " device pixels to all elements");
+            heightToAdd = elementUtil.getStatusBarHeightInDevicePixels();
+            adjustmentReason = "iOS status bar height";
+            log.info("Web test on iOS device detected - applying status bar height: " + heightToAdd + " device pixels to all elements");
+        }
+        // Apply Chrome address bar height adjustment for web tests on Android devices
+        else if (testType.toLowerCase().contains("web") && 
+                 (deviceName.toLowerCase().contains("android") || 
+                  platform.toLowerCase().contains("android"))) {
             
+            heightToAdd = elementUtil.getAndroidChromeBarHeightInDevicePixels();
+            adjustmentReason = "Android Chrome address bar height";
+            log.info("Web test on Android device detected - applying Chrome address bar height: " + heightToAdd + " device pixels to all elements");
+        }
+        
+        // Apply height adjustment if needed
+        if (heightToAdd > 0) {
             // Adjust ignore elements
             if (!ignoreElements.isEmpty()) {
                 List<ElementBoundingBox> adjustedIgnoreElements = new ArrayList<>();
                 for (ElementBoundingBox element : ignoreElements) {
                     int originalY = element.getY();
-                    int adjustedY = originalY + statusBarHeightToAdd;
+                    int adjustedY = originalY + heightToAdd;
                     
                     // Create new ElementBoundingBox with adjusted Y coordinate
                     ElementBoundingBox adjustedElement = new ElementBoundingBox(
@@ -425,13 +473,13 @@ public class FullPageScreenshotUtil {
                     );
                     
                     adjustedIgnoreElements.add(adjustedElement);
-                    log.info("Ignore element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + statusBarHeightToAdd + " device pixels for status bar)");
+                    log.info("Ignore element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + heightToAdd + " device pixels for " + adjustmentReason + ")");
                 }
                 
                 // Replace the original ignore elements list
                 ignoreElements.clear();
                 ignoreElements.addAll(adjustedIgnoreElements);
-                log.info("Status bar height adjustment applied to " + ignoreElements.size() + " ignore elements");
+                log.info(adjustmentReason + " adjustment applied to " + ignoreElements.size() + " ignore elements");
             }
             
             // Adjust select elements
@@ -439,7 +487,7 @@ public class FullPageScreenshotUtil {
                 List<ElementBoundingBox> adjustedSelectElements = new ArrayList<>();
                 for (ElementBoundingBox element : selectElements) {
                     int originalY = element.getY();
-                    int adjustedY = originalY + statusBarHeightToAdd;
+                    int adjustedY = originalY + heightToAdd;
                     
                     // Create new ElementBoundingBox with adjusted Y coordinate
                     ElementBoundingBox adjustedElement = new ElementBoundingBox(
@@ -454,20 +502,20 @@ public class FullPageScreenshotUtil {
                     );
                     
                     adjustedSelectElements.add(adjustedElement);
-                    log.info("Select element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + statusBarHeightToAdd + " device pixels for status bar)");
+                    log.info("Select element " + element.getSelectorKey() + ": Adjusted Y from " + originalY + " to " + adjustedY + " (added " + heightToAdd + " device pixels for " + adjustmentReason + ")");
                 }
                 
                 // Replace the original select elements list
                 selectElements.clear();
                 selectElements.addAll(adjustedSelectElements);
-                log.info("Status bar height adjustment applied to " + selectElements.size() + " select elements");
+                log.info(adjustmentReason + " adjustment applied to " + selectElements.size() + " select elements");
             }
             
-            log.info("Total status bar height adjustment applied to " + (totalIgnoreElements + totalSelectElements) + " elements");
+            log.info("Total " + adjustmentReason.toLowerCase() + " adjustment applied to " + (totalIgnoreElements + totalSelectElements) + " elements");
         }
         
         if (isIOSOptimized) {
-            log.info("iOS optimization: Element detection complete - " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements (detected once before scrolling)");
+            log.info("Optimization: Element detection complete - " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements (detected once before scrolling)");
         } else {
             log.info("Element detection complete: " + totalIgnoreElements + " ignore elements, " + totalSelectElements + " select elements");
         }
