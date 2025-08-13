@@ -8,19 +8,11 @@ import java.util.logging.Logger;
 public class ElementBoundingBoxUtil {
     private final WebDriver driver;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
-    private int cumulativeScrollPosition = 0; // Track cumulative scroll position in CSS pixels for native apps
-    private double devicePixelRatio = 1.0; // Track device pixel ratio for scaling
-    private Set<String> foundXPaths = new HashSet<>(); // Track XPaths that have already been found
-    private final String testType; // Store test type (web or app)
-    private final String deviceName; // Store device name
-
-    public ElementBoundingBoxUtil(WebDriver driver) {
-        this.driver = driver;
-        this.testType = "web"; // Default to web for backward compatibility
-        this.deviceName = detectDeviceName();
-        this.devicePixelRatio = getDevicePixelRatio();
-        log.info("ElementBoundingBoxUtil initialized - testType: " + testType + ", deviceName: " + deviceName + ", DPR: " + devicePixelRatio);
-    }
+    private int cumulativeScrollPosition = 0;
+    private double devicePixelRatio = 1.0;
+    private Set<String> foundElements = new HashSet<>();
+    private final String testType;
+    private final String deviceName;
 
     public ElementBoundingBoxUtil(WebDriver driver, String testType, String deviceName) {
         this.driver = driver;
@@ -28,18 +20,6 @@ public class ElementBoundingBoxUtil {
         this.deviceName = deviceName;
         this.devicePixelRatio = getDevicePixelRatio();
         log.info("ElementBoundingBoxUtil initialized - testType: " + testType + ", deviceName: " + deviceName + ", DPR: " + devicePixelRatio);
-    }
-
-    /**
-     * Detect elements for given XPaths in current viewport
-     * @deprecated Use detectElements(Map selectors, int chunkIndex, String purpose) instead
-     */
-    @Deprecated
-    public List<ElementBoundingBox> detectElements(List<String> xpaths, int chunkIndex) {
-        // Convert XPaths to the new selector format for backward compatibility
-        Map<String, List<String>> selectors = new HashMap<>();
-        selectors.put("xpath", xpaths);
-        return detectElements(selectors, chunkIndex, "select"); // Default to select for backward compatibility
     }
 
     /**
@@ -54,14 +34,10 @@ public class ElementBoundingBoxUtil {
         List<ElementBoundingBox> detectedElements = new ArrayList<>();
         String platform = detectPlatform();
 
-        log.info("Starting element detection for chunk " + chunkIndex + " on platform: " + platform);
-
         if (selectors == null || selectors.isEmpty()) {
-            log.info("No selectors provided for element detection");
             return detectedElements;
         }
 
-        // Process each selector type
         for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
             String selectorType = entry.getKey();
             List<String> selectorValues = entry.getValue();
@@ -74,8 +50,7 @@ public class ElementBoundingBoxUtil {
                 String selectorValue = selectorValues.get(i);
                 String selectorKey = selectorType + ":" + selectorValue;
 
-                // Skip selector if it has already been found in a previous chunk
-                if (foundXPaths.contains(selectorKey)) {
+                if (foundElements.contains(selectorKey)) {
                     continue;
                 }
 
@@ -98,9 +73,8 @@ public class ElementBoundingBoxUtil {
                         }
                     }
 
-                    // Only mark selector as found if it has visible elements in the current viewport
                     if (selectorHasVisibleElements) {
-                        foundXPaths.add(selectorKey);
+                        foundElements.add(selectorKey);
                     }
                 } catch (Exception e) {
                     log.warning("Failed to detect elements for " + selectorType + " selector '" + selectorValue + "': " + e.getMessage());
@@ -108,15 +82,12 @@ public class ElementBoundingBoxUtil {
             }
         }
 
-        log.info("Element detection completed for chunk " + chunkIndex + ". Total elements detected: " + detectedElements.size());
 
-        // Convert all bounding boxes from CSS pixels to device pixels for final storage
         return convertBoundingBoxesToDevicePixels(detectedElements);
     }
 
     /**
      * Create bounding box from WebElement with absolute coordinates
-     * All computations done in CSS pixels - no device pixel conversion here
      * For web platforms, uses JavaScript for more accurate positioning
      */
     private ElementBoundingBox createBoundingBox(WebElement element, String selectorKey, int chunkIndex, String platform, String purpose) {
@@ -125,31 +96,23 @@ public class ElementBoundingBoxUtil {
             Dimension size;
 
             if (platform.contains("web")) {
-                // Use JavaScript for web platforms - more accurate positioning
                 Map<String, Object> elementData = getElementBoundingBoxWeb(element);
                 location = new Point(((Number) elementData.get("x")).intValue(), ((Number) elementData.get("y")).intValue());
                 size = new Dimension(((Number) elementData.get("width")).intValue(), ((Number) elementData.get("height")).intValue());
             } else {
-                // Use standard Selenium methods for mobile platforms
                 location = element.getLocation();
                 size = element.getSize();
             }
 
-            // Get cumulative scroll position (in CSS pixels)
             int scrollY = getCurrentScrollPosition();
-
-            // Calculate absolute page coordinates in CSS pixels
             int absoluteX = location.getX();
             int absoluteY = location.getY() + scrollY;
 
-            // Element dimensions are already in CSS pixels
+
             int width = size.getWidth();
             int height = size.getHeight();
 
-            // Store bounding box with CSS pixel coordinates
-            ElementBoundingBox boundingBox = new ElementBoundingBox(selectorKey, absoluteX, absoluteY, width, height, chunkIndex, platform, purpose);
-
-            return boundingBox;
+            return new ElementBoundingBox(selectorKey, absoluteX, absoluteY, width, height, chunkIndex, platform, purpose);
 
         } catch (Exception e) {
             log.warning("Failed to create bounding box for element with selector '" + selectorKey + "': " + e.getMessage());
@@ -166,34 +129,18 @@ public class ElementBoundingBoxUtil {
         try {
             Dimension viewportSize = driver.manage().window().getSize();
             int scrollY = getCurrentScrollPosition();
-            String platform = detectPlatform();
 
-            // Bounding box coordinates are already in CSS pixels
             int cssX = boundingBox.getX();
             int cssY = boundingBox.getY();
             int cssWidth = boundingBox.getWidth();
             int cssHeight = boundingBox.getHeight();
 
-            // Calculate viewport-relative position in CSS pixels
             int viewportY = cssY - scrollY;
 
-            // X bounds check: element must be within viewport width
             boolean xInBounds = cssX >= 0 &&
                     cssX + cssWidth <= viewportSize.getWidth();
 
-            // Y bounds check: different logic for web vs mobile
-            boolean yInBounds;
-            if (platform.contains("web")) {
-                // For web: element must be at least partially visible (more lenient)
-                boolean elementPartiallyVisible = (viewportY < viewportSize.getHeight()) &&
-                        (viewportY + cssHeight > 0);
-                yInBounds = elementPartiallyVisible;
-            } else {
-                // For mobile: element must be fully visible (stricter)
-                yInBounds = viewportY >= 0 &&
-                        viewportY + cssHeight <= viewportSize.getHeight();
-            }
-
+            boolean yInBounds = (viewportY < viewportSize.getHeight()) && (viewportY + cssHeight > 0);
             return xInBounds && yInBounds;
 
         } catch (Exception e) {
@@ -202,42 +149,8 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    /**
-     * Get current scroll position - handles both web and native mobile apps
-     */
     private int getCurrentScrollPosition() {
-        try {
-            String platform = detectPlatform();
-
-            if (platform.contains("web")) {
-                // For web apps, use JavaScript to get current scroll position
-                try {
-                    Object scrollResult = ((JavascriptExecutor) driver).executeScript(
-                            "return window.pageYOffset || document.documentElement.scrollTop || 0;"
-                    );
-
-                    int scrollPosition;
-                    if (scrollResult instanceof Number) {
-                        scrollPosition = ((Number) scrollResult).intValue();
-                    } else if (scrollResult instanceof String) {
-                        scrollPosition = Integer.parseInt((String) scrollResult);
-                    } else {
-                        scrollPosition = cumulativeScrollPosition;
-                    }
-
-                    return scrollPosition;
-                } catch (Exception e) {
-                    log.warning("Failed to get scroll position from JavaScript: " + e.getMessage());
-                    return cumulativeScrollPosition;
-                }
-            } else {
-                // For native mobile apps, use tracked cumulative scroll position
-                return cumulativeScrollPosition;
-            }
-        } catch (Exception e) {
-            log.warning("Failed to get scroll position: " + e.getMessage());
-            return 0;
-        }
+        return cumulativeScrollPosition;
     }
 
     /**
@@ -248,7 +161,6 @@ public class ElementBoundingBoxUtil {
             String platform = detectPlatform();
 
             if (platform.contains("web")) {
-                // For web apps, use JavaScript to get device pixel ratio
                 try {
                     Object dprResult = ((JavascriptExecutor) driver).executeScript(
                             "return window.devicePixelRatio || 1;"
@@ -269,10 +181,8 @@ public class ElementBoundingBoxUtil {
                     return 1.0;
                 }
             } else if (platform.contains("ios")) {
-                // For iOS devices, use hardcoded DPR map
                 return getIOSDevicePixelRatio();
             } else {
-                // For Android native apps, try to get from capabilities or use default
                 try {
                     Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
                     Object pixelRatio = caps.getCapability("devicePixelRatio");
@@ -566,8 +476,7 @@ public class ElementBoundingBoxUtil {
         try {
             if (shouldAddStatusBarHeight()) {
                 int cssStatusBarHeight = getStatusBarHeightForIOS();
-                int devicePixelStatusBarHeight = (int) (cssStatusBarHeight * devicePixelRatio);
-                return devicePixelStatusBarHeight;
+                return (int) (cssStatusBarHeight * devicePixelRatio);
             }
 
             return 0;
@@ -598,10 +507,9 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    // Get default Chrome address bar height for Android devices
     private int getChromeAddressBarHeightForAndroid() {
         try {
-            // Common Chrome address bar heights on Android (in CSS pixels)
+
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
             String androidVersion = "";
             if (caps.getCapability("platformVersion") != null) {
@@ -625,12 +533,12 @@ public class ElementBoundingBoxUtil {
                 return 76;
             }
 
-            // Default for unknown versions
+
             return 80;
 
         } catch (Exception e) {
             log.warning("Failed to determine default Chrome bar height: " + e.getMessage());
-            return 80; // Safe fallback
+            return 80;
         }
     }
 
@@ -643,8 +551,7 @@ public class ElementBoundingBoxUtil {
         try {
             if (shouldAddAndroidChromeBarHeight()) {
                 int cssChromeBarHeight = getChromeAddressBarHeightForAndroid();
-                int devicePixelChromeBarHeight = (int) (cssChromeBarHeight * devicePixelRatio);
-                return devicePixelChromeBarHeight;
+                return (int) (cssChromeBarHeight * devicePixelRatio);
             }
 
             return 0;
@@ -656,70 +563,31 @@ public class ElementBoundingBoxUtil {
     }
 
     /**
-     * Detect device name from WebDriver capabilities
-     */
-    private String detectDeviceName() {
-        try {
-            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-            String deviceName = "";
-
-            try {
-                // Try to get device name from various capability keys
-                if (caps.getCapability("deviceName") != null) {
-                    deviceName = caps.getCapability("deviceName").toString();
-                } else if (caps.getCapability("device") != null) {
-                    deviceName = caps.getCapability("device").toString();
-                } else if (caps.getCapability("deviceModel") != null) {
-                    deviceName = caps.getCapability("deviceModel").toString();
-                } else if (caps.getCapability("deviceType") != null) {
-                    deviceName = caps.getCapability("deviceType").toString();
-                } else {
-                    deviceName = detectPlatform(); // Use platform as fallback
-                }
-
-                return deviceName;
-
-            } catch (Exception e) {
-                log.warning("Error accessing device capabilities: " + e.getMessage());
-                return detectPlatform(); // Default to platform name
-            }
-
-        } catch (Exception e) {
-            log.warning("Failed to detect device name: " + e.getMessage());
-            return "unknown"; // Default to unknown
-        }
-    }
-
-    /**
      * Extract iPhone number from device name or model for future device detection
      */
     private int extractIPhoneNumber(String deviceName, String model) {
         try {
-            // Look for patterns like "iPhone 17", "iPhone17", "17 Pro", etc.
             String combined = (deviceName + " " + model).toLowerCase();
 
-            // Extract numbers that could be iPhone versions
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("iphone\\s*(\\d+)");
             java.util.regex.Matcher matcher = pattern.matcher(combined);
 
             if (matcher.find()) {
-                int version = Integer.parseInt(matcher.group(1));
-                return version;
+                return Integer.parseInt(matcher.group(1));
             }
 
-            // If no specific iPhone pattern, try to find standalone numbers that might be versions
+
             pattern = java.util.regex.Pattern.compile("\\b(\\d{2,})\\b");
             matcher = pattern.matcher(combined);
 
             if (matcher.find()) {
                 int version = Integer.parseInt(matcher.group(1));
-                // Only consider reasonable iPhone version numbers (17+ for future devices)
                 if (version >= 17) {
                     return version;
                 }
             }
 
-            return 0; // No version found
+            return 0;
         } catch (Exception e) {
             log.warning("Failed to extract iPhone number: " + e.getMessage());
             return 0;
@@ -731,7 +599,6 @@ public class ElementBoundingBoxUtil {
      * This should be called after each scroll operation with the scroll distance
      */
     public void updateScrollPosition(int scrollDistance) {
-        // Store in CSS pixels, not device pixels - scaling will be applied in final calculation
         this.cumulativeScrollPosition += scrollDistance;
         log.info("Updated cumulative scroll position to: " + cumulativeScrollPosition + " CSS pixels");
     }
@@ -743,7 +610,6 @@ public class ElementBoundingBoxUtil {
         try {
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
 
-            // Use the older API compatible with Selenium 4.1.2
             String platformName = "";
             String browserName = "";
 
@@ -808,69 +674,6 @@ public class ElementBoundingBoxUtil {
             devicePixelElements.add(deviceElement);
         }
         return devicePixelElements;
-    }
-
-    /**
-     * Prepare element data for upload
-     */
-    public Map<String, Object> prepareUploadData(List<ElementBoundingBox> elements) {
-        log.info("Preparing upload data for " + (elements != null ? elements.size() : 0) + " elements");
-
-        Map<String, Object> uploadData = new HashMap<>();
-
-        // Add metadata
-        long timestamp = System.currentTimeMillis();
-        String platform = detectPlatform();
-
-        uploadData.put("timestamp", timestamp);
-        uploadData.put("totalElements", elements != null ? elements.size() : 0);
-        uploadData.put("platform", platform);
-
-        // Check if we need to add status bar height for web tests on iOS devices
-        int statusBarHeightToAdd = 0;
-
-        if (shouldAddStatusBarHeight()) {
-            statusBarHeightToAdd = getStatusBarHeightInDevicePixels();
-            log.info("Web test on iOS device - adding status bar height: " + statusBarHeightToAdd + " device pixels");
-        }
-
-        // Add element data
-        List<Map<String, Object>> elementData = new ArrayList<>();
-        if (elements != null) {
-            for (int i = 0; i < elements.size(); i++) {
-                ElementBoundingBox element = elements.get(i);
-
-                Map<String, Object> elementMap = new HashMap<>();
-
-                // Add selector information
-                elementMap.put("selectorType", element.getSelectorType());
-                elementMap.put("selectorValue", element.getSelectorValue());
-                elementMap.put("selectorKey", element.getSelectorKey());
-
-                // Keep xpath for backward compatibility
-                elementMap.put("xpath", element.getXpath());
-
-                // Add status bar height to Y coordinate if needed
-                int adjustedY = element.getY();
-                if (shouldAddStatusBarHeight()) {
-                    adjustedY += statusBarHeightToAdd;
-                }
-
-                elementMap.put("x", element.getX());
-                elementMap.put("y", adjustedY);
-                elementMap.put("width", element.getWidth());
-                elementMap.put("height", element.getHeight());
-                elementMap.put("chunkIndex", element.getChunkIndex());
-                elementMap.put("timestamp", element.getTimestamp());
-                elementMap.put("platform", element.getPlatform());
-                elementMap.put("purpose", element.getPurpose());
-
-                elementData.add(elementMap);
-            }
-        }
-
-        uploadData.put("elements", elementData);
-        return uploadData;
     }
 
     /**
@@ -1001,20 +804,6 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    /**
-     * Reset the found XPaths tracking - useful for debugging or when switching contexts
-     */
-    public void resetFoundXPathsTracking() {
-        foundXPaths.clear();
-        log.info("Reset found XPaths tracking");
-    }
-
-    /**
-     * Get the current count of found XPaths for debugging
-     */
-    public int getFoundXPathsCount() {
-        return foundXPaths.size();
-    }
 
     /**
      * Get element bounding box using JavaScript for web platforms
@@ -1042,7 +831,6 @@ public class ElementBoundingBoxUtil {
         } catch (Exception e) {
             log.warning("JavaScript bounding box failed, falling back to Selenium: " + e.getMessage());
 
-            // Fallback to Selenium methods
             Point location = element.getLocation();
             Dimension size = element.getSize();
 
@@ -1057,12 +845,10 @@ public class ElementBoundingBoxUtil {
     }
 
     /**
-     * iOS-optimized: Detect all elements once at start with absolute positions
-     * No viewport filtering needed since iOS makes all elements accessible
+     * No viewport filtering needed since iOS and web makes all elements accessible
      */
-    public List<ElementBoundingBox> detectAllElementsIOS(Map<String, List<String>> selectors, String purpose) {
+    public List<ElementBoundingBox> detectAllElementsAtTheStart(Map<String, List<String>> selectors, String purpose) {
         try {
-            log.info("iOS optimization: Detecting all elements with absolute positions");
             List<ElementBoundingBox> allElements = new ArrayList<>();
             String platform = detectPlatform();
 
@@ -1070,7 +856,6 @@ public class ElementBoundingBoxUtil {
                 return allElements;
             }
 
-            // Process each selector type
             for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
                 String selectorType = entry.getKey();
                 List<String> selectorValues = entry.getValue();
@@ -1086,7 +871,7 @@ public class ElementBoundingBoxUtil {
                         List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
 
                         for (WebElement element : elements) {
-                            // Create bounding box with absolute position (no scroll offset needed for iOS)
+                            // Create bounding box with absolute position (no scroll offset needed for iOS and web elements)
                             ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, 0, platform, purpose);
 
                             if (boundingBox != null) {
@@ -1101,15 +886,10 @@ public class ElementBoundingBoxUtil {
                 }
             }
 
-            log.info("iOS optimization: Detected " + allElements.size() + " elements with absolute positions");
-
-            // Convert CSS pixels to device pixels for iOS elements (same as Android/Web)
-            List<ElementBoundingBox> devicePixelElements = convertBoundingBoxesToDevicePixels(allElements);
-
-            return devicePixelElements;
+            return convertBoundingBoxesToDevicePixels(allElements);
 
         } catch (Exception e) {
-            log.severe("iOS element detection failed: " + e.getMessage());
+            log.severe("Element detection failed: " + e.getMessage());
             return new ArrayList<>();
         }
     }

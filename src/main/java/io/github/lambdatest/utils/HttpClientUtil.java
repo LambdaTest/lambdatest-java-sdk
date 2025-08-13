@@ -390,6 +390,11 @@ public class HttpClientUtil {
             builder.addTextBody("ignoreBoxes", request.getIgnoreBoxes());
         }
 
+        // Add selectBoxes field if present
+        if (Objects.nonNull(request.getSelectBoxes()) && !request.getSelectBoxes().isEmpty()) {
+            builder.addTextBody("selectBoxes", request.getSelectBoxes());
+        }
+
         // Execute the request
         HttpEntity multipart = builder.build();
         uploadRequest.setEntity(multipart);

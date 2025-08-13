@@ -7,7 +7,6 @@ import io.github.lambdatest.models.*;
 import io.github.lambdatest.utils.FullPageScreenshotUtil;
 import io.github.lambdatest.utils.GitUtils;
 import io.github.lambdatest.utils.SmartUIUtil;
-import io.github.lambdatest.utils.ElementBoundingBoxUtil;
 import io.github.lambdatest.utils.ElementBoundingBox;
 import org.openqa.selenium.*;
 
@@ -55,7 +54,7 @@ public class SmartUIAppSnapshot {
             GitInfo git = GitUtils.getGitInfo(envVars);
             BuildResponse buildRes = util.build(git, this.projectToken, options);
             this.buildData = buildRes.getData();
-            log.info("Build ID set : " + this.buildData.getBuildId() + "for Build name : " + this.buildData.getName());
+            log.info("Build ID set : " + this.buildData.getBuildId() + "for build name : " + this.buildData.getName());
             options.put("buildName", this.buildData.getName());
         } catch (Exception e) {
             log.severe("Couldn't create smartui build: " + e.getMessage());
@@ -105,133 +104,33 @@ public class SmartUIAppSnapshot {
     private Map<String, Object> extractSelectorsFromOptions(Map<String, String> options) {
         Map<String, Object> selectorData = new HashMap<>();
         
-        log.info("Extracting selectors from options map");
-        
         if (options == null) {
-            log.info("Options map is null, returning empty selector data");
             return selectorData;
         }
-        
-        // Check for ignoreBoxes option with nested structure
+
         String ignoreBoxesValue = getOptionValue(options, "ignoreBoxes");
-        log.info("ignoreBoxes value from options: " + (ignoreBoxesValue.isEmpty() ? "empty" : "present"));
-        
+        String selectBoxesValue = getOptionValue(options, "selectBoxes");
+
         if (!ignoreBoxesValue.isEmpty()) {
             try {
-                log.info("Parsing ignoreBoxes JSON structure");
-                // Parse the ignoreBoxes JSON structure
                 Map<String, Object> ignoreBoxesMap = gson.fromJson(ignoreBoxesValue, Map.class);
-                
-                if (ignoreBoxesMap != null) {
-                    log.info("Successfully parsed ignoreBoxes map with " + ignoreBoxesMap.size() + " keys");
-                    
-                    // Check for ignoreBoxes (new format)
-                    if (ignoreBoxesMap.containsKey("ignoreBoxes")) {
-                        log.info("Found ignoreBoxes key in ignoreBoxes map");
-                        Object ignoreBoxesObj = ignoreBoxesMap.get("ignoreBoxes");
-                        
-                        if (ignoreBoxesObj instanceof Map) {
-                            Map<String, List<String>> ignoreSelectors = parseSelectors(ignoreBoxesObj);
-                            selectorData.put("ignore", ignoreSelectors);
-                            log.info("Added ignore selectors from ignoreBoxes: " + ignoreSelectors);
-                        } else {
-                            log.warning("ignoreBoxes value is not a Map: " + (ignoreBoxesObj != null ? ignoreBoxesObj.getClass().getSimpleName() : "null"));
-                        }
-                    }
-                    
-                    // Check for selectBoxes (new format)
-                    if (ignoreBoxesMap.containsKey("selectBoxes")) {
-                        log.info("Found selectBoxes key in ignoreBoxes map");
-                        Object selectBoxesObj = ignoreBoxesMap.get("selectBoxes");
-                        
-                        if (selectBoxesObj instanceof Map) {
-                            Map<String, List<String>> selectSelectors = parseSelectors(selectBoxesObj);
-                            selectorData.put("select", selectSelectors);
-                            log.info("Added select selectors from selectBoxes: " + selectSelectors);
-                        } else {
-                            log.warning("selectBoxes value is not a Map: " + (selectBoxesObj != null ? selectBoxesObj.getClass().getSimpleName() : "null"));
-                        }
-                    }
-                    
-                    // Check for legacy "ignore" key (old format)
-                    if (ignoreBoxesMap.containsKey("ignore")) {
-                        log.info("Found legacy ignore key in ignoreBoxes map");
-                        Object ignoreObj = ignoreBoxesMap.get("ignore");
-                        
-                        if (ignoreObj instanceof Map) {
-                            Map<String, List<String>> ignoreSelectors = parseSelectors(ignoreObj);
-                            selectorData.put("ignore", ignoreSelectors);
-                            log.info("Added ignore selectors from legacy ignore key: " + ignoreSelectors);
-                        } else {
-                            log.warning("ignore value is not a Map: " + (ignoreObj != null ? ignoreObj.getClass().getSimpleName() : "null"));
-                        }
-                    }
-                    
-                    // Check for legacy "select" key (old format)
-                    if (ignoreBoxesMap.containsKey("select")) {
-                        log.info("Found legacy select key in ignoreBoxes map");
-                        Object selectObj = ignoreBoxesMap.get("select");
-                        
-                        if (selectObj instanceof Map) {
-                            Map<String, List<String>> selectSelectors = parseSelectors(selectObj);
-                            selectorData.put("select", selectSelectors);
-                            log.info("Added select selectors from legacy select key: " + selectSelectors);
-                        } else {
-                            log.warning("select value is not a Map: " + (selectObj != null ? selectObj.getClass().getSimpleName() : "null"));
-                        }
-                    }
-                    
-                    // Support for legacy "xpaths" format (backward compatibility)
-                    if (ignoreBoxesMap.containsKey("xpaths")) {
-                        log.info("Found legacy xpaths key in ignoreBoxes map");
-                        Object xpathsObj = ignoreBoxesMap.get("xpaths");
-                        
-                        if (xpathsObj instanceof List) {
-                            List<?> xpathsList = (List<?>) xpathsObj;
-                            List<String> xpaths = new ArrayList<>();
-                            
-                            for (Object xpathObj : xpathsList) {
-                                if (xpathObj instanceof String) {
-                                    String xpath = ((String) xpathObj).trim();
-                                    if (!xpath.isEmpty()) {
-                                        xpaths.add(xpath);
-                                    }
-                                }
-                            }
-                            
-                            if (!xpaths.isEmpty()) {
-                                // Convert legacy xpaths to new format
-                                Map<String, List<String>> legacySelectors = new HashMap<>();
-                                legacySelectors.put("xpath", xpaths);
-                                
-                                // Check if user wants to use "select" instead of "ignore"
-                                if (ignoreBoxesMap.containsKey("purpose") && "select".equals(ignoreBoxesMap.get("purpose"))) {
-                                    selectorData.put("select", legacySelectors);
-                                    log.info("Converted legacy xpaths to select selectors: " + xpaths);
-                                } else {
-                                    // Default to ignore (backward compatibility)
-                                    selectorData.put("ignore", legacySelectors);
-                                    log.info("Converted legacy xpaths to ignore selectors: " + xpaths);
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (!selectorData.containsKey("ignore") && !selectorData.containsKey("select")) {
-                        log.info("No ignoreBoxes, selectBoxes, ignore, select, or xpaths keys found in ignoreBoxes map. Available keys: " + ignoreBoxesMap.keySet());
-                    }
-                } else {
-                    log.warning("Failed to parse ignoreBoxes map - result is null");
-                }
+                Map<String, List<String>> ignoreSelectors = parseSelectors(ignoreBoxesMap);
+                selectorData.put("ignore", ignoreSelectors);
             } catch (Exception e) {
                 log.warning("Failed to parse ignoreBoxes option: " + e.getMessage());
-                log.warning("Exception type: " + e.getClass().getSimpleName());
             }
-        } else {
-            log.info("No ignoreBoxes option found in options map");
         }
-        
-        log.info("Extracted selector data with keys: " + selectorData.keySet());
+
+        if (!selectBoxesValue.isEmpty()) {
+            try {
+                Map<String, Object> selectBoxesMap = gson.fromJson(selectBoxesValue, Map.class);
+                Map<String, List<String>> selectSelectors = parseSelectors(selectBoxesMap);
+                selectorData.put("select", selectSelectors);
+            } catch (Exception e) {
+                log.warning("Failed to parse selectBoxes option: " + e.getMessage());
+            }
+        }
+
         return selectorData;
     }
 
@@ -320,11 +219,163 @@ public class SmartUIAppSnapshot {
         }
     }
 
+    /**
+     * Create bounding box data for elements and set it on the upload request
+     */
+    private void setBoundingBoxes(UploadSnapshotRequest uploadSnapshotRequest, 
+                                   List<ElementBoundingBox> ignoredElements, 
+                                   List<ElementBoundingBox> selectedElements) {
+        if (!ignoredElements.isEmpty()) {
+            List<Map<String, Integer>> ignoreBoxes = new ArrayList<>();
+            for (ElementBoundingBox element : ignoredElements) {
+                Map<String, Integer> box = new HashMap<>();
+                box.put("left", element.getX());
+                box.put("top", element.getY());
+                box.put("right", element.getX() + element.getWidth());
+                box.put("bottom", element.getY() + element.getHeight());
+                ignoreBoxes.add(box);
+            }
+
+            Map<String, Object> ignoreBoxesData = new HashMap<>();
+            ignoreBoxesData.put("boxes", ignoreBoxes);
+            
+            String ignoreBoxesJson = gson.toJson(ignoreBoxesData);
+            uploadSnapshotRequest.setIgnoreBoxes(ignoreBoxesJson);
+        }
+
+        if (!selectedElements.isEmpty()) {
+            List<Map<String, Integer>> selectBoxes = new ArrayList<>();
+            for (ElementBoundingBox element : selectedElements) {
+                Map<String, Integer> box = new HashMap<>();
+                box.put("left", element.getX());
+                box.put("top", element.getY());
+                box.put("right", element.getX() + element.getWidth());
+                box.put("bottom", element.getY() + element.getHeight());
+                selectBoxes.add(box);
+            }
+
+            Map<String, Object> selectBoxesData = new HashMap<>();
+            selectBoxesData.put("boxes", selectBoxes);
+            
+            String selectBoxesJson = gson.toJson(selectBoxesData);
+            uploadSnapshotRequest.setSelectBoxes(selectBoxesJson);
+        }
+    }
+
+    /**
+     * Process and set various options on the upload request
+     */
+    private int processUploadOptions(UploadSnapshotRequest uploadSnapshotRequest, Map<String, String> options) {
+        String uploadChunk = getOptionValue(options, "uploadChunk");
+        String pageCount = getOptionValue(options, "pageCount");
+        int userInputtedPageCount = 0;
+        if (!pageCount.isEmpty()) {
+            userInputtedPageCount = Integer.parseInt(pageCount);
+        }
+        if (!uploadChunk.isEmpty() && uploadChunk.toLowerCase().contains("true")) {
+            uploadSnapshotRequest.setUploadChunk("true");
+        } else {
+            uploadSnapshotRequest.setUploadChunk("false");
+        }
+        
+        String navBarHeight = getOptionValue(options, "navigationBarHeight");
+        String statusBarHeight = getOptionValue(options, "statusBarHeight");
+
+        if (!navBarHeight.isEmpty()) {
+            uploadSnapshotRequest.setNavigationBarHeight(navBarHeight);
+        }
+        if (!statusBarHeight.isEmpty()) {
+            uploadSnapshotRequest.setStatusBarHeight(statusBarHeight);
+        }
+        
+        String cropFooter = getOptionValue(options, "cropFooter");
+        if (!cropFooter.isEmpty()) {
+            uploadSnapshotRequest.setCropFooter(cropFooter.toLowerCase());
+        }
+        String cropStatusBar = getOptionValue(options, "cropStatusBar");
+        if (!cropStatusBar.isEmpty()) {
+            uploadSnapshotRequest.setCropStatusBar(cropStatusBar.toLowerCase());
+        }
+        
+        return userInputtedPageCount;
+    }
+
+    /**
+     * Handle fullPage screenshot capture and upload
+     */
+    private void handleFullPageScreenshot(WebDriver driver, String screenshotName, String testType, 
+                                         UploadSnapshotRequest uploadSnapshotRequest, 
+                                         int userInputtedPageCount, Map<String, String> options) throws Exception {
+        FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName, testType);
+
+        Map<String, Object> selectorData = extractSelectorsFromOptions(options);
+        
+        // Extract selectors from options
+        Map<String, List<String>> ignoreSelectors = selectorData.containsKey("ignore") ? 
+            (Map<String, List<String>>) selectorData.get("ignore") : null;
+        Map<String, List<String>> selectSelectors = selectorData.containsKey("select") ? 
+            (Map<String, List<String>>) selectorData.get("select") : null;
+
+        // Capture full page screenshots with selectors (if any)
+        Map<String, Object> result = fullPageCapture.captureFullPageScreenshot(
+            userInputtedPageCount, ignoreSelectors, selectSelectors);
+        
+        List<File> ssDir = (List<File>) result.get("screenshots");
+        
+        // Process bounding boxes if selectors were provided
+        if (ignoreSelectors != null || selectSelectors != null) {
+            List<ElementBoundingBox> ignoredElements = (List<ElementBoundingBox>) result.get("ignoreElements");
+            List<ElementBoundingBox> selectedElements = (List<ElementBoundingBox>) result.get("selectElements");
+            setBoundingBoxes(uploadSnapshotRequest, ignoredElements, selectedElements);
+        }
+        
+        if(ssDir.isEmpty()){
+            throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
+        }
+        int pageCountInSsDir = ssDir.size(); int i;
+        if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
+            uploadSnapshotRequest.setFullPage("false");
+            logUploadRequest(uploadSnapshotRequest);
+            util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
+            return;
+        }
+        for( i = 0; i < pageCountInSsDir -1; ++i){
+            uploadSnapshotRequest.setIsLastChunk("false");
+            uploadSnapshotRequest.setChunkCount(i);
+            logUploadRequest(uploadSnapshotRequest);
+            util.uploadScreenshot(ssDir.get(i), uploadSnapshotRequest, this.buildData);
+        }
+        uploadSnapshotRequest.setIsLastChunk("true");
+        uploadSnapshotRequest.setChunkCount(i);
+        logUploadRequest(uploadSnapshotRequest);
+        util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
+    }
+
+    /**
+     * Handle single screenshot capture and upload
+     */
+    private void handleSingleScreenshot(WebDriver driver, String screenshotName, 
+                                       UploadSnapshotRequest uploadSnapshotRequest, 
+                                       Map<String, String> options) throws Exception {
+        String pageCount = getOptionValue(options, "pageCount");
+        if(!pageCount.isEmpty()){
+            throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
+        }
+        TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
+        File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
+        log.info("Screenshot captured: " + screenshotName);
+        uploadSnapshotRequest.setFullPage("false");
+        logUploadRequest(uploadSnapshotRequest);
+        util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
+    }
+
     public void smartuiAppSnapshot(WebDriver driver, String screenshotName, Map<String, String> options)
             throws Exception {
         try {
             String deviceName = getOptionValue(options, "deviceName");
             String platform = getOptionValue(options, "platform");
+            String testType = getOptionValue(options, "testType");
+            testType = testType.isEmpty() ? "app" : testType;
             validateMandatoryParams(driver, screenshotName, deviceName);
             Dimension d = driver.manage().window().getSize();
             int width = d.getWidth(), height = d.getHeight();
@@ -332,146 +383,15 @@ public class SmartUIAppSnapshot {
             UploadSnapshotRequest uploadSnapshotRequest = configureDeviceNameAndPlatform(initReq, deviceName, platform);
             String screenshotHash = UUID.randomUUID().toString();
             uploadSnapshotRequest.setScreenshotHash(screenshotHash);
-            String uploadChunk = getOptionValue(options, "uploadChunk");
-            String pageCount = getOptionValue(options, "pageCount"); int userInputtedPageCount=0;
-            if(!pageCount.isEmpty()) {
-                userInputtedPageCount = Integer.parseInt(pageCount);
-            }
-            if(!uploadChunk.isEmpty() && uploadChunk.toLowerCase().contains("true")) {
-                uploadSnapshotRequest.setUploadChunk("true");
-            } else {
-                uploadSnapshotRequest.setUploadChunk("false");
-            }
-            String navBarHeight = getOptionValue(options, "navigationBarHeight");
-            String statusBarHeight = getOptionValue(options, "statusBarHeight");
-
-            if(!navBarHeight.isEmpty()) {
-                uploadSnapshotRequest.setNavigationBarHeight(navBarHeight);
-            }
-            if(!statusBarHeight.isEmpty()) {
-                uploadSnapshotRequest.setStatusBarHeight(statusBarHeight);
-            }
-            String cropFooter = getOptionValue(options, "cropFooter");
-            if (!cropFooter.isEmpty()) {
-                uploadSnapshotRequest.setCropFooter(cropFooter.toLowerCase());
-            }
-            String cropStatusBar = getOptionValue(options, "cropStatusBar");
-            if (!cropStatusBar.isEmpty()) {
-                uploadSnapshotRequest.setCropStatusBar(cropStatusBar.toLowerCase());
-            }
+            
+            int userInputtedPageCount = processUploadOptions(uploadSnapshotRequest, options);
 
             String fullPage = getOptionValue(options, "fullPage").toLowerCase();
             if(!Boolean.parseBoolean(fullPage)){
-                if(!pageCount.isEmpty()){
-                    throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
-                }
-                TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
-                File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
-                log.info("Screenshot captured: " + screenshotName);
-                uploadSnapshotRequest.setFullPage("false");
-                logUploadRequest(uploadSnapshotRequest);
-                util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
-
+                handleSingleScreenshot(driver, screenshotName, uploadSnapshotRequest, options);
             } else {
                 uploadSnapshotRequest.setFullPage("true");
-                
-                FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName);
-                
-                // Extract selectors from options for element detection
-                Map<String, Object> selectorData = extractSelectorsFromOptions(options);
-                
-                List<File> ssDir = null;
-                List<ElementBoundingBox> ignoredElements = new ArrayList<>();
-                List<ElementBoundingBox> selectedElements = new ArrayList<>();
-                
-                if (selectorData.containsKey("ignore") || selectorData.containsKey("select")) {
-                    log.info("Element detection enabled");
-                    
-                    // Get both selector types
-                    Map<String, List<String>> ignoreSelectors = selectorData.containsKey("ignore") ? 
-                        (Map<String, List<String>>) selectorData.get("ignore") : null;
-                    Map<String, List<String>> selectSelectors = selectorData.containsKey("select") ? 
-                        (Map<String, List<String>>) selectorData.get("select") : null;
-                    
-                    // Capture full page once and detect both types of elements efficiently
-                    Map<String, Object> result = fullPageCapture.captureFullPageWithBothSelectors(
-                        userInputtedPageCount, ignoreSelectors, selectSelectors);
-                    
-                    ssDir = (List<File>) result.get("screenshots");
-                    ignoredElements = (List<ElementBoundingBox>) result.get("ignoreElements");
-                    selectedElements = (List<ElementBoundingBox>) result.get("selectElements");
-                    
-                    log.info("Captured full page with " + ssDir.size() + " screenshots");
-                    log.info("Detected " + ignoredElements.size() + " ignore elements and " + selectedElements.size() + " select elements");
-                    
-                    // Create bounding box data for ignore elements
-                    if (!ignoredElements.isEmpty()) {
-                        List<Map<String, Integer>> ignoreBoxes = new ArrayList<>();
-                        for (ElementBoundingBox element : ignoredElements) {
-                            Map<String, Integer> box = new HashMap<>();
-                            box.put("left", element.getX());
-                            box.put("top", element.getY());
-                            box.put("right", element.getX() + element.getWidth());
-                            box.put("bottom", element.getY() + element.getHeight());
-                            ignoreBoxes.add(box);
-                        }
-                        
-                        // Create ignoreBoxes structure with bounding boxes
-                        Map<String, Object> ignoreBoxesData = new HashMap<>();
-                        ignoreBoxesData.put("boxes", ignoreBoxes);
-                        
-                        String ignoreBoxesJson = gson.toJson(ignoreBoxesData);
-                        uploadSnapshotRequest.setIgnoreBoxes(ignoreBoxesJson);
-                        log.info("ignoreBoxes set with " + ignoreBoxes.size() + " ignore bounding boxes: " + ignoreBoxesJson);
-                    }
-                    
-                    // Create bounding box data for select elements
-                    if (!selectedElements.isEmpty()) {
-                        List<Map<String, Integer>> selectBoxes = new ArrayList<>();
-                        for (ElementBoundingBox element : selectedElements) {
-                            Map<String, Integer> box = new HashMap<>();
-                            box.put("left", element.getX());
-                            box.put("top", element.getY());
-                            box.put("right", element.getX() + element.getWidth());
-                            box.put("bottom", element.getY() + element.getHeight());
-                            selectBoxes.add(box);
-                        }
-                        
-                        // Create selectBoxes structure with bounding boxes
-                        Map<String, Object> selectBoxesData = new HashMap<>();
-                        selectBoxesData.put("boxes", selectBoxes);
-                        
-                        String selectBoxesJson = gson.toJson(selectBoxesData);
-                        uploadSnapshotRequest.setSelectBoxes(selectBoxesJson);
-                        log.info("selectBoxes set with " + selectBoxes.size() + " select bounding boxes: " + selectBoxesJson);
-                    }
-                    
-                    // Log summary of detected elements
-                    log.info("Element detection summary - Ignore: " + ignoredElements.size() + ", Select: " + selectedElements.size());
-                } else {
-                    ssDir = fullPageCapture.captureFullPage(userInputtedPageCount);
-                }
-                
-                if(ssDir.isEmpty()){
-                    throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
-                }
-                int pageCountInSsDir = ssDir.size(); int i;
-                if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
-                    uploadSnapshotRequest.setFullPage("false");
-                    logUploadRequest(uploadSnapshotRequest);
-                    util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
-                    return;
-                }
-                for( i = 0; i < pageCountInSsDir -1; ++i){
-                    uploadSnapshotRequest.setIsLastChunk("false");
-                    uploadSnapshotRequest.setChunkCount(i);
-                    logUploadRequest(uploadSnapshotRequest);
-                    util.uploadScreenshot(ssDir.get(i), uploadSnapshotRequest, this.buildData);
-                }
-                uploadSnapshotRequest.setIsLastChunk("true");
-                uploadSnapshotRequest.setChunkCount(i);
-                logUploadRequest(uploadSnapshotRequest);
-                util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
+                handleFullPageScreenshot(driver, screenshotName, testType, uploadSnapshotRequest, userInputtedPageCount, options);
             }
         } catch (Exception e) {
             log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " + e.getMessage());
