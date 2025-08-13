@@ -330,8 +330,6 @@ public class FullPageScreenshotUtil {
                 } else {
                     log.warning("No platform capability found");
                 }
-
-                log.info("platform is ," + platformName);
                 
                 String detectedPlatform;
                 if (platformName.contains("ios")) {

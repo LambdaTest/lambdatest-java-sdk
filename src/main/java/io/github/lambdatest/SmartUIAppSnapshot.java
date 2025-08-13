@@ -142,7 +142,6 @@ public class SmartUIAppSnapshot {
         
         if (selectorsObj instanceof Map) {
             Map<?, ?> selectorsMap = (Map<?, ?>) selectorsObj;
-            log.info("Selectors map contains " + selectorsMap.size() + " selector types");
             
             for (Map.Entry<?, ?> entry : selectorsMap.entrySet()) {
                 String selectorType = entry.getKey().toString();
@@ -152,19 +151,13 @@ public class SmartUIAppSnapshot {
                     List<?> selectorValuesList = (List<?>) selectorValuesObj;
                     List<String> selectorValues = new ArrayList<>();
                     
-                    log.info("Processing " + selectorType + " selectors: " + selectorValuesList.size() + " items");
-                    
                     for (int i = 0; i < selectorValuesList.size(); i++) {
                         Object selectorValueObj = selectorValuesList.get(i);
-                        log.info("Processing " + selectorType + " selector " + (i + 1) + "/" + selectorValuesList.size() + ": " + selectorValueObj);
                         
                         if (selectorValueObj instanceof String) {
                             String selectorValue = ((String) selectorValueObj).trim();
                             if (!selectorValue.isEmpty()) {
                                 selectorValues.add(selectorValue);
-                                log.info("Added " + selectorType + " selector: " + selectorValue);
-                            } else {
-                                log.warning("Empty " + selectorType + " selector found at index " + i + ", skipping");
                             }
                         } else {
                             log.warning("Non-string " + selectorType + " selector found at index " + i + ": " + selectorValueObj.getClass().getSimpleName() + ", skipping");
@@ -191,7 +184,7 @@ public class SmartUIAppSnapshot {
         request.setScreenshotName(screenshotName);
         request.setProjectToken(projectToken);
         request.setViewport(viewport);
-        log.info("Viewport set to :" + viewport);
+        log.info("Viewport set to: " + viewport);
         if (Objects.nonNull(buildData)) {
             request.setBuildId(buildData.getBuildId());
             request.setBuildName(buildData.getName());
