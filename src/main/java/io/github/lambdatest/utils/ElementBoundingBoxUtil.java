@@ -6,13 +6,61 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public class ElementBoundingBoxUtil {
+    private static final double DEFAULT_DEVICE_PIXEL_RATIO = 1.0;
+    private static final int DEFAULT_STATUS_BAR_HEIGHT = 20;
+    private static final int IPAD_PRO_NEWER_STATUS_BAR_HEIGHT = 24;
+    private static final int IPHONE_DYNAMIC_ISLAND_HEIGHT = 54;
+    private static final int IPHONE_NOTCH_HEIGHT = 47;
+    private static final int ANDROID_CHROME_BAR_HEIGHT_NEW = 80;
+    private static final int ANDROID_CHROME_BAR_HEIGHT_OLD = 76;
+    private static final int FUTURE_IPHONE_VERSION_THRESHOLD = 17;
+
+    // Device pixel ratios
+    private static final double IOS_SCALE_FACTOR_1X = 1.0;
+    private static final double IOS_SCALE_FACTOR_2X = 2.0;
+    private static final double IOS_SCALE_FACTOR_3X = 3.0;
+
+    // Selector types
+    private static final String SELECTOR_XPATH = "xpath";
+    private static final String SELECTOR_CLASS = "class";
+    private static final String SELECTOR_ID = "id";
+    private static final String SELECTOR_CSS = "css";
+    private static final String SELECTOR_NAME = "name";
+    private static final String SELECTOR_ACCESSIBILITY_ID = "accessibilityid";
+    private static final String SELECTOR_ACCESSIBILITY_ID_ALT = "accessibility_id";
+
+    // Platform types
+    private static final String PLATFORM_WEB = "web";
+    private static final String PLATFORM_IOS = "ios";
+    private static final String PLATFORM_ANDROID = "android";
+    private static final String PLATFORM_IOS_WEBVIEW = "ios_webview";
+    private static final String PLATFORM_IOS_NATIVE = "ios_native";
+    private static final String PLATFORM_ANDROID_WEBVIEW = "android_webview";
+    private static final String PLATFORM_ANDROID_NATIVE = "android_native";
+
+    private static final Set<String> IPHONE_3X_MODELS = Set.of(
+            "16", "15", "14", "13", "12", "11", "x", "xs", "xr", "8", "7", "6 plus"
+    );
+    private static final Set<String> IPHONE_2X_MODELS = Set.of("6", "5", "4", "se");
+    private static final Set<String> IPHONE_1X_MODELS = Set.of("3");
+
+    private static final Set<String> DYNAMIC_ISLAND_DEVICES = Set.of("14 pro", "14pro", "15", "16", "17");
+    private static final Set<String> NOTCH_DEVICES = Set.of("x", "xs", "xr", "11", "12", "13", "14");
+    private static final Set<String> TRADITIONAL_IPHONES = Set.of("se", "8", "7", "6", "5", "4");
+
+    private static final Set<String> IPAD_PRO_NEWER_YEARS = Set.of("2018", "2020", "2021", "2022", "2024", "2025");
+    private static final Set<String> IPOD_2X_GENERATIONS = Set.of("5", "6", "7");
+
+    private static final Set<String> ANDROID_NEW_VERSIONS = Set.of("11", "12", "13", "14", "10");
+    private static final Set<String> ANDROID_OLD_VERSIONS = Set.of("9", "8", "7");
+
     private final WebDriver driver;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
-    private int cumulativeScrollPosition = 0;
-    private double devicePixelRatio = 1.0;
-    private Set<String> foundElements = new HashSet<>();
     private final String testType;
     private final String deviceName;
+    private final double devicePixelRatio;
+    private int cumulativeScrollPosition = 0;
+    private final Set<String> foundElements = new HashSet<>();
 
     public ElementBoundingBoxUtil(WebDriver driver, String testType, String deviceName) {
         this.driver = driver;
@@ -21,82 +69,82 @@ public class ElementBoundingBoxUtil {
         this.devicePixelRatio = getDevicePixelRatio();
     }
 
-    /**
-     * Detect elements for given selectors in current viewport
-     * Supports XPath, class name, accessibility ID, name, ID, and CSS selectors
-     * @param selectors Map of selector types to their values
-     * @param chunkIndex Current chunk index for tracking
-     * @param purpose Purpose of the elements ("ignore" or "select")
-     * @return List of detected ElementBoundingBox objects
-     */
     public List<ElementBoundingBox> detectElements(Map<String, List<String>> selectors, int chunkIndex, String purpose) {
+        if (isInvalidSelectorMap(selectors)) {
+            return new ArrayList<>();
+        }
+
         List<ElementBoundingBox> detectedElements = new ArrayList<>();
         String platform = detectPlatform();
 
-        if (selectors == null || selectors.isEmpty()) {
-            return detectedElements;
-        }
-
         for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
-            String selectorType = entry.getKey();
-            List<String> selectorValues = entry.getValue();
-
-            if (selectorValues == null || selectorValues.isEmpty()) {
-                continue;
-            }
-
-            for (String selectorValue : selectorValues) {
-                String selectorKey = selectorType + ":" + selectorValue;
-
-                if (foundElements.contains(selectorKey)) {
-                    continue;
-                }
-
-                try {
-                    List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
-
-                    boolean selectorHasVisibleElements = false;
-
-                    for (int j = 0; j < elements.size(); j++) {
-                        WebElement element = elements.get(j);
-
-                        ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, chunkIndex, platform, purpose);
-                        if (boundingBox != null) {
-                            if (isElementFullyInViewport(boundingBox)) {
-                                detectedElements.add(boundingBox);
-                                selectorHasVisibleElements = true;
-                            }
-                        } else {
-                            log.warning("Failed to create bounding box for element " + (j + 1) + " of " + selectorType + " selector: " + selectorValue);
-                        }
-                    }
-
-                    if (selectorHasVisibleElements) {
-                        foundElements.add(selectorKey);
-                    }
-                } catch (Exception e) {
-                    log.warning("Failed to detect elements for " + selectorType + " selector '" + selectorValue + "': " + e.getMessage());
-                }
-            }
+            processSelectorsOfType(entry.getKey(), entry.getValue(), detectedElements, chunkIndex, platform, purpose);
         }
-
 
         return convertBoundingBoxesToDevicePixels(detectedElements);
     }
 
-    /**
-     * Create bounding box from WebElement with absolute coordinates
-     * For web platforms, uses JavaScript for more accurate positioning
-     */
+    private void processSelectorsOfType(String selectorType, List<String> selectorValues,
+                                        List<ElementBoundingBox> detectedElements, int chunkIndex,
+                                        String platform, String purpose) {
+        if (selectorValues == null || selectorValues.isEmpty()) {
+            return;
+        }
+
+        for (String selectorValue : selectorValues) {
+            String selectorKey = createSelectorKey(selectorType, selectorValue);
+
+            if (foundElements.contains(selectorKey)) {
+                continue;
+            }
+
+            processSelector(selectorType, selectorValue, selectorKey, detectedElements, chunkIndex, platform, purpose);
+        }
+    }
+
+    private void processSelector(String selectorType, String selectorValue, String selectorKey,
+                                 List<ElementBoundingBox> detectedElements, int chunkIndex,
+                                 String platform, String purpose) {
+        try {
+            List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
+            boolean hasVisibleElements = processElementsForSelector(elements, selectorKey, detectedElements, chunkIndex, platform, purpose);
+
+            if (hasVisibleElements) {
+                foundElements.add(selectorKey);
+            }
+        } catch (Exception e) {
+            log.warning("Failed to detect elements for " + selectorType + " selector '" + selectorValue + "': " + e.getMessage());
+        }
+    }
+
+    private boolean processElementsForSelector(List<WebElement> elements, String selectorKey,
+                                               List<ElementBoundingBox> detectedElements, int chunkIndex,
+                                               String platform, String purpose) {
+        boolean hasVisibleElements = false;
+
+        for (int i = 0; i < elements.size(); i++) {
+            ElementBoundingBox boundingBox = createBoundingBox(elements.get(i), selectorKey, chunkIndex, platform, purpose);
+
+            if (boundingBox != null && isElementFullyInViewport(boundingBox)) {
+                detectedElements.add(boundingBox);
+                hasVisibleElements = true;
+            } else if (boundingBox == null) {
+                log.warning("Failed to create bounding box for element " + (i + 1) + " of selector: " + selectorKey);
+            }
+        }
+
+        return hasVisibleElements;
+    }
+
     private ElementBoundingBox createBoundingBox(WebElement element, String selectorKey, int chunkIndex, String platform, String purpose) {
         try {
             Point location;
             Dimension size;
 
-            if (platform.contains("web")) {
+            if (platform.contains(PLATFORM_WEB)) {
                 Map<String, Object> elementData = getElementBoundingBoxWeb(element);
-                location = new Point(((Number) elementData.get("x")).intValue(), ((Number) elementData.get("y")).intValue());
-                size = new Dimension(((Number) elementData.get("width")).intValue(), ((Number) elementData.get("height")).intValue());
+                location = extractPointFromElementData(elementData);
+                size = extractDimensionFromElementData(elementData);
             } else {
                 location = element.getLocation();
                 size = element.getSize();
@@ -106,293 +154,166 @@ public class ElementBoundingBoxUtil {
             int absoluteX = location.getX();
             int absoluteY = location.getY() + scrollY;
 
-
-            int width = size.getWidth();
-            int height = size.getHeight();
-
-            return new ElementBoundingBox(selectorKey, absoluteX, absoluteY, width, height, chunkIndex, platform, purpose);
-
+            return new ElementBoundingBox(selectorKey, absoluteX, absoluteY, size.getWidth(), size.getHeight(), chunkIndex, platform, purpose);
         } catch (Exception e) {
             log.warning("Failed to create bounding box for element with selector '" + selectorKey + "': " + e.getMessage());
             return null;
         }
     }
 
-    /**
-     * Check if element is visible in current viewport
-     * For web platforms: element must be at least partially visible
-     * For mobile platforms: element must be fully visible (stricter)
-     */
+    private Point extractPointFromElementData(Map<String, Object> elementData) {
+        int x = ((Number) elementData.get("x")).intValue();
+        int y = ((Number) elementData.get("y")).intValue();
+        return new Point(x, y);
+    }
+
+    private Dimension extractDimensionFromElementData(Map<String, Object> elementData) {
+        int width = ((Number) elementData.get("width")).intValue();
+        int height = ((Number) elementData.get("height")).intValue();
+        return new Dimension(width, height);
+    }
+
     private boolean isElementFullyInViewport(ElementBoundingBox boundingBox) {
         try {
             Dimension viewportSize = driver.manage().window().getSize();
             int scrollY = getCurrentScrollPosition();
+            int viewportY = boundingBox.getY() - scrollY;
 
-            int cssX = boundingBox.getX();
-            int cssY = boundingBox.getY();
-            int cssWidth = boundingBox.getWidth();
-            int cssHeight = boundingBox.getHeight();
+            boolean xInBounds = boundingBox.getX() >= 0 &&
+                    boundingBox.getX() + boundingBox.getWidth() <= viewportSize.getWidth();
+            boolean yInBounds = (viewportY < viewportSize.getHeight()) &&
+                    (viewportY + boundingBox.getHeight() > 0);
 
-            int viewportY = cssY - scrollY;
-
-            boolean xInBounds = cssX >= 0 &&
-                    cssX + cssWidth <= viewportSize.getWidth();
-
-            boolean yInBounds = (viewportY < viewportSize.getHeight()) && (viewportY + cssHeight > 0);
             return xInBounds && yInBounds;
-
         } catch (Exception e) {
             log.warning("Failed to check viewport bounds: " + e.getMessage());
             return false;
         }
     }
 
-    private int getCurrentScrollPosition() {
-        return cumulativeScrollPosition;
-    }
-
-    /**
-     * Get device pixel ratio for proper scaling
-     */
     private double getDevicePixelRatio() {
-        try {
-            String platform = detectPlatform();
+        String platform = detectPlatform();
 
-            if (platform.contains("web")) {
-                try {
-                    Object dprResult = ((JavascriptExecutor) driver).executeScript(
-                            "return window.devicePixelRatio || 1;"
-                    );
-
-                    double dpr;
-                    if (dprResult instanceof Number) {
-                        dpr = ((Number) dprResult).doubleValue();
-                    } else if (dprResult instanceof String) {
-                        dpr = Double.parseDouble((String) dprResult);
-                    } else {
-                        dpr = 1.0;
-                    }
-
-                    return dpr;
-                } catch (Exception e) {
-                    log.warning("Failed to get device pixel ratio from JavaScript: " + e.getMessage());
-                    return 1.0;
-                }
-            } else if (platform.contains("ios")) {
-                return getIOSDevicePixelRatio();
-            } else {
-                try {
-                    Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-                    Object pixelRatio = caps.getCapability("devicePixelRatio");
-                    if (pixelRatio != null) {
-                        return Double.parseDouble(pixelRatio.toString());
-                    }
-                } catch (Exception e) {
-                    log.warning("Failed to get device pixel ratio from capabilities: " + e.getMessage());
-                }
-
-                return 1.0;
-            }
-        } catch (Exception e) {
-            log.warning("Failed to get device pixel ratio: " + e.getMessage());
-            return 1.0;
+        if (platform.contains(PLATFORM_WEB)) {
+            return getWebDevicePixelRatio();
+        } else if (platform.contains(PLATFORM_IOS)) {
+            return getIOSDevicePixelRatio();
+        } else {
+            return getAndroidDevicePixelRatio();
         }
     }
 
-    /**
-     * Get iOS device pixel ratio from hardcoded map based on ios-resolution.com
-     */
+    private double getWebDevicePixelRatio() {
+        try {
+            Object dprResult = ((JavascriptExecutor) driver).executeScript("return window.devicePixelRatio || 1;");
+            return parseDevicePixelRatio(dprResult);
+        } catch (Exception e) {
+            log.warning("Failed to get device pixel ratio from JavaScript: " + e.getMessage());
+            return DEFAULT_DEVICE_PIXEL_RATIO;
+        }
+    }
+
+    private double getAndroidDevicePixelRatio() {
+        try {
+            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            Object pixelRatio = caps.getCapability("devicePixelRatio");
+            return pixelRatio != null ? Double.parseDouble(pixelRatio.toString()) : DEFAULT_DEVICE_PIXEL_RATIO;
+        } catch (Exception e) {
+            log.warning("Failed to get device pixel ratio from capabilities: " + e.getMessage());
+            return DEFAULT_DEVICE_PIXEL_RATIO;
+        }
+    }
+
+    private double parseDevicePixelRatio(Object dprResult) {
+        if (dprResult instanceof Number) {
+            return ((Number) dprResult).doubleValue();
+        } else if (dprResult instanceof String) {
+            return Double.parseDouble((String) dprResult);
+        } else {
+            return DEFAULT_DEVICE_PIXEL_RATIO;
+        }
+    }
+
     private double getIOSDevicePixelRatio() {
         try {
-            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-            String deviceName = "";
-            String model = "";
-
-            if (caps.getCapability("deviceName") != null) {
-                deviceName = caps.getCapability("deviceName").toString().toLowerCase();
-            }
-            if (caps.getCapability("model") != null) {
-                model = caps.getCapability("model").toString().toLowerCase();
-            }
-
-            // iPhone DPR Map based on ios-resolution.com scale factors
-            if (deviceName.contains("iphone") || model.contains("iphone")) {
-                if (deviceName.contains("16") || model.contains("16")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("15") || model.contains("15")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("14") || model.contains("14")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("13") || model.contains("13")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("12") || model.contains("12")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("11") || model.contains("11")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("x") || model.contains("x")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("8") || model.contains("8")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("7") || model.contains("7")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("6 plus") || model.contains("6 plus")) {
-                    return 3.0;
-                }
-                if (deviceName.contains("6") || model.contains("6")) {
-                    return 2.0;
-                }
-                if (deviceName.contains("5") || model.contains("5")) {
-                    return 2.0;
-                }
-                if (deviceName.contains("4") || model.contains("4")) {
-                    return 2.0;
-                }
-                if (deviceName.contains("se") || model.contains("se")) {
-                    return 2.0;
-                }
-                if (deviceName.contains("3") || model.contains("3")) {
-                    return 1.0;
-                }
-                if (extractIPhoneNumber(deviceName, model) > 16) {
-                    return 3.0;
-                }
-                return 3.0;
-            }
-
-            if (deviceName.contains("ipad") || model.contains("ipad")) {
-                return 2.0;
-            }
-
-            if (deviceName.contains("ipod") || model.contains("ipod")) {
-                if (deviceName.contains("5") || model.contains("5") ||
-                        deviceName.contains("6") || model.contains("6") ||
-                        deviceName.contains("7") || model.contains("7")) {
-                    return 2.0;
-                }
-                return 1.0;
-            }
-
-            return 3.0;
-
+            DeviceInfo deviceInfo = getDeviceInfo();
+            return determineIOSPixelRatio(deviceInfo.deviceName, deviceInfo.model);
         } catch (Exception e) {
             log.warning("Failed to get iOS device pixel ratio: " + e.getMessage());
-            return 3.0;
+            return IOS_SCALE_FACTOR_3X;
         }
     }
 
-    /**
-     * Get status bar height for iOS devices in CSS pixels
-     * Similar to Golang implementation with device-specific height detection
-     */
+    private double determineIOSPixelRatio(String deviceName, String model) {
+        if (isDevice(deviceName, model, "iphone")) {
+            return getIPhonePixelRatio(deviceName, model);
+        } else if (isDevice(deviceName, model, "ipad")) {
+            return IOS_SCALE_FACTOR_2X;
+        } else if (isDevice(deviceName, model, "ipod")) {
+            return getIPodPixelRatio(deviceName, model);
+        }
+        return IOS_SCALE_FACTOR_3X;
+    }
+
+    private double getIPhonePixelRatio(String deviceName, String model) {
+        if (containsAnyModel(deviceName, model, IPHONE_3X_MODELS)) {
+            return IOS_SCALE_FACTOR_3X;
+        } else if (containsAnyModel(deviceName, model, IPHONE_2X_MODELS)) {
+            return IOS_SCALE_FACTOR_2X;
+        } else if (containsAnyModel(deviceName, model, IPHONE_1X_MODELS)) {
+            return IOS_SCALE_FACTOR_1X;
+        } else if (extractIPhoneNumber(deviceName, model) > FUTURE_IPHONE_VERSION_THRESHOLD) {
+            return IOS_SCALE_FACTOR_3X;
+        }
+        return IOS_SCALE_FACTOR_3X;
+    }
+
+    private double getIPodPixelRatio(String deviceName, String model) {
+        return containsAnyModel(deviceName, model, IPOD_2X_GENERATIONS) ? IOS_SCALE_FACTOR_2X : IOS_SCALE_FACTOR_1X;
+    }
+
     public int getStatusBarHeightForIOS() {
         try {
-            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-            String deviceName = "";
-
-            if (caps.getCapability("deviceName") != null) {
-                deviceName = caps.getCapability("deviceName").toString();
-            }
-
+            String deviceName = getCapabilityAsString("deviceName");
             if (deviceName.isEmpty()) {
-                return 20;
+                return DEFAULT_STATUS_BAR_HEIGHT;
             }
 
             String lowerName = deviceName.toLowerCase();
-
             if (lowerName.contains("ipad")) {
                 return getIPadStatusBarHeight(lowerName);
-            }
-
-            if (lowerName.contains("iphone")) {
+            } else if (lowerName.contains("iphone")) {
                 return getIPhoneStatusBarHeight(lowerName);
             }
 
-            return 20;
-
+            return DEFAULT_STATUS_BAR_HEIGHT;
         } catch (Exception e) {
             log.warning("Failed to get iOS status bar height: " + e.getMessage());
-            return 20;
+            return DEFAULT_STATUS_BAR_HEIGHT;
         }
     }
 
-    /**
-     * Get iPad status bar height in CSS pixels
-     */
     private int getIPadStatusBarHeight(String deviceName) {
-        // Newer iPad Pro models have taller status bars
-        if (deviceName.contains("pro")) {
-            String[] newerYears = {"2018", "2020", "2021", "2022", "2024", "2025"};
-            for (String year : newerYears) {
-                if (deviceName.contains(year)) {
-                    return 24;
-                }
-            }
+        if (deviceName.contains("pro") && containsAny(deviceName, IPAD_PRO_NEWER_YEARS)) {
+            return IPAD_PRO_NEWER_STATUS_BAR_HEIGHT;
         }
-        return 20;
+        return DEFAULT_STATUS_BAR_HEIGHT;
     }
 
-    /**
-     * Get iPhone status bar height in CSS pixels
-     */
     private int getIPhoneStatusBarHeight(String deviceName) {
-        if (hasDynamicIsland(deviceName)) {
-            return 54;
+        if (containsAny(deviceName, DYNAMIC_ISLAND_DEVICES)) {
+            return IPHONE_DYNAMIC_ISLAND_HEIGHT;
+        } else if (hasNotch(deviceName)) {
+            return IPHONE_NOTCH_HEIGHT;
+        } else if (containsAny(deviceName, TRADITIONAL_IPHONES)) {
+            return DEFAULT_STATUS_BAR_HEIGHT;
         }
-
-        if (hasNotch(deviceName)) {
-            return 47;
-        }
-
-        if (isTraditionalIPhone(deviceName)) {
-            return 20;
-        }
-
-        return 20;
+        return DEFAULT_STATUS_BAR_HEIGHT;
     }
 
-    /**
-     * Check if the iPhone has Dynamic Island
-     */
-    private boolean hasDynamicIsland(String deviceName) {
-        String[] dynamicIslandDevices = {
-                "14 pro", "14pro",
-                "15",
-                "16",
-                "17" // All iPhone 17 models expected to have Dynamic Island
-        };
-
-        for (String device : dynamicIslandDevices) {
-            if (deviceName.contains(device)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check if the iPhone has notch
-     */
     private boolean hasNotch(String deviceName) {
-        String[] notchDevices = {
-                "x", "xs", "xr",
-                "11",
-                "12",
-                "13",
-                "14"
-        };
-
-        for (String device : notchDevices) {
+        for (String device : NOTCH_DEVICES) {
             if (deviceName.contains(device)) {
-                // Special case: iPhone 14 Pro models are handled by Dynamic Island
                 if (device.equals("14") && (deviceName.contains("pro") || deviceName.contains("14 pro"))) {
                     continue;
                 }
@@ -402,335 +323,225 @@ public class ElementBoundingBoxUtil {
         return false;
     }
 
-    /**
-     * Check if the iPhone is a traditional model without notch
-     */
-    private boolean isTraditionalIPhone(String deviceName) {
-        String[] traditionalDevices = {
-                "se", "8", "7", "6", "5", "4"
-        };
-
-        for (String device : traditionalDevices) {
-            if (deviceName.contains(device)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check if status bar height should be added for web tests on iOS devices
-     */
-    private boolean shouldAddStatusBarHeight() {
-        try {
-            // Only apply status bar height for web tests on iOS devices
-            return testType.toLowerCase().contains("web") && (deviceName.toLowerCase().contains("iphone") || deviceName.toLowerCase().contains("ipad") || deviceName.toLowerCase().contains("ipod"));
-
-        } catch (Exception e) {
-            log.warning("Failed to check if status bar height should be added: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Get status bar height in device pixels for web tests on iOS devices
-     * This method should be used when testType is web and deviceName is iOS device
-     * Returns status bar height * device pixel ratio for proper scaling
-     */
     public int getStatusBarHeightInDevicePixels() {
         try {
             if (shouldAddStatusBarHeight()) {
                 int cssStatusBarHeight = getStatusBarHeightForIOS();
                 return (int) (cssStatusBarHeight * devicePixelRatio);
             }
-
             return 0;
-
         } catch (Exception e) {
             log.warning("Failed to get status bar height in device pixels: " + e.getMessage());
             return 0;
         }
     }
 
-    /**
-     * Check if Android Chrome address bar height should be added for web tests on Android devices
-     */
-    private boolean shouldAddAndroidChromeBarHeight() {
-        try {
-            // Only apply Chrome bar height for web tests on Android devices
-            return testType.toLowerCase().contains("web") &&
-                    (deviceName.toLowerCase().contains("android") ||
-                            detectPlatform().toLowerCase().contains("android"));
-
-        } catch (Exception e) {
-            log.warning("Failed to check if Android Chrome address bar height should be added: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private int getChromeAddressBarHeightForAndroid() {
-        try {
-
-            Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-            String androidVersion = "";
-            if (caps.getCapability("platformVersion") != null) {
-                androidVersion = caps.getCapability("platformVersion").toString();
-            }
-
-            // Android 11+ typically has: Status bar: 24px + Chrome address bar: ~56px = ~80px
-            if (androidVersion.startsWith("11") || androidVersion.startsWith("12") ||
-                    androidVersion.startsWith("13") || androidVersion.startsWith("14")) {
-                return 80;
-            }
-
-            // Android 10 typically has similar heights
-            if (androidVersion.startsWith("10")) {
-                return 80;
-            }
-
-            // Android 9 and below might have slightly different heights
-            if (androidVersion.startsWith("9") || androidVersion.startsWith("8") ||
-                    androidVersion.startsWith("7")) {
-                return 76;
-            }
-
-
-            return 80;
-
-        } catch (Exception e) {
-            log.warning("Failed to determine default Chrome bar height: " + e.getMessage());
-            return 80;
-        }
-    }
-
-    /**
-     * Get Chrome address bar height in device pixels for web tests on Android devices
-     * This method should be used when testType is web and platform is Android
-     * Returns Chrome bar height * device pixel ratio for proper scaling
-     */
     public int getAndroidChromeBarHeightInDevicePixels() {
         try {
             if (shouldAddAndroidChromeBarHeight()) {
                 int cssChromeBarHeight = getChromeAddressBarHeightForAndroid();
                 return (int) (cssChromeBarHeight * devicePixelRatio);
             }
-
             return 0;
-
         } catch (Exception e) {
             log.warning("Failed to get Android Chrome bar height in device pixels: " + e.getMessage());
             return 0;
         }
     }
 
-    /**
-     * Extract iPhone number from device name or model for future device detection
-     */
-    private int extractIPhoneNumber(String deviceName, String model) {
+    private int getChromeAddressBarHeightForAndroid() {
         try {
-            String combined = (deviceName + " " + model).toLowerCase();
+            String androidVersion = getCapabilityAsString("platformVersion");
 
-            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("iphone\\s*(\\d+)");
-            java.util.regex.Matcher matcher = pattern.matcher(combined);
-
-            if (matcher.find()) {
-                return Integer.parseInt(matcher.group(1));
+            if (startsWithAny(androidVersion, ANDROID_NEW_VERSIONS)) {
+                return ANDROID_CHROME_BAR_HEIGHT_NEW;
+            } else if (startsWithAny(androidVersion, ANDROID_OLD_VERSIONS)) {
+                return ANDROID_CHROME_BAR_HEIGHT_OLD;
             }
 
-
-            pattern = java.util.regex.Pattern.compile("\\b(\\d{2,})\\b");
-            matcher = pattern.matcher(combined);
-
-            if (matcher.find()) {
-                int version = Integer.parseInt(matcher.group(1));
-                if (version >= 17) {
-                    return version;
-                }
-            }
-
-            return 0;
+            return ANDROID_CHROME_BAR_HEIGHT_NEW;
         } catch (Exception e) {
-            log.warning("Failed to extract iPhone number: " + e.getMessage());
-            return 0;
+            log.warning("Failed to determine default Chrome bar height: " + e.getMessage());
+            return ANDROID_CHROME_BAR_HEIGHT_NEW;
         }
     }
 
-    /**
-     * Update cumulative scroll position for native mobile apps
-     * This should be called after each scroll operation with the scroll distance
-     */
+    private boolean shouldAddStatusBarHeight() {
+        return isWebTest() && isIOSDevice();
+    }
+
+    private boolean shouldAddAndroidChromeBarHeight() {
+        return isWebTest() && isAndroidDevice();
+    }
+
+    private boolean isWebTest() {
+        return testType.toLowerCase().contains(PLATFORM_WEB);
+    }
+
+    private boolean isIOSDevice() {
+        String lowerDeviceName = deviceName.toLowerCase();
+        return lowerDeviceName.contains("iphone") || lowerDeviceName.contains("ipad") || lowerDeviceName.contains("ipod");
+    }
+
+    private boolean isAndroidDevice() {
+        return deviceName.toLowerCase().contains(PLATFORM_ANDROID) || detectPlatform().toLowerCase().contains(PLATFORM_ANDROID);
+    }
+
     public void updateScrollPosition(int scrollDistance) {
         this.cumulativeScrollPosition += scrollDistance;
         log.info("Updated cumulative scroll position to: " + cumulativeScrollPosition + " CSS pixels");
     }
 
-    /**
-     * Detect platform (iOS/Android, Native/WebView)
-     */
+    public List<ElementBoundingBox> detectAllElementsAtTheStart(Map<String, List<String>> selectors, String purpose) {
+        if (isInvalidSelectorMap(selectors)) {
+            return new ArrayList<>();
+        }
+
+        try {
+            List<ElementBoundingBox> allElements = new ArrayList<>();
+            String platform = detectPlatform();
+
+            for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
+                processAllElementsOfType(entry.getKey(), entry.getValue(), allElements, platform, purpose);
+            }
+
+            return convertBoundingBoxesToDevicePixels(allElements);
+        } catch (Exception e) {
+            log.severe("Element detection failed: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private void processAllElementsOfType(String selectorType, List<String> selectorValues,
+                                          List<ElementBoundingBox> allElements, String platform, String purpose) {
+        if (selectorValues == null || selectorValues.isEmpty()) {
+            return;
+        }
+
+        for (String selectorValue : selectorValues) {
+            String selectorKey = createSelectorKey(selectorType, selectorValue);
+            processAllElementsForSelector(selectorType, selectorValue, selectorKey, allElements, platform, purpose);
+        }
+    }
+
+    private void processAllElementsForSelector(String selectorType, String selectorValue, String selectorKey,
+                                               List<ElementBoundingBox> allElements, String platform, String purpose) {
+        try {
+            List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
+
+            for (WebElement element : elements) {
+                ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, 0, platform, purpose);
+                if (boundingBox != null) {
+                    allElements.add(boundingBox);
+                } else {
+                    log.warning("Failed to create bounding box for element: " + selectorKey);
+                }
+            }
+        } catch (Exception e) {
+            log.warning("Failed to detect elements for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
+        }
+    }
+
     private String detectPlatform() {
         try {
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            String platformName = getCapabilityAsString(caps, "platformName", "platform");
+            String browserName = getCapabilityAsString(caps, "browserName");
 
-            String platformName = "";
-            String browserName = "";
-
-            try {
-                if (caps.getCapability("platformName") != null) {
-                    platformName = caps.getCapability("platformName").toString().toLowerCase();
-                } else if (caps.getCapability("platform") != null) {
-                    platformName = caps.getCapability("platform").toString().toLowerCase();
-                } else {
-                    log.warning("No platform capability found");
-                }
-
-                if (caps.getCapability("browserName") != null) {
-                    browserName = caps.getCapability("browserName").toString().toLowerCase();
-                } else {
-                    log.warning("No browserName capability found");
-                }
-
-                String detectedPlatform;
-                if (platformName.contains("ios")) {
-                    detectedPlatform = browserName.equals("safari") ? "ios_webview" : "ios_native";
-                } else if (platformName.contains("android")) {
-                    detectedPlatform = browserName.equals("chrome") ? "android_webview" : "android_native";
-                } else {
-                    detectedPlatform = "web";
-                }
-                return detectedPlatform;
-
-            } catch (Exception e) {
-                log.warning("Error accessing capabilities: " + e.getMessage());
-                return "unknown";
+            if (platformName.contains(PLATFORM_IOS)) {
+                return browserName.equals("safari") ? PLATFORM_IOS_WEBVIEW : PLATFORM_IOS_NATIVE;
+            } else if (platformName.contains(PLATFORM_ANDROID)) {
+                return browserName.equals("chrome") ? PLATFORM_ANDROID_WEBVIEW : PLATFORM_ANDROID_NATIVE;
+            } else {
+                return PLATFORM_WEB;
             }
-
         } catch (Exception e) {
             log.warning("Failed to detect platform: " + e.getMessage());
             return "unknown";
         }
     }
 
-    /**
-     * Convert a list of bounding boxes from CSS pixels to device pixels
-     */
     private List<ElementBoundingBox> convertBoundingBoxesToDevicePixels(List<ElementBoundingBox> cssElements) {
-        List<ElementBoundingBox> devicePixelElements = new ArrayList<>();
-        for (ElementBoundingBox cssElement : cssElements) {
-            int deviceX = (int) (cssElement.getX() * devicePixelRatio);
-            int deviceY = (int) (cssElement.getY() * devicePixelRatio);
-            int deviceWidth = (int) (cssElement.getWidth() * devicePixelRatio);
-            int deviceHeight = (int) (cssElement.getHeight() * devicePixelRatio);
-
-            ElementBoundingBox deviceElement = new ElementBoundingBox(
-                    cssElement.getSelectorKey(),
-                    deviceX,
-                    deviceY,
-                    deviceWidth,
-                    deviceHeight,
-                    cssElement.getChunkIndex(),
-                    cssElement.getPlatform(),
-                    cssElement.getPurpose()
-            );
-
-            devicePixelElements.add(deviceElement);
-        }
-        return devicePixelElements;
+        return cssElements.stream()
+                .map(this::convertToDevicePixels)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
-    /**
-     * Find elements using different selector types
-     * For web platforms, uses JavaScript for more reliable element detection
-     */
+    private ElementBoundingBox convertToDevicePixels(ElementBoundingBox cssElement) {
+        return new ElementBoundingBox(
+                cssElement.getSelectorKey(),
+                (int) (cssElement.getX() * devicePixelRatio),
+                (int) (cssElement.getY() * devicePixelRatio),
+                (int) (cssElement.getWidth() * devicePixelRatio),
+                (int) (cssElement.getHeight() * devicePixelRatio),
+                cssElement.getChunkIndex(),
+                cssElement.getPlatform(),
+                cssElement.getPurpose()
+        );
+    }
+
     private List<WebElement> findElementsBySelector(String selectorType, String selectorValue) {
         String platform = detectPlatform();
-
-        if (platform.contains("web")) {
-            // Use JavaScript for web platforms - more reliable for XPath and other selectors
-            return findElementsBySelectorWeb(selectorType, selectorValue);
-        } else {
-            // Use standard Selenium methods for mobile platforms
-            return findElementsBySelectorMobile(selectorType, selectorValue);
-        }
+        return platform.contains(PLATFORM_WEB) ?
+                findElementsBySelectorWeb(selectorType, selectorValue) :
+                findElementsBySelectorMobile(selectorType, selectorValue);
     }
 
-    /**
-     * Find elements using JavaScript for web platforms
-     * Uses the same approach as Golang implementation with getBoundingClientRect
-     */
     private List<WebElement> findElementsBySelectorWeb(String selectorType, String selectorValue) {
         try {
-            List<WebElement> elements = new ArrayList<>();
-
-            // Build JavaScript script based on selector type (similar to Golang implementation)
             String script = buildDOMBoxScript(selectorType, selectorValue);
-
             if (script.isEmpty()) {
                 log.warning("Unsupported selector type for web: " + selectorType + ", falling back to standard method");
                 return findElementsBySelectorMobile(selectorType, selectorValue);
             }
 
-            // Execute JavaScript to get bounding rect
             Object result = ((JavascriptExecutor) driver).executeScript(script);
-
             if (result != null) {
-                // If we got a bounding rect, the element exists - create a WebElement reference
                 WebElement element = createWebElementFromSelector(selectorType, selectorValue);
-                if (element != null) {
-                    elements.add(element);
-                }
+                return element != null ? List.of(element) : new ArrayList<>();
             }
-
-            return elements;
-
+            return new ArrayList<>();
         } catch (Exception e) {
             log.warning("JavaScript element detection failed for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
             return findElementsBySelectorMobile(selectorType, selectorValue);
         }
     }
 
-    /**
-     * Build JavaScript script for getting element bounding rect (similar to Golang implementation)
-     * Ignores index parameter as requested
-     */
     private String buildDOMBoxScript(String selectorType, String elementSelector) {
         switch (selectorType.toLowerCase()) {
-            case "class":
+            case SELECTOR_CLASS:
                 return "return document.getElementsByClassName(`" + elementSelector + "`)[0].getBoundingClientRect();";
-            case "id":
+            case SELECTOR_ID:
                 return "return document.getElementById(`" + elementSelector + "`).getBoundingClientRect();";
-            case "xpath":
+            case SELECTOR_XPATH:
                 return "var element = document.evaluate(`" + elementSelector + "`, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotItem(0); return element ? element.getBoundingClientRect() : null;";
-            case "css":
+            case SELECTOR_CSS:
                 return "return document.querySelectorAll(`" + elementSelector + "`)[0].getBoundingClientRect();";
-            case "name":
+            case SELECTOR_NAME:
                 return "return document.getElementsByName(`" + elementSelector + "`)[0].getBoundingClientRect();";
-            case "accessibilityid":
-            case "accessibility_id":
-                // For web, accessibility ID is typically aria-label or title
+            case SELECTOR_ACCESSIBILITY_ID:
+            case SELECTOR_ACCESSIBILITY_ID_ALT:
                 return "var element = document.querySelector('[aria-label=\"" + elementSelector + "\"], [title=\"" + elementSelector + "\"], [content-desc=\"" + elementSelector + "\"]'); return element ? element.getBoundingClientRect() : null;";
             default:
                 return "";
         }
     }
 
-    /**
-     * Create a WebElement reference from selector for the found element
-     */
     private WebElement createWebElementFromSelector(String selectorType, String selectorValue) {
         try {
             switch (selectorType.toLowerCase()) {
-                case "xpath":
+                case SELECTOR_XPATH:
                     return driver.findElement(By.xpath(selectorValue));
-                case "class":
+                case SELECTOR_CLASS:
                     return driver.findElement(By.className(selectorValue));
-                case "id":
+                case SELECTOR_ID:
                     return driver.findElement(By.id(selectorValue));
-                case "css":
+                case SELECTOR_CSS:
                     return driver.findElement(By.cssSelector(selectorValue));
-                case "name":
+                case SELECTOR_NAME:
                     return driver.findElement(By.name(selectorValue));
-                case "accessibilityid":
-                case "accessibility_id":
+                case SELECTOR_ACCESSIBILITY_ID:
+                case SELECTOR_ACCESSIBILITY_ID_ALT:
                     return driver.findElement(By.xpath("//*[@aria-label='" + selectorValue + "' or @title='" + selectorValue + "' or @content-desc='" + selectorValue + "']"));
                 default:
                     return null;
@@ -741,23 +552,20 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-    /**
-     * Find elements using standard Selenium methods for mobile platforms
-     */
     private List<WebElement> findElementsBySelectorMobile(String selectorType, String selectorValue) {
         switch (selectorType.toLowerCase()) {
-            case "xpath":
+            case SELECTOR_XPATH:
                 return driver.findElements(By.xpath(selectorValue));
-            case "class":
+            case SELECTOR_CLASS:
                 return driver.findElements(By.className(selectorValue));
-            case "accessibilityid":
-            case "accessibility_id":
+            case SELECTOR_ACCESSIBILITY_ID:
+            case SELECTOR_ACCESSIBILITY_ID_ALT:
                 return driver.findElements(By.xpath("//*[@content-desc='" + selectorValue + "']"));
-            case "name":
+            case SELECTOR_NAME:
                 return driver.findElements(By.name(selectorValue));
-            case "id":
+            case SELECTOR_ID:
                 return driver.findElements(By.id(selectorValue));
-            case "css":
+            case SELECTOR_CSS:
                 return driver.findElements(By.cssSelector(selectorValue));
             default:
                 log.warning("Unsupported selector type: " + selectorType + ", falling back to XPath");
@@ -765,93 +573,122 @@ public class ElementBoundingBoxUtil {
         }
     }
 
-
-    /**
-     * Get element bounding box using JavaScript for web platforms
-     * Uses the same approach as Golang implementation with getBoundingClientRect
-     */
     private Map<String, Object> getElementBoundingBoxWeb(WebElement element) {
         try {
-            // Use the same JavaScript approach as Golang implementation
-            String script =
-                    "var rect = arguments[0].getBoundingClientRect();" +
-                            "var scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;" +
-                            "var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;" +
-                            "return {" +
-                            "  x: rect.left + scrollX," +
-                            "  y: rect.top + scrollY," +
-                            "  width: rect.width," +
-                            "  height: rect.height" +
-                            "};";
+            String script = "var rect = arguments[0].getBoundingClientRect();" +
+                    "var scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;" +
+                    "var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;" +
+                    "return {" +
+                    "  x: rect.left + scrollX," +
+                    "  y: rect.top + scrollY," +
+                    "  width: rect.width," +
+                    "  height: rect.height" +
+                    "};";
 
             @SuppressWarnings("unchecked")
             Map<String, Object> result = (Map<String, Object>) ((JavascriptExecutor) driver).executeScript(script, element);
-
             return result;
-
         } catch (Exception e) {
             log.warning("JavaScript bounding box failed, falling back to Selenium: " + e.getMessage());
-
-            Point location = element.getLocation();
-            Dimension size = element.getSize();
-
-            Map<String, Object> fallback = new HashMap<>();
-            fallback.put("x", location.getX());
-            fallback.put("y", location.getY());
-            fallback.put("width", size.getWidth());
-            fallback.put("height", size.getHeight());
-
-            return fallback;
+            return createFallbackBoundingBox(element);
         }
     }
 
-    /**
-     * No viewport filtering needed since iOS and web makes all elements accessible
-     */
-    public List<ElementBoundingBox> detectAllElementsAtTheStart(Map<String, List<String>> selectors, String purpose) {
+    private Map<String, Object> createFallbackBoundingBox(WebElement element) {
+        Point location = element.getLocation();
+        Dimension size = element.getSize();
+
+        Map<String, Object> fallback = new HashMap<>();
+        fallback.put("x", location.getX());
+        fallback.put("y", location.getY());
+        fallback.put("width", size.getWidth());
+        fallback.put("height", size.getHeight());
+        return fallback;
+    }
+
+    // Helper methods
+    private int getCurrentScrollPosition() {
+        return cumulativeScrollPosition;
+    }
+
+    private String createSelectorKey(String selectorType, String selectorValue) {
+        return selectorType + ":" + selectorValue;
+    }
+
+    private boolean isInvalidSelectorMap(Map<String, List<String>> selectors) {
+        return selectors == null || selectors.isEmpty();
+    }
+
+    private DeviceInfo getDeviceInfo() {
+        Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+        String deviceName = getCapabilityAsString(caps, "deviceName", "");
+        String model = getCapabilityAsString(caps, "model", "");
+        return new DeviceInfo(deviceName.toLowerCase(), model.toLowerCase());
+    }
+
+    private String getCapabilityAsString(String capabilityName) {
+        Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+        return getCapabilityAsString(caps, capabilityName, "");
+    }
+
+    private String getCapabilityAsString(Capabilities caps, String... capabilityNames) {
+        for (String capName : capabilityNames) {
+            Object capability = caps.getCapability(capName);
+            if (capability != null) {
+                return capability.toString().toLowerCase();
+            }
+        }
+        return "";
+    }
+
+    private boolean isDevice(String deviceName, String model, String deviceType) {
+        return deviceName.contains(deviceType) || model.contains(deviceType);
+    }
+
+    private boolean containsAnyModel(String deviceName, String model, Set<String> models) {
+        return models.stream().anyMatch(m -> deviceName.contains(m) || model.contains(m));
+    }
+
+    private boolean containsAny(String text, Set<String> items) {
+        return items.stream().anyMatch(text::contains);
+    }
+
+    private boolean startsWithAny(String text, Set<String> prefixes) {
+        return prefixes.stream().anyMatch(text::startsWith);
+    }
+
+    private int extractIPhoneNumber(String deviceName, String model) {
         try {
-            List<ElementBoundingBox> allElements = new ArrayList<>();
-            String platform = detectPlatform();
+            String combined = (deviceName + " " + model);
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("iphone\\s*(\\d+)");
+            java.util.regex.Matcher matcher = pattern.matcher(combined);
 
-            if (selectors == null || selectors.isEmpty()) {
-                return allElements;
+            if (matcher.find()) {
+                return Integer.parseInt(matcher.group(1));
             }
 
-            for (Map.Entry<String, List<String>> entry : selectors.entrySet()) {
-                String selectorType = entry.getKey();
-                List<String> selectorValues = entry.getValue();
+            pattern = java.util.regex.Pattern.compile("\\b(\\d{2,})\\b");
+            matcher = pattern.matcher(combined);
 
-                if (selectorValues == null || selectorValues.isEmpty()) {
-                    continue;
-                }
-
-                for (String selectorValue : selectorValues) {
-                    String selectorKey = selectorType + ":" + selectorValue;
-
-                    try {
-                        List<WebElement> elements = findElementsBySelector(selectorType, selectorValue);
-
-                        for (WebElement element : elements) {
-                            // Create bounding box with absolute position (no scroll offset needed for iOS and web elements)
-                            ElementBoundingBox boundingBox = createBoundingBox(element, selectorKey, 0, platform, purpose);
-
-                            if (boundingBox != null) {
-                                allElements.add(boundingBox);
-                            } else {
-                                log.warning("Failed to create bounding box for element: " + selectorKey);
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warning("Failed to detect elements for " + selectorType + " (" + selectorValue + "): " + e.getMessage());
-                    }
-                }
+            if (matcher.find()) {
+                int version = Integer.parseInt(matcher.group(1));
+                return version >= FUTURE_IPHONE_VERSION_THRESHOLD ? version : 0;
             }
 
-            return convertBoundingBoxesToDevicePixels(allElements);
-
+            return 0;
         } catch (Exception e) {
-            log.severe("Element detection failed: " + e.getMessage());
-            return new ArrayList<>();
+            log.warning("Failed to extract iPhone number: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private static class DeviceInfo {
+        final String deviceName;
+        final String model;
+
+        DeviceInfo(String deviceName, String model) {
+            this.deviceName = deviceName;
+            this.model = model;
         }
     }
 }
