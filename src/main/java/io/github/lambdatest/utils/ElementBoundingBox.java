@@ -12,7 +12,6 @@ public class ElementBoundingBox {
     private int width;
     private int height;
     private int chunkIndex;
-    private long timestamp;
     private String platform;
 
     public ElementBoundingBox(String selectorKey, int x, int y, int width, int height, int chunkIndex, String platform, String purpose) {
@@ -22,11 +21,9 @@ public class ElementBoundingBox {
         this.width = width;
         this.height = height;
         this.chunkIndex = chunkIndex;
-        this.timestamp = System.currentTimeMillis();
         this.platform = platform;
         this.purpose = purpose;
-        
-        // Parse selectorKey to extract type and value
+
         parseSelectorKey(selectorKey);
     }
 
@@ -40,45 +37,22 @@ public class ElementBoundingBox {
             if (parts.length == 2) {
                 this.selectorType = parts[0];
                 this.selectorValue = parts[1];
-            } else {
-                // Fallback for backward compatibility
-                this.selectorType = "xpath";
-                this.selectorValue = selectorKey;
             }
-        } else {
-            // Fallback for backward compatibility
-            this.selectorType = "xpath";
-            this.selectorValue = selectorKey;
         }
     }
 
-    // Getters
+
     public String getSelectorKey() { return selectorKey; }
-    public String getSelectorType() { return selectorType; }
-    public String getSelectorValue() { return selectorValue; }
     public String getPurpose() { return purpose; }
-    
-    // Backward compatibility getter
-    public String getXpath() { return selectorValue; }
+
     
     public int getX() { return x; }
     public int getY() { return y; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public int getChunkIndex() { return chunkIndex; }
-    public long getTimestamp() { return timestamp; }
     public String getPlatform() { return platform; }
 
-    // Calculate center point for deduplication
-    public int getCenterX() { return x + width / 2; }
-    public int getCenterY() { return y + height / 2; }
-
-    // Calculate distance to another element center
-    public double distanceTo(ElementBoundingBox other) {
-        int dx = this.getCenterX() - other.getCenterX();
-        int dy = this.getCenterY() - other.getCenterY();
-        return Math.sqrt(dx * dx + dy * dy);
-    }
 
     @Override
     public boolean equals(Object obj) {

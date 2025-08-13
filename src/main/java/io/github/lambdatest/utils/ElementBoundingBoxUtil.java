@@ -19,7 +19,6 @@ public class ElementBoundingBoxUtil {
         this.testType = testType;
         this.deviceName = deviceName;
         this.devicePixelRatio = getDevicePixelRatio();
-        log.info("ElementBoundingBoxUtil initialized - testType: " + testType + ", deviceName: " + deviceName + ", DPR: " + devicePixelRatio);
     }
 
     /**
@@ -46,8 +45,7 @@ public class ElementBoundingBoxUtil {
                 continue;
             }
 
-            for (int i = 0; i < selectorValues.size(); i++) {
-                String selectorValue = selectorValues.get(i);
+            for (String selectorValue : selectorValues) {
                 String selectorKey = selectorType + ":" + selectorValue;
 
                 if (foundElements.contains(selectorKey)) {
@@ -187,8 +185,7 @@ public class ElementBoundingBoxUtil {
                     Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
                     Object pixelRatio = caps.getCapability("devicePixelRatio");
                     if (pixelRatio != null) {
-                        double dpr = Double.parseDouble(pixelRatio.toString());
-                        return dpr;
+                        return Double.parseDouble(pixelRatio.toString());
                     }
                 } catch (Exception e) {
                     log.warning("Failed to get device pixel ratio from capabilities: " + e.getMessage());
@@ -211,7 +208,6 @@ public class ElementBoundingBoxUtil {
             String deviceName = "";
             String model = "";
 
-            // Try to get device information from capabilities
             if (caps.getCapability("deviceName") != null) {
                 deviceName = caps.getCapability("deviceName").toString().toLowerCase();
             }
@@ -221,93 +217,70 @@ public class ElementBoundingBoxUtil {
 
             // iPhone DPR Map based on ios-resolution.com scale factors
             if (deviceName.contains("iphone") || model.contains("iphone")) {
-                // iPhone 16 series (Scale Factor: 3)
                 if (deviceName.contains("16") || model.contains("16")) {
                     return 3.0;
                 }
-                // iPhone 15 series (Scale Factor: 3)
                 if (deviceName.contains("15") || model.contains("15")) {
                     return 3.0;
                 }
-                // iPhone 14 series (Scale Factor: 3)
                 if (deviceName.contains("14") || model.contains("14")) {
                     return 3.0;
                 }
-                // iPhone 13 series (Scale Factor: 3)
                 if (deviceName.contains("13") || model.contains("13")) {
                     return 3.0;
                 }
-                // iPhone 12 series (Scale Factor: 3)
                 if (deviceName.contains("12") || model.contains("12")) {
                     return 3.0;
                 }
-                // iPhone 11 series (Scale Factor: 3)
                 if (deviceName.contains("11") || model.contains("11")) {
                     return 3.0;
                 }
-                // iPhone X series (Scale Factor: 3)
                 if (deviceName.contains("x") || model.contains("x")) {
                     return 3.0;
                 }
-                // iPhone 8 series (Scale Factor: 3)
                 if (deviceName.contains("8") || model.contains("8")) {
                     return 3.0;
                 }
-                // iPhone 7 series (Scale Factor: 3)
                 if (deviceName.contains("7") || model.contains("7")) {
                     return 3.0;
                 }
-                // iPhone 6 Plus (Scale Factor: 3)
                 if (deviceName.contains("6 plus") || model.contains("6 plus")) {
                     return 3.0;
                 }
-                // iPhone 6 (Scale Factor: 2)
                 if (deviceName.contains("6") || model.contains("6")) {
                     return 2.0;
                 }
-                // iPhone 5 series (Scale Factor: 2)
                 if (deviceName.contains("5") || model.contains("5")) {
                     return 2.0;
                 }
-                // iPhone 4 series (Scale Factor: 2)
                 if (deviceName.contains("4") || model.contains("4")) {
                     return 2.0;
                 }
-                // iPhone SE series (Scale Factor: 2)
                 if (deviceName.contains("se") || model.contains("se")) {
                     return 2.0;
                 }
-                // iPhone 3GS and earlier (Scale Factor: 1)
                 if (deviceName.contains("3") || model.contains("3")) {
                     return 1.0;
                 }
-                // Future iPhone models (Scale Factor: 3) - for iPhone 17+ and beyond
                 if (extractIPhoneNumber(deviceName, model) > 16) {
                     return 3.0;
                 }
-                // Default for other iPhones (Scale Factor: 3)
                 return 3.0;
             }
 
-            // iPad DPR Map based on ios-resolution.com scale factors
             if (deviceName.contains("ipad") || model.contains("ipad")) {
-                // All iPad series (Scale Factor: 2)
                 return 2.0;
             }
 
-            // iPod touch DPR Map based on ios-resolution.com scale factors
             if (deviceName.contains("ipod") || model.contains("ipod")) {
-                // iPod touch 5th gen and later (Scale Factor: 2)
                 if (deviceName.contains("5") || model.contains("5") ||
                         deviceName.contains("6") || model.contains("6") ||
                         deviceName.contains("7") || model.contains("7")) {
                     return 2.0;
                 }
-                // iPod touch 4th gen and earlier (Scale Factor: 1)
                 return 1.0;
             }
 
-            // Fallback for iOS devices
             return 3.0;
 
         } catch (Exception e) {
@@ -325,7 +298,6 @@ public class ElementBoundingBoxUtil {
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
             String deviceName = "";
 
-            // Try to get device information from capabilities
             if (caps.getCapability("deviceName") != null) {
                 deviceName = caps.getCapability("deviceName").toString();
             }
@@ -336,15 +308,12 @@ public class ElementBoundingBoxUtil {
 
             String lowerName = deviceName.toLowerCase();
 
-            // iPad handling
             if (lowerName.contains("ipad")) {
-                int height = getIPadStatusBarHeight(lowerName);
-                return height;
+                return getIPadStatusBarHeight(lowerName);
             }
 
             if (lowerName.contains("iphone")) {
-                int height = getIPhoneStatusBarHeight(lowerName);
-                return height;
+                return getIPhoneStatusBarHeight(lowerName);
             }
 
             return 20;
@@ -455,11 +424,7 @@ public class ElementBoundingBoxUtil {
     private boolean shouldAddStatusBarHeight() {
         try {
             // Only apply status bar height for web tests on iOS devices
-            if (testType.toLowerCase().contains("web") && (deviceName.toLowerCase().contains("iphone") || deviceName.toLowerCase().contains("ipad") || deviceName.toLowerCase().contains("ipod"))) {
-                return true;
-            }
-
-            return false;
+            return testType.toLowerCase().contains("web") && (deviceName.toLowerCase().contains("iphone") || deviceName.toLowerCase().contains("ipad") || deviceName.toLowerCase().contains("ipod"));
 
         } catch (Exception e) {
             log.warning("Failed to check if status bar height should be added: " + e.getMessage());
@@ -493,13 +458,9 @@ public class ElementBoundingBoxUtil {
     private boolean shouldAddAndroidChromeBarHeight() {
         try {
             // Only apply Chrome bar height for web tests on Android devices
-            if (testType.toLowerCase().contains("web") &&
+            return testType.toLowerCase().contains("web") &&
                     (deviceName.toLowerCase().contains("android") ||
-                            detectPlatform().toLowerCase().contains("android"))) {
-                return true;
-            }
-
-            return false;
+                            detectPlatform().toLowerCase().contains("android"));
 
         } catch (Exception e) {
             log.warning("Failed to check if Android Chrome address bar height should be added: " + e.getMessage());

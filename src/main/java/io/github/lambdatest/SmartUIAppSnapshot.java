@@ -302,20 +302,17 @@ public class SmartUIAppSnapshot {
         FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName, testType);
 
         Map<String, Object> selectorData = extractSelectorsFromOptions(options);
-        
-        // Extract selectors from options
+
         Map<String, List<String>> ignoreSelectors = selectorData.containsKey("ignore") ? 
             (Map<String, List<String>>) selectorData.get("ignore") : null;
         Map<String, List<String>> selectSelectors = selectorData.containsKey("select") ? 
             (Map<String, List<String>>) selectorData.get("select") : null;
 
-        // Capture full page screenshots with selectors (if any)
         Map<String, Object> result = fullPageCapture.captureFullPageScreenshot(
             userInputtedPageCount, ignoreSelectors, selectSelectors);
         
         List<File> ssDir = (List<File>) result.get("screenshots");
-        
-        // Process bounding boxes if selectors were provided
+
         if (ignoreSelectors != null || selectSelectors != null) {
             List<ElementBoundingBox> ignoredElements = (List<ElementBoundingBox>) result.get("ignoreElements");
             List<ElementBoundingBox> selectedElements = (List<ElementBoundingBox>) result.get("selectElements");
@@ -326,7 +323,7 @@ public class SmartUIAppSnapshot {
             throw new RuntimeException(Constants.Errors.SMARTUI_SNAPSHOT_FAILED);
         }
         int pageCountInSsDir = ssDir.size(); int i;
-        if(pageCountInSsDir == 1) {         //when page count is set to 1 as user for fullPage
+        if(pageCountInSsDir == 1) {
             uploadSnapshotRequest.setFullPage("false");
             logUploadRequest(uploadSnapshotRequest);
             util.uploadScreenshot(ssDir.get(0), uploadSnapshotRequest, this.buildData);
@@ -342,24 +339,6 @@ public class SmartUIAppSnapshot {
         uploadSnapshotRequest.setChunkCount(i);
         logUploadRequest(uploadSnapshotRequest);
         util.uploadScreenshot(ssDir.get(pageCountInSsDir-1), uploadSnapshotRequest, this.buildData);
-    }
-
-    /**
-     * Handle single screenshot capture and upload
-     */
-    private void handleSingleScreenshot(WebDriver driver, String screenshotName, 
-                                       UploadSnapshotRequest uploadSnapshotRequest, 
-                                       Map<String, String> options) throws Exception {
-        String pageCount = getOptionValue(options, "pageCount");
-        if(!pageCount.isEmpty()){
-            throw new IllegalArgumentException(Constants.Errors.PAGE_COUNT_ERROR);
-        }
-        TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
-        File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
-        log.info("Screenshot captured: " + screenshotName);
-        uploadSnapshotRequest.setFullPage("false");
-        logUploadRequest(uploadSnapshotRequest);
-        util.uploadScreenshot(screenshot, uploadSnapshotRequest, this.buildData);
     }
 
     public void smartuiAppSnapshot(WebDriver driver, String screenshotName, Map<String, String> options)
@@ -379,16 +358,15 @@ public class SmartUIAppSnapshot {
             
             int userInputtedPageCount = processUploadOptions(uploadSnapshotRequest, options);
 
-            String fullPage = getOptionValue(options, "fullPage").toLowerCase();
-            if(!Boolean.parseBoolean(fullPage)){
-                handleSingleScreenshot(driver, screenshotName, uploadSnapshotRequest, options);
-            } else {
+            if(Boolean.parseBoolean(getOptionValue(options, "fullPage").toLowerCase())){
                 uploadSnapshotRequest.setFullPage("true");
                 handleFullPageScreenshot(driver, screenshotName, testType, uploadSnapshotRequest, userInputtedPageCount, options);
+            } else {
+                handleFullPageScreenshot(driver, screenshotName, testType, uploadSnapshotRequest, 1, options);
             }
         } catch (Exception e) {
             log.severe(Constants.Errors.UPLOAD_SNAPSHOT_FAILED + " due to: " + e.getMessage());
-            throw new Exception("Couldnt upload image to Smart UI due to: " + e.getMessage());
+            throw new Exception("Couldn't upload image to Smart UI due to: " + e.getMessage());
         }
     }
 
