@@ -126,10 +126,15 @@ public class SmartUIAppSnapshot {
     }
 
     private SnapshotConfig parseSnapshotConfig(Map<String, String> options) {
+        String testType = getOptionValue(options, OPTION_TEST_TYPE, DEFAULT_TEST_TYPE);
+        if(!(testType.equals("app") || testType.equals("web"))) {
+            testType = DEFAULT_TEST_TYPE;
+        }
+
         return new SnapshotConfig(
                 getOptionValue(options, OPTION_DEVICE_NAME),
                 getOptionValue(options, OPTION_PLATFORM),
-                getOptionValue(options, OPTION_TEST_TYPE, DEFAULT_TEST_TYPE),
+                testType,
                 parseIntOption(options, OPTION_PAGE_COUNT, 0),
                 parseBooleanOption(options, OPTION_FULL_PAGE, false)
         );
