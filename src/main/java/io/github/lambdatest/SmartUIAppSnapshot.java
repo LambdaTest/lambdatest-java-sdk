@@ -341,16 +341,22 @@ public class SmartUIAppSnapshot {
         }
     }
 
+    // TODO: Enable status bar and footer cropping, disabling it because the current version of selenium
+    // doesn't have the required APIs to get status bar height
     private void setCropOptions(UploadSnapshotRequest uploadRequest, Map<String, String> options) {
-        String cropFooter = getOptionValue(options, OPTION_CROP_FOOTER);
-        String cropStatusBar = getOptionValue(options, OPTION_CROP_STATUS_BAR);
 
-        if (!cropFooter.isEmpty()) {
-            uploadRequest.setCropFooter(cropFooter.toLowerCase());
-        }
-        if (!cropStatusBar.isEmpty()) {
-            uploadRequest.setCropStatusBar(cropStatusBar.toLowerCase());
-        }
+        //        String cropFooter = getOptionValue(options, OPTION_CROP_FOOTER);
+//        String cropStatusBar = getOptionValue(options, OPTION_CROP_STATUS_BAR);
+//
+//        if (!cropFooter.isEmpty()) {
+//            uploadRequest.setCropFooter(cropFooter.toLowerCase());
+//        }
+//        if (!cropStatusBar.isEmpty()) {
+//            uploadRequest.setCropStatusBar(cropStatusBar.toLowerCase());
+//        }
+
+        uploadRequest.setCropFooter("false");
+        uploadRequest.setCropStatusBar("false");
     }
 
     private void handleFullPageScreenshot(WebDriver driver, String screenshotName, String testType,
@@ -404,7 +410,6 @@ public class SmartUIAppSnapshot {
 
     private void uploadSingleScreenshot(File screenshot, UploadSnapshotRequest uploadRequest) throws Exception {
         uploadRequest.setFullPage("false");
-        logUploadRequest(uploadRequest);
         util.uploadScreenshot(screenshot, uploadRequest, buildData);
     }
 
@@ -415,14 +420,12 @@ public class SmartUIAppSnapshot {
         for (int i = 0; i < totalScreenshots - 1; i++) {
             uploadRequest.setIsLastChunk("false");
             uploadRequest.setChunkCount(i);
-            logUploadRequest(uploadRequest);
             util.uploadScreenshot(screenshots.get(i), uploadRequest, buildData);
         }
 
         // Upload last screenshot
         uploadRequest.setIsLastChunk("true");
         uploadRequest.setChunkCount(totalScreenshots - 1);
-        logUploadRequest(uploadRequest);
         util.uploadScreenshot(screenshots.get(totalScreenshots - 1), uploadRequest, buildData);
     }
 

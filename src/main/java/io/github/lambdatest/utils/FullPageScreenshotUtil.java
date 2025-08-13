@@ -404,6 +404,52 @@ public class FullPageScreenshotUtil {
     private boolean hasReachedBottom() {
         try {
             Thread.sleep(PAGE_SOURCE_CHECK_DELAY_MS);
+            
+            if (testType.equalsIgnoreCase("web")) {
+                return hasReachedBottomWeb();
+            } else {
+                return hasReachedBottomMobile();
+            }
+        } catch (Exception e) {
+            log.warning("Error checking if reached bottom: " + e.getMessage());
+            return true;
+        }
+    }
+
+    private boolean hasReachedBottomWeb() {
+        try {
+            Long currentScrollY = (Long) ((JavascriptExecutor) driver).executeScript(
+                "return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;"
+            );
+            
+            Long pageHeight = (Long) ((JavascriptExecutor) driver).executeScript(
+                "return Math.max(" +
+                "document.body.scrollHeight, " +
+                "document.body.offsetHeight, " +
+                "document.documentElement.clientHeight, " +
+                "document.documentElement.scrollHeight, " +
+                "document.documentElement.offsetHeight);"
+            );
+            
+            Long viewportHeight = (Long) ((JavascriptExecutor) driver).executeScript(
+                "return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;"
+            );
+            
+            boolean isAtBottom = (currentScrollY + viewportHeight) >= pageHeight;
+            
+            if (isAtBottom) {
+                log.info("Reached bottom of web page - scroll position: " + currentScrollY + ", page height: " + pageHeight);
+            }
+            
+            return isAtBottom;
+        } catch (Exception e) {
+            log.warning("Error checking web page bottom: " + e.getMessage());
+            return true;
+        }
+    }
+
+    private boolean hasReachedBottomMobile() {
+        try {
             String currentPageSource = driver.getPageSource();
 
             if (currentPageSource == null) {
@@ -419,7 +465,7 @@ public class FullPageScreenshotUtil {
                 return false;
             }
         } catch (Exception e) {
-            log.warning("Error checking if reached bottom: " + e.getMessage());
+            log.warning("Error checking mobile page bottom: " + e.getMessage());
             return true;
         }
     }
