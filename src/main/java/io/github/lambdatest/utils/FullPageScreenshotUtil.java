@@ -37,7 +37,6 @@ public class FullPageScreenshotUtil {
     private final String deviceName;
     private String prevPageSource = "";
     private int maxCount = DEFAULT_MAX_COUNT;
-    private byte[] prevBottomBytes;
 
     public FullPageScreenshotUtil(WebDriver driver, String saveDirectoryName, String testType) {
         this.driver = driver;
@@ -419,7 +418,6 @@ public class FullPageScreenshotUtil {
 
     private boolean hasReachedBottomWeb() {
         try {
-            log.info("Checking web page bottom");
             Long currentScrollY = (Long) ((JavascriptExecutor) driver).executeScript(
                 "return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;"
             );
@@ -452,31 +450,20 @@ public class FullPageScreenshotUtil {
 
     private boolean hasReachedBottomMobile() {
         try {
-            log.info("Checking mobile page bottom");
+            String currentPageSource = driver.getPageSource();
 
-            byte[] fullScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-
-            if (fullScreenshot == null) {
-                log.warning("Screenshot is null");
+            if (currentPageSource == null) {
+                log.warning("Page source is null");
                 return false;
             }
 
-            // Get bottom 80% of the byte array (simulates bottom 80% of image)
-            int skipBytes = (int) (fullScreenshot.length * 0.2); // Skip first 20%
-            byte[] bottomBytes = Arrays.copyOfRange(fullScreenshot, skipBytes, fullScreenshot.length);
-
-            if (prevBottomBytes != null && Arrays.equals(bottomBytes, prevBottomBytes)) {
-                    log.info("Reached bottom of the page");
-                    return true;
+            if (currentPageSource.equals(prevPageSource)) {
+                log.info("Same page content detected — reached the bottom of the page.");
+                return true;
             } else {
-                if (prevBottomBytes != null) {
-                    log.info("Bottom content changed, continuing scroll");
-                }
+                prevPageSource = currentPageSource;
+                return false;
             }
-
-            prevBottomBytes = bottomBytes.clone();
-            return false;
-
         } catch (Exception e) {
             log.warning("Error checking mobile page bottom: " + e.getMessage());
             return true;
