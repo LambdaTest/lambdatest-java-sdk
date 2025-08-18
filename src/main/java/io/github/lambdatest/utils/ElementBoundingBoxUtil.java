@@ -181,8 +181,8 @@ public class ElementBoundingBoxUtil {
 
             boolean xInBounds = boundingBox.getX() >= 0 &&
                     boundingBox.getX() + boundingBox.getWidth() <= viewportSize.getWidth();
-            boolean yInBounds = (viewportY < viewportSize.getHeight()) &&
-                    (viewportY + boundingBox.getHeight() > 0);
+            boolean yInBounds = viewportY >= 0 &&
+                    viewportY + boundingBox.getHeight() <= viewportSize.getHeight();
 
             return xInBounds && yInBounds;
         } catch (Exception e) {
