@@ -279,12 +279,12 @@ public class FullPageScreenshotUtil {
             int preciseEndY = (int) Math.round(endY);
             int expectedScrollHeight = preciseStartY - preciseEndY;
 
-            WebElement trackingElement = findAutoTrackingElement(size);
-            Point beforePosition = null;
-
-            if (trackingElement != null) {
-                beforePosition = trackingElement.getLocation();
-            }
+//            WebElement trackingElement = findAutoTrackingElement(size);
+//            Point beforePosition = null;
+//
+//            if (trackingElement != null) {
+//                beforePosition = trackingElement.getLocation();
+//            }
 
             // Calculate optimal duration
             long optimalDuration = Math.max(ANDROID_SCROLL_SPEED, expectedScrollHeight * 3);
@@ -307,25 +307,25 @@ public class FullPageScreenshotUtil {
 
             int actualScrollDistance = expectedScrollHeight; // fallback
 
-            if (trackingElement != null) {
-                try {
-                    Point afterPosition = trackingElement.getLocation();
-                    actualScrollDistance = beforePosition.y - afterPosition.y;
-
-//                    double accuracy = (double) actualScrollDistance / expectedScrollHeight * 100;
-//                    log.info(String.format("Scroll precision: %.1f%% (Expected: %dpx, Actual: %dpx)",
-//                            accuracy, expectedScrollHeight, actualScrollDistance));
-
-//                    if (Math.abs(actualScrollDistance - expectedScrollHeight) > 10) {
-//                        log.warning("Scroll precision issue detected!");
-//                    }
-
-                } catch (Exception e) {
-                    log.warning("Could not re-locate tracking element: " + e.getMessage());
-                }
-            } else {
-                log.info("No tracking element found, returning expected scroll distance");
-            }
+//            if (trackingElement != null) {
+//                try {
+//                    Point afterPosition = trackingElement.getLocation();
+//                    actualScrollDistance = beforePosition.y - afterPosition.y;
+//
+////                    double accuracy = (double) actualScrollDistance / expectedScrollHeight * 100;
+////                    log.info(String.format("Scroll precision: %.1f%% (Expected: %dpx, Actual: %dpx)",
+////                            accuracy, expectedScrollHeight, actualScrollDistance));
+//
+////                    if (Math.abs(actualScrollDistance - expectedScrollHeight) > 10) {
+////                        log.warning("Scroll precision issue detected!");
+////                    }
+//
+//                } catch (Exception e) {
+//                    log.warning("Could not re-locate tracking element: " + e.getMessage());
+//                }
+//            } else {
+//                log.info("No tracking element found, returning expected scroll distance");
+//            }
 
             return actualScrollDistance;
 
