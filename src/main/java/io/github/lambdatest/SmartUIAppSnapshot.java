@@ -22,6 +22,7 @@ public class SmartUIAppSnapshot {
     private static final String OPTION_PLATFORM = "platform";
     private static final String OPTION_TEST_TYPE = "testType";
     private static final String OPTION_FULL_PAGE = "fullPage";
+    private static final String OPTION_PRECISE_SCROLL = "preciseScroll";
     private static final String OPTION_UPLOAD_CHUNK = "uploadChunk";
     private static final String OPTION_PAGE_COUNT = "pageCount";
     private static final String OPTION_NAVIGATION_BAR_HEIGHT = "navigationBarHeight";
@@ -136,7 +137,8 @@ public class SmartUIAppSnapshot {
                 getOptionValue(options, OPTION_PLATFORM),
                 testType,
                 parseIntOption(options, OPTION_PAGE_COUNT, 0),
-                parseBooleanOption(options, OPTION_FULL_PAGE, false)
+                parseBooleanOption(options, OPTION_FULL_PAGE, false),
+                parseBooleanOption(options, OPTION_PRECISE_SCROLL, false)
         );
     }
 
@@ -160,7 +162,7 @@ public class SmartUIAppSnapshot {
             uploadRequest.setFullPage("true");
         }
 
-        handleFullPageScreenshot(driver, screenshotName, config.testType, uploadRequest, pageCount, options);
+        handleFullPageScreenshot(driver, screenshotName, config, uploadRequest, pageCount, options);
     }
 
     private void validateMandatoryParams(WebDriver driver, String screenshotName, String deviceName) {
@@ -364,10 +366,10 @@ public class SmartUIAppSnapshot {
         uploadRequest.setCropStatusBar("false");
     }
 
-    private void handleFullPageScreenshot(WebDriver driver, String screenshotName, String testType,
+    private void handleFullPageScreenshot(WebDriver driver, String screenshotName, SnapshotConfig config,
                                           UploadSnapshotRequest uploadRequest, int pageCount,
                                           Map<String, String> options) throws Exception {
-        FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName, testType);
+        FullPageScreenshotUtil fullPageCapture = new FullPageScreenshotUtil(driver, screenshotName, config.testType, config.preciseScroll);
         SelectorData selectorData = extractSelectorsFromOptions(options);
 
         Map<String, Object> result = fullPageCapture.captureFullPageScreenshot(
@@ -499,20 +501,21 @@ public class SmartUIAppSnapshot {
         }
     }
 
-    // Inner classes for better organization
     private static class SnapshotConfig {
         final String deviceName;
         final String platform;
         final String testType;
         final int pageCount;
         final boolean fullPage;
+        final boolean preciseScroll;
 
-        SnapshotConfig(String deviceName, String platform, String testType, int pageCount, boolean fullPage) {
+        SnapshotConfig(String deviceName, String platform, String testType, int pageCount, boolean fullPage, boolean preciseScroll) {
             this.deviceName = deviceName;
             this.platform = platform;
             this.testType = testType;
             this.pageCount = pageCount;
             this.fullPage = fullPage;
+            this.preciseScroll = preciseScroll;
         }
     }
 

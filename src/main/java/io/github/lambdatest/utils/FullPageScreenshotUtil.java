@@ -20,7 +20,7 @@ public class FullPageScreenshotUtil {
     private static final int SCROLL_DELAY_MS = 200;
     private static final int WEB_SCROLL_PAUSE_MS = 1000;
     private static final int IOS_SCROLL_DURATION_MS = 1500;
-    private static final int ANDROID_SCROLL_SPEED = 300;
+    private static final int ANDROID_SCROLL_SPEED = 1500;
     private static final int PAGE_SOURCE_CHECK_DELAY_MS = 1000;
 
     // Scroll percentages
@@ -39,13 +39,15 @@ public class FullPageScreenshotUtil {
     private final String deviceName;
     private String prevPageSource = "";
     private int maxCount = DEFAULT_MAX_COUNT;
+    private final boolean preciseScroll;
 
-    public FullPageScreenshotUtil(WebDriver driver, String saveDirectoryName, String testType) {
+    public FullPageScreenshotUtil(WebDriver driver, String saveDirectoryName, String testType, boolean preciseScroll) {
         this.driver = driver;
         this.saveDirectoryName = saveDirectoryName;
         this.testType = testType;
         this.platform = detectPlatform();
         this.deviceName = detectDeviceName();
+        this.preciseScroll = preciseScroll;
 
         log.info("FullPageScreenshotUtil initialized for testType: " + testType + ", platform: " + platform + ", deviceName: " + deviceName);
         createDirectoryIfNeeded();
@@ -135,7 +137,7 @@ public class FullPageScreenshotUtil {
             }
 
             chunkCount++;
-            int scrollDistance = scrollDown();
+            int scrollDistance = scrollDown(hasSelectors);
 
             if (hasSelectors && !captureAllElementsAtTheStart) {
                 elementUtil.updateScrollPosition(scrollDistance);
@@ -240,35 +242,25 @@ public class FullPageScreenshotUtil {
         return destinationFile;
     }
 
-    private int scrollDown() {
+    private int scrollDown(boolean hasSelectors) {
         try {
             Thread.sleep(SCROLL_DELAY_MS);
-            return scrollOnDevice();
-        } catch (Exception e) {
-            log.warning("Error during scroll operation: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private int scrollOnDevice() {
-        try {
             if (testType.equalsIgnoreCase("app")) {
-                return platform.equals("ios") ? scrollIOS() : scrollAndroid();
+                return platform.equals("ios") ? scrollIOS() : scrollAndroid(hasSelectors);
             }
             return scrollWeb();
         } catch (Exception e) {
-            log.severe("Error in scrollOnDevice: " + e.getMessage());
+            log.severe("Error in scrollDown: " + e.getMessage());
             return 0;
         }
     }
 
-    private int scrollAndroid() {
+    private int scrollAndroid(boolean hasSelectors) {
         try {
             Dimension size = driver.manage().window().getSize();
             double screenHeight = size.getHeight();
             double screenWidth = size.getWidth();
 
-            // Calculate scroll parameters
             double scrollHeight = screenHeight * ANDROID_SCROLL_HEIGHT_PERCENT;
             double startX = screenWidth / 2.0;
             double startY = screenHeight * ANDROID_SCROLL_END_PERCENT;
@@ -279,53 +271,43 @@ public class FullPageScreenshotUtil {
             int preciseEndY = (int) Math.round(endY);
             int expectedScrollHeight = preciseStartY - preciseEndY;
 
-//            WebElement trackingElement = findAutoTrackingElement(size);
-//            Point beforePosition = null;
-//
-//            if (trackingElement != null) {
-//                beforePosition = trackingElement.getLocation();
-//            }
+            WebElement trackingElement = null;
+            Point beforePosition = null;
 
-            // Calculate optimal duration
+            if (hasSelectors && this.preciseScroll) {
+                trackingElement = findAutoTrackingElement(size);
+                if (trackingElement != null) {
+                    beforePosition = trackingElement.getLocation();
+                }
+            }
+
             long optimalDuration = Math.max(ANDROID_SCROLL_SPEED, expectedScrollHeight * 3);
 
-            // PERFORM SCROLL
             PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
             Sequence scroll = new Sequence(finger, 1);
 
             scroll.addAction(new Pause(finger, Duration.ofMillis(50)));
             scroll.addAction(finger.createPointerMove(Duration.ZERO, Origin.viewport(), preciseStartX, preciseStartY));
             scroll.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-            scroll.addAction(new Pause(finger, Duration.ofMillis(100)));
+            scroll.addAction(new Pause(finger, Duration.ofMillis(50)));
             scroll.addAction(finger.createPointerMove(Duration.ofMillis(optimalDuration), Origin.viewport(), preciseStartX, preciseEndY));
             scroll.addAction(new Pause(finger, Duration.ofMillis(50)));
             scroll.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-            scroll.addAction(new Pause(finger, Duration.ofMillis(100)));
+            scroll.addAction(new Pause(finger, Duration.ofMillis(50)));
 
             ((RemoteWebDriver) driver).perform(Arrays.asList(scroll));
             Thread.sleep(200);
 
             int actualScrollDistance = expectedScrollHeight; // fallback
 
-//            if (trackingElement != null) {
-//                try {
-//                    Point afterPosition = trackingElement.getLocation();
-//                    actualScrollDistance = beforePosition.y - afterPosition.y;
-//
-////                    double accuracy = (double) actualScrollDistance / expectedScrollHeight * 100;
-////                    log.info(String.format("Scroll precision: %.1f%% (Expected: %dpx, Actual: %dpx)",
-////                            accuracy, expectedScrollHeight, actualScrollDistance));
-//
-////                    if (Math.abs(actualScrollDistance - expectedScrollHeight) > 10) {
-////                        log.warning("Scroll precision issue detected!");
-////                    }
-//
-//                } catch (Exception e) {
-//                    log.warning("Could not re-locate tracking element: " + e.getMessage());
-//                }
-//            } else {
-//                log.info("No tracking element found, returning expected scroll distance");
-//            }
+            if (hasSelectors && this.preciseScroll && trackingElement != null) {
+                try {
+                    Point afterPosition = trackingElement.getLocation();
+                    actualScrollDistance = beforePosition.y - afterPosition.y;
+                } catch (Exception e) {
+                    log.warning("Could not re-locate tracking element: " + e.getMessage());
+                }
+            }
 
             return actualScrollDistance;
 
@@ -338,71 +320,31 @@ public class FullPageScreenshotUtil {
     private WebElement findAutoTrackingElement(Dimension screenSize) {
         try {
             int screenHeight = screenSize.height;
-            int lowerPortionStart = (int) (screenHeight * 0.6);  // Start at 60% down
-            int lowerPortionEnd = (int) (screenHeight * 0.9);    // End at 90% down (avoid nav bars)
-
-            log.info("Searching for tracking elements between Y: " + lowerPortionStart + " - " + lowerPortionEnd);
-
-            // Find all visible elements
+            int lowerPortionStart = (int) (screenHeight * 0.6);
+            int lowerPortionEnd = (int) (screenHeight * 0.9);
+            
+            // Get all elements once
             List<WebElement> allElements = driver.findElements(By.xpath("//*[@displayed='true']"));
-
-            // Filter for elements in the LOWER area that are good for tracking
-            Optional<WebElement> trackingElement = allElements.stream()
-                    .filter(element -> {
-                        try {
-                            if (!element.isDisplayed()) return false;
-
-                            Point location = element.getLocation();
-                            Dimension elementSize = element.getSize();
-
-                            boolean inLowerArea = location.y >= lowerPortionStart && location.y <= lowerPortionEnd;
-
-                            boolean reasonableSize = elementSize.width > 50 && elementSize.height > 20;
-
-                            // Element should have text or be a standard UI component
-                            String tagName = element.getTagName().toLowerCase();
-                            boolean isGoodElement = tagName.contains("text") ||
-                                    tagName.contains("button") ||
-                                    tagName.contains("view") ||
-                                    !element.getText().trim().isEmpty();
-
-                            return inLowerArea && reasonableSize && isGoodElement;
-
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .findFirst();
-
-            if (trackingElement.isPresent()) {
-                Point location = trackingElement.get().getLocation();
-                log.info("Auto-selected tracking element: " + trackingElement.get().getTagName() + " at Y: " + location.y);
-                return trackingElement.get();
+            
+            for (WebElement element : allElements) {
+                try {
+                    Rectangle rect = element.getRect();
+                    
+                    if (rect.y >= lowerPortionStart &&
+                        rect.y <= lowerPortionEnd && 
+                        rect.width > 50 && 
+                        rect.height > 20) {
+                        
+                        return element;
+                    }
+                    
+                } catch (Exception e) {
+                    // Skip problematic elements, continue search
+                }
             }
-
-            // Fallback: just find any element in lower area
-            Optional<WebElement> fallbackElement = allElements.stream()
-                    .filter(element -> {
-                        try {
-                            Point location = element.getLocation();
-                            return element.isDisplayed() &&
-                                    location.y >= lowerPortionStart &&
-                                    location.y <= lowerPortionEnd;
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .findFirst();
-
-            if (fallbackElement.isPresent()) {
-                Point location = fallbackElement.get().getLocation();
-                log.info("Using fallback tracking element at Y: " + location.y);
-                return fallbackElement.get();
-            }
-
-            log.warning("No suitable tracking elements found in lower screen area");
+            
             return null;
-
+            
         } catch (Exception e) {
             log.warning("Auto-tracking element search failed: " + e.getMessage());
             return null;
