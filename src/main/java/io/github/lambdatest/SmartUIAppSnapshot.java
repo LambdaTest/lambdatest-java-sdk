@@ -217,6 +217,10 @@ public class SmartUIAppSnapshot {
         Map<String, List<String>> ignoreSelectors = parseSelectorsFromOption(options, OPTION_IGNORE_BOXES);
         Map<String, List<String>> selectSelectors = parseSelectorsFromOption(options, OPTION_SELECT_BOXES);
 
+        if (ignoreSelectors != null && selectSelectors != null) {
+            log.warning("Cannot use both ignore and select boxes in one screenshot, proceeding with just ignore selectors");
+        }
+
         return new SelectorData(ignoreSelectors, selectSelectors);
     }
 

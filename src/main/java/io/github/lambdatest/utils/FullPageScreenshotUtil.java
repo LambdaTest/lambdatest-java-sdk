@@ -21,7 +21,7 @@ public class FullPageScreenshotUtil {
     private static final int WEB_SCROLL_PAUSE_MS = 1000;
     private static final int IOS_SCROLL_DURATION_MS = 1500;
     private static final int ANDROID_SCROLL_SPEED = 1500;
-    private static final int PAGE_SOURCE_CHECK_DELAY_MS = 1000;
+    private static final int PAGE_SOURCE_CHECK_DELAY_MS = 100;
 
     // Scroll percentages
     private static final double ANDROID_SCROLL_END_PERCENT = 0.3;
@@ -478,11 +478,11 @@ public class FullPageScreenshotUtil {
 
     private boolean hasReachedBottomWeb() {
         try {
-            Long currentScrollY = (Long) ((JavascriptExecutor) driver).executeScript(
+            Number currentScrollY = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;"
             );
             
-            Long pageHeight = (Long) ((JavascriptExecutor) driver).executeScript(
+            Number pageHeight = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return Math.max(" +
                 "document.body.scrollHeight, " +
                 "document.body.offsetHeight, " +
@@ -491,14 +491,18 @@ public class FullPageScreenshotUtil {
                 "document.documentElement.offsetHeight);"
             );
             
-            Long viewportHeight = (Long) ((JavascriptExecutor) driver).executeScript(
+            Number viewportHeight = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;"
             );
             
-            boolean isAtBottom = (currentScrollY + viewportHeight) >= pageHeight;
+            long currentScrollYLong = currentScrollY.longValue();
+            long pageHeightLong = pageHeight.longValue();
+            long viewportHeightLong = viewportHeight.longValue();
+            
+            boolean isAtBottom = (currentScrollYLong + viewportHeightLong) >= pageHeightLong;
             
             if (isAtBottom) {
-                log.info("Reached bottom of web page - scroll position: " + currentScrollY + ", page height: " + pageHeight);
+                log.info("Reached bottom of web page - scroll position: " + currentScrollYLong + ", page height: " + pageHeightLong);
             }
             
             return isAtBottom;
