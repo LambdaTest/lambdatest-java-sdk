@@ -322,29 +322,29 @@ public class FullPageScreenshotUtil {
             int screenHeight = screenSize.height;
             int lowerPortionStart = (int) (screenHeight * 0.6);
             int lowerPortionEnd = (int) (screenHeight * 0.9);
-            
+
             // Get all elements once
             List<WebElement> allElements = driver.findElements(By.xpath("//*[@displayed='true']"));
-            
+
             for (WebElement element : allElements) {
                 try {
                     Rectangle rect = element.getRect();
-                    
+
                     if (rect.y >= lowerPortionStart &&
-                        rect.y <= lowerPortionEnd && 
-                        rect.width > 50 && 
+                        rect.y <= lowerPortionEnd &&
+                        rect.width > 50 &&
                         rect.height > 20) {
-                        
+
                         return element;
                     }
-                    
+
                 } catch (Exception e) {
                     // Skip problematic elements, continue search
                 }
             }
-            
+
             return null;
-            
+
         } catch (Exception e) {
             log.warning("Auto-tracking element search failed: " + e.getMessage());
             return null;

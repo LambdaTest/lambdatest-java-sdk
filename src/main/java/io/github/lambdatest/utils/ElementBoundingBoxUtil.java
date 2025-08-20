@@ -11,8 +11,9 @@ public class ElementBoundingBoxUtil {
     private static final int IPAD_PRO_NEWER_STATUS_BAR_HEIGHT = 24;
     private static final int IPHONE_DYNAMIC_ISLAND_HEIGHT = 54;
     private static final int IPHONE_NOTCH_HEIGHT = 47;
-    private static final int ANDROID_CHROME_BAR_HEIGHT_NEW = 80;
-    private static final int ANDROID_CHROME_BAR_HEIGHT_OLD = 76;
+    private static final int ANDROID_CHROME_BAR_HEIGHT_WITH_STATUS_BAR_NEW = 80;
+    private static final int ANDROID_CHROME_BAR_HEIGHT_WITH_STATUS_BAR_OLD = 76;
+    private static final int ANDROID_CHROME_BAR_HEIGHT = 56;
     private static final int FUTURE_IPHONE_VERSION_THRESHOLD = 17;
 
     // Device pixel ratios
@@ -338,31 +339,39 @@ public class ElementBoundingBoxUtil {
 
     public int getAndroidChromeBarHeightInDevicePixels() {
         try {
-            if (shouldAddAndroidChromeBarHeight()) {
-                int cssChromeBarHeight = getChromeAddressBarHeightForAndroid();
-                return (int) (cssChromeBarHeight * devicePixelRatio);
-            }
-            return 0;
-        } catch (Exception e) {
-            log.warning("Failed to get Android Chrome bar height in device pixels: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private int getChromeAddressBarHeightForAndroid() {
-        try {
-            String androidVersion = getCapabilityAsString("platformVersion");
-
-            if (startsWithAny(androidVersion, ANDROID_NEW_VERSIONS)) {
-                return ANDROID_CHROME_BAR_HEIGHT_NEW;
-            } else if (startsWithAny(androidVersion, ANDROID_OLD_VERSIONS)) {
-                return ANDROID_CHROME_BAR_HEIGHT_OLD;
+            if (!shouldAddAndroidChromeBarHeight()) {
+                return 0;
             }
 
-            return ANDROID_CHROME_BAR_HEIGHT_NEW;
+            int statusBarHeight = 0;
+            String statusBarHeightStr = getCapabilityAsString("statBarHeight");
+            if (!statusBarHeightStr.isEmpty()) {
+                try {
+                    statusBarHeight = Integer.parseInt(statusBarHeightStr);
+                } catch (NumberFormatException e) {
+                    log.warning("Invalid status bar height format: " + statusBarHeightStr);
+                }
+            }
+
+            int baseHeight;
+            if (statusBarHeight > 0) {
+                baseHeight = statusBarHeight + (int)devicePixelRatio * ANDROID_CHROME_BAR_HEIGHT;
+            } else {
+                String androidVersion = getCapabilityAsString("platformVersion");
+                if (startsWithAny(androidVersion, ANDROID_NEW_VERSIONS)) {
+                    baseHeight = (int)devicePixelRatio * ANDROID_CHROME_BAR_HEIGHT_WITH_STATUS_BAR_NEW;
+                } else if (startsWithAny(androidVersion, ANDROID_OLD_VERSIONS)) {
+                    baseHeight = (int)devicePixelRatio * ANDROID_CHROME_BAR_HEIGHT_WITH_STATUS_BAR_OLD;
+                } else {
+                    baseHeight = (int)devicePixelRatio * ANDROID_CHROME_BAR_HEIGHT_WITH_STATUS_BAR_NEW;
+                }
+            }
+
+            return baseHeight;
+
         } catch (Exception e) {
-            log.warning("Failed to determine default Chrome bar height: " + e.getMessage());
-            return ANDROID_CHROME_BAR_HEIGHT_NEW;
+            log.warning("Failed to get Android Chrome bar height: " + e.getMessage());
+            return 0;
         }
     }
 
