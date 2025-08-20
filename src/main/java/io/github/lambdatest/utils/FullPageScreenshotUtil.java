@@ -441,6 +441,7 @@ public class FullPageScreenshotUtil {
     private String detectDeviceName() {
         try {
             Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
+            log.info("Available capabilities: "+ caps.toString());
             return getDeviceNameFromCapabilities(caps);
         } catch (Exception e) {
             log.warning("Failed to detect device name: " + e.getMessage());
