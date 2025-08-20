@@ -351,21 +351,88 @@ public class FullPageScreenshotUtil {
         }
     }
 
-
     private int scrollIOS() {
+        Dimension size = driver.manage().window().getSize();
+        int scrollHeight = (int) (size.getHeight() * IOS_SCROLL_HEIGHT_PERCENT);
+        int centerX = size.getWidth() / 2;
+        int startY = (int) (size.getHeight() * IOS_START_Y_PERCENT);
+        int endY = (int) (size.getHeight() * IOS_SCROLL_HEIGHT_PERCENT);
+
         try {
-            Dimension size = driver.manage().window().getSize();
-            int screenHeight = size.getHeight();
-            int screenWidth = size.getWidth();
-            int scrollHeight = (int) (screenHeight * IOS_SCROLL_HEIGHT_PERCENT);
-
-            Sequence dragSequence = createIOSScrollSequence(screenHeight, screenWidth);
+            Sequence dragSequence = createIOSScrollSequence(size.getHeight(), size.getWidth());
             ((RemoteWebDriver) driver).perform(Arrays.asList(dragSequence));
-
             return scrollHeight;
         } catch (Exception e) {
-            log.severe("iOS scroll failed: " + e.getMessage());
-            return 0;
+            log.warning("Primary iOS scroll failed: " + e.getMessage());
+        }
+
+        if (tryTouchSwipe()) {
+            return finishScroll(scrollHeight, "mobile:touch:swipe");
+        }
+
+        if (tryDragFromTo(centerX, startY, endY)) {
+            return finishScroll(scrollHeight, "mobile:dragFromToForDuration");
+        }
+
+        if (tryJavaScriptScroll(scrollHeight)) {
+            return finishScroll(scrollHeight, "JavaScript scroll");
+        }
+
+        log.severe("All iOS scroll methods failed");
+        return 0;
+    }
+
+    private boolean tryTouchSwipe() {
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("start", "50%,70%");
+            params.put("end", "50%,40%");
+            params.put("duration", String.valueOf(2));
+            ((JavascriptExecutor) driver).executeScript("mobile:touch:swipe", params);
+            return true;
+        } catch (Exception e) {
+            log.info("touch:swipe failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryDragFromTo(int centerX, int startY, int endY) {
+        try {
+            Map<String, Object> swipeObj = new HashMap<>();
+            swipeObj.put("fromX", centerX);
+            swipeObj.put("fromY", startY);
+            swipeObj.put("toX", centerX);
+            swipeObj.put("toY", endY);
+            swipeObj.put("duration", (double) 2);
+            ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
+            return true;
+        } catch (Exception e) {
+            log.info("dragFromToForDuration failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryJavaScriptScroll(int scrollHeight) {
+        try {
+            ((JavascriptExecutor) driver).executeScript(
+                    "window.scrollTo({top: window.pageYOffset + arguments[0], behavior: 'smooth'});",
+                    scrollHeight
+            );
+            return true;
+        } catch (Exception e) {
+            log.info("JavaScript scroll failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private int finishScroll(int scrollHeight, String method) {
+        try {
+            log.info("Successfully used: " + method);
+            Thread.sleep(500);
+            return scrollHeight;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return scrollHeight;
         }
     }
 
