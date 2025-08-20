@@ -256,31 +256,31 @@ public class FullPageScreenshotUtil {
     }
 
     private int scrollAndroid(boolean hasSelectors) {
-        try {
-            Dimension size = driver.manage().window().getSize();
-            double screenHeight = size.getHeight();
-            double screenWidth = size.getWidth();
+        Dimension size = driver.manage().window().getSize();
+        double screenHeight = size.getHeight();
+        double screenWidth = size.getWidth();
 
-            double scrollHeight = screenHeight * ANDROID_SCROLL_HEIGHT_PERCENT;
-            double startX = screenWidth / 2.0;
-            double startY = screenHeight * ANDROID_SCROLL_END_PERCENT;
-            double endY = startY - scrollHeight;
+        double scrollHeight = screenHeight * ANDROID_SCROLL_HEIGHT_PERCENT;
+        double startX = screenWidth / 2.0;
+        double startY = screenHeight * ANDROID_SCROLL_END_PERCENT;
+        double endY = startY - scrollHeight;
 
-            int preciseStartX = (int) Math.round(startX);
-            int preciseStartY = (int) Math.round(startY);
-            int preciseEndY = (int) Math.round(endY);
-            int expectedScrollHeight = preciseStartY - preciseEndY;
+        int preciseStartX = (int) Math.round(startX);
+        int preciseStartY = (int) Math.round(startY);
+        int preciseEndY = (int) Math.round(endY);
+        int expectedScrollHeight = preciseStartY - preciseEndY;
 
-            WebElement trackingElement = null;
-            Point beforePosition = null;
+        WebElement trackingElement = null;
+        Point beforePosition = null;
 
-            if (hasSelectors && this.preciseScroll) {
-                trackingElement = findAutoTrackingElement(size);
-                if (trackingElement != null) {
-                    beforePosition = trackingElement.getLocation();
-                }
+        if (hasSelectors && this.preciseScroll) {
+            trackingElement = findAutoTrackingElement(size);
+            if (trackingElement != null) {
+                beforePosition = trackingElement.getLocation();
             }
+        }
 
+        try {
             long optimalDuration = Math.max(ANDROID_SCROLL_SPEED, expectedScrollHeight * 3);
 
             PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
@@ -297,24 +297,26 @@ public class FullPageScreenshotUtil {
 
             ((RemoteWebDriver) driver).perform(Arrays.asList(scroll));
             Thread.sleep(200);
-
-            int actualScrollDistance = expectedScrollHeight; // fallback
-
-            if (hasSelectors && this.preciseScroll && trackingElement != null) {
-                try {
-                    Point afterPosition = trackingElement.getLocation();
-                    actualScrollDistance = beforePosition.y - afterPosition.y;
-                } catch (Exception e) {
-                    log.warning("Could not re-locate tracking element: " + e.getMessage());
-                }
-            }
-
-            return actualScrollDistance;
+            return calculateActualScrollDistance(trackingElement, beforePosition, expectedScrollHeight);
 
         } catch (Exception e) {
-            log.severe("Android scroll failed: " + e.getMessage());
-            return 0;
+            log.warning("Primary Android scroll failed: " + e.getMessage());
         }
+
+        if (tryTouchSwipeAndroid()) {
+            return finishScrollAndCalculateDistance(trackingElement, beforePosition, expectedScrollHeight);
+        }
+
+        if (tryDragFromToAndroid()) {
+            return finishScrollAndCalculateDistance(trackingElement, beforePosition, expectedScrollHeight);
+        }
+
+        if (tryJavaScriptScrollAndroid()) {
+            return finishScrollAndCalculateDistance(trackingElement, beforePosition, expectedScrollHeight);
+        }
+
+        log.severe("All Android scroll methods failed");
+        return 0;
     }
 
     private WebElement findAutoTrackingElement(Dimension screenSize) {
@@ -422,6 +424,79 @@ public class FullPageScreenshotUtil {
         } catch (Exception e) {
             log.info("JavaScript scroll failed: " + e.getMessage());
             return false;
+        }
+    }
+
+    private boolean tryTouchSwipeAndroid() {
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("start", "50%,70%");
+            params.put("end", "50%,30%");
+            params.put("duration", String.valueOf(2));
+            ((JavascriptExecutor) driver).executeScript("mobile:touch:swipe", params);
+            return true;
+        } catch (Exception e) {
+            log.info("Android touch:swipe failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryDragFromToAndroid() {
+        try {
+            Dimension size = driver.manage().window().getSize();
+            int centerX = size.getWidth() / 2;
+            int startY = (int) (size.getHeight() * ANDROID_SCROLL_END_PERCENT);
+            int endY = (int) (size.getHeight() * ANDROID_SCROLL_HEIGHT_PERCENT);
+            
+            Map<String, Object> swipeObj = new HashMap<>();
+            swipeObj.put("fromX", centerX);
+            swipeObj.put("fromY", startY);
+            swipeObj.put("toX", centerX);
+            swipeObj.put("toY", endY);
+            swipeObj.put("duration", (double) 2);
+            ((JavascriptExecutor) driver).executeScript("mobile:dragFromToForDuration", swipeObj);
+            return true;
+        } catch (Exception e) {
+            log.info("Android dragFromToForDuration failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryJavaScriptScrollAndroid() {
+        try {
+            ((JavascriptExecutor) driver).executeScript(
+                    "window.scrollTo({top: window.pageYOffset + arguments[0], behavior: 'smooth'});",
+                    (int) (driver.manage().window().getSize().getHeight() * ANDROID_SCROLL_HEIGHT_PERCENT)
+            );
+            return true;
+        } catch (Exception e) {
+            log.info("Android JavaScript scroll failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private int calculateActualScrollDistance(WebElement trackingElement, Point beforePosition, int expectedScrollHeight) {
+        if (trackingElement != null && beforePosition != null) {
+            try {
+                Point afterPosition = trackingElement.getLocation();
+                int actualScrollDistance = beforePosition.y - afterPosition.y;
+                if (actualScrollDistance > 0) {
+                    return actualScrollDistance;
+                }
+            } catch (Exception e) {
+                log.warning("Could not re-locate tracking element: " + e.getMessage());
+            }
+        }
+        return expectedScrollHeight;
+    }
+
+    private int finishScrollAndCalculateDistance(WebElement trackingElement, Point beforePosition, int expectedScrollHeight) {
+        try {
+            Thread.sleep(200);
+            return calculateActualScrollDistance(trackingElement, beforePosition, expectedScrollHeight);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return expectedScrollHeight;
         }
     }
 
