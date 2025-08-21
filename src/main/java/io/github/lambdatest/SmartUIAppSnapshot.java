@@ -219,6 +219,7 @@ public class SmartUIAppSnapshot {
 
         if (ignoreSelectors != null && selectSelectors != null) {
             log.warning("Cannot use both ignore and select boxes in one screenshot, proceeding with just ignore selectors");
+            selectSelectors = null;
         }
 
         return new SelectorData(ignoreSelectors, selectSelectors);
