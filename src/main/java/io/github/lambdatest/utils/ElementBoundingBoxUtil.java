@@ -655,7 +655,6 @@ public class ElementBoundingBoxUtil {
     }
 
     private boolean containsAnyModel(String deviceName, String model, Set<String> models) {
-        log.info("devicename " + deviceName + " " + model);
         return models.stream().anyMatch(m -> deviceName.contains(m) || model.contains(m));
     }
 

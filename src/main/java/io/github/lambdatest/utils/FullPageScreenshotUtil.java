@@ -300,7 +300,7 @@ public class FullPageScreenshotUtil {
             return calculateActualScrollDistance(trackingElement, beforePosition, expectedScrollHeight);
 
         } catch (Exception e) {
-            log.warning("Primary Android scroll failed: " + e.getMessage());
+            log.warning("Primary Android scroll failed. Using fallback scroll methods.");
         }
 
         if (tryTouchSwipeAndroid()) {
@@ -365,7 +365,7 @@ public class FullPageScreenshotUtil {
             ((RemoteWebDriver) driver).perform(Arrays.asList(dragSequence));
             return scrollHeight;
         } catch (Exception e) {
-            log.warning("Primary iOS scroll failed: " + e.getMessage());
+            log.warning("Primary iOS scroll failed. Using fallback scroll methods.");
         }
 
         if (tryTouchSwipe()) {
@@ -447,7 +447,7 @@ public class FullPageScreenshotUtil {
             int centerX = size.getWidth() / 2;
             int startY = (int) (size.getHeight() * ANDROID_SCROLL_END_PERCENT);
             int endY = (int) (size.getHeight() * ANDROID_SCROLL_HEIGHT_PERCENT);
-            
+
             Map<String, Object> swipeObj = new HashMap<>();
             swipeObj.put("fromX", centerX);
             swipeObj.put("fromY", startY);
@@ -607,7 +607,7 @@ public class FullPageScreenshotUtil {
     private boolean hasReachedBottom() {
         try {
             Thread.sleep(PAGE_SOURCE_CHECK_DELAY_MS);
-            
+
             if (testType.equalsIgnoreCase("web")) {
                 return hasReachedBottomWeb();
             } else {
@@ -624,7 +624,7 @@ public class FullPageScreenshotUtil {
             Number currentScrollY = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;"
             );
-            
+
             Number pageHeight = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return Math.max(" +
                 "document.body.scrollHeight, " +
@@ -633,21 +633,21 @@ public class FullPageScreenshotUtil {
                 "document.documentElement.scrollHeight, " +
                 "document.documentElement.offsetHeight);"
             );
-            
+
             Number viewportHeight = (Number) ((JavascriptExecutor) driver).executeScript(
                 "return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;"
             );
-            
+
             long currentScrollYLong = currentScrollY.longValue();
             long pageHeightLong = pageHeight.longValue();
             long viewportHeightLong = viewportHeight.longValue();
-            
+
             boolean isAtBottom = (currentScrollYLong + viewportHeightLong) >= pageHeightLong;
-            
+
             if (isAtBottom) {
                 log.info("Reached bottom of web page - scroll position: " + currentScrollYLong + ", page height: " + pageHeightLong);
             }
-            
+
             return isAtBottom;
         } catch (Exception e) {
             log.warning("Error checking web page bottom: " + e.getMessage());
