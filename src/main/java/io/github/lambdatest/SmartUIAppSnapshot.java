@@ -456,7 +456,8 @@ public class SmartUIAppSnapshot {
         }
 
         List<Map<String, Integer>> boxes = createBoundingBoxMaps(elements);
-        Map<String, Object> boxesData = Map.of("boxes", boxes);
+        Map<String, Object> boxesData = new HashMap<>();
+        boxesData.put("boxes", boxes);
         String boxesJson = gson.toJson(boxesData);
 
         if (isIgnoreBoxes) {
