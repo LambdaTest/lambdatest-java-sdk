@@ -39,21 +39,21 @@ public class ElementBoundingBoxUtil {
     private static final String PLATFORM_ANDROID_WEBVIEW = "android_webview";
     private static final String PLATFORM_ANDROID_NATIVE = "android_native";
 
-    private static final Set<String> IPHONE_3X_MODELS = Set.of(
+    private static final Set<String> IPHONE_3X_MODELS = new HashSet<>(Arrays.asList(
             "16", "15", "14", "13", "12", "11", "x", "xs", "xr", "8", "7", "6 plus"
-    );
-    private static final Set<String> IPHONE_2X_MODELS = Set.of("6", "5", "4", "se");
-    private static final Set<String> IPHONE_1X_MODELS = Set.of("3");
+    ));
+    private static final Set<String> IPHONE_2X_MODELS = new HashSet<>(Arrays.asList("6", "5", "4", "se"));
+    private static final Set<String> IPHONE_1X_MODELS = new HashSet<>(Arrays.asList("3"));
 
-    private static final Set<String> DYNAMIC_ISLAND_DEVICES = Set.of("14 pro", "14pro", "15", "16", "17");
-    private static final Set<String> NOTCH_DEVICES = Set.of("x", "xs", "xr", "11", "12", "13", "14");
-    private static final Set<String> TRADITIONAL_IPHONES = Set.of("se", "8", "7", "6", "5", "4");
+    private static final Set<String> DYNAMIC_ISLAND_DEVICES = new HashSet<>(Arrays.asList("14 pro", "14pro", "15", "16", "17"));
+    private static final Set<String> NOTCH_DEVICES = new HashSet<>(Arrays.asList("x", "xs", "xr", "11", "12", "13", "14"));
+    private static final Set<String> TRADITIONAL_IPHONES = new HashSet<>(Arrays.asList("se", "8", "7", "6", "5", "4"));
 
-    private static final Set<String> IPAD_PRO_NEWER_YEARS = Set.of("2018", "2020", "2021", "2022", "2024", "2025");
-    private static final Set<String> IPOD_2X_GENERATIONS = Set.of("5", "6", "7");
+    private static final Set<String> IPAD_PRO_NEWER_YEARS = new HashSet<>(Arrays.asList("2018", "2020", "2021", "2022", "2024", "2025"));
+    private static final Set<String> IPOD_2X_GENERATIONS = new HashSet<>(Arrays.asList("5", "6", "7"));
 
-    private static final Set<String> ANDROID_NEW_VERSIONS = Set.of("11", "12", "13", "14", "10");
-    private static final Set<String> ANDROID_OLD_VERSIONS = Set.of("9", "8", "7");
+    private static final Set<String> ANDROID_NEW_VERSIONS = new HashSet<>(Arrays.asList("11", "12", "13", "14", "10"));
+    private static final Set<String> ANDROID_OLD_VERSIONS = new HashSet<>(Arrays.asList("9", "8", "7"));
 
     private final WebDriver driver;
     private final Logger log = LoggerUtil.createLogger("lambdatest-java-app-sdk");
@@ -507,7 +507,12 @@ public class ElementBoundingBoxUtil {
             Object result = ((JavascriptExecutor) driver).executeScript(script);
             if (result != null) {
                 WebElement element = createWebElementFromSelector(selectorType, selectorValue);
-                return element != null ? List.of(element) : new ArrayList<>();
+                if (element != null) {
+                    List<WebElement> elementList = new ArrayList<>();
+                    elementList.add(element);
+                    return elementList;
+                }
+                return new ArrayList<>();
             }
             return new ArrayList<>();
         } catch (Exception e) {
