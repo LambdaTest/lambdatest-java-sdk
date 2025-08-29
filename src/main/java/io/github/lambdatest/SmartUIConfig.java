@@ -11,22 +11,8 @@ public class SmartUIConfig {
     private boolean autoInstall = true;
     private String serverAddress = "http://localhost:49152";
     
-    private boolean allowInsecure = false;
-    private String proxyHost;
-    private int proxyPort;
-    private String proxyProtocol = "http";
-    
     private String projectToken;
     private String buildName;
-    private boolean createBuild = true;
-    
-    private String configFile;
-    private String environment;
-    private String branch;
-    private String commitId;
-    
-    private String logLevel = "info";
-    private boolean verbose = false;
     
     public SmartUIConfig withPort(int port) {
         this.port = port;
@@ -55,20 +41,6 @@ public class SmartUIConfig {
         return this;
     }
     
-    public SmartUIConfig withProxy(String host, int port) {
-        this.proxyHost = host;
-        this.proxyPort = port;
-        return this;
-    }
-    
-    public SmartUIConfig withProxy(String protocol, String host, int port, boolean allowInsecure) {
-        this.proxyProtocol = protocol;
-        this.proxyHost = host;
-        this.proxyPort = port;
-        this.allowInsecure = allowInsecure;
-        return this;
-    }
-    
     public SmartUIConfig withProjectToken(String projectToken) {
         this.projectToken = projectToken;
         return this;
@@ -76,41 +48,6 @@ public class SmartUIConfig {
     
     public SmartUIConfig withBuildName(String buildName) {
         this.buildName = buildName;
-        return this;
-    }
-    
-    public SmartUIConfig withCreateBuild(boolean createBuild) {
-        this.createBuild = createBuild;
-        return this;
-    }
-    
-    public SmartUIConfig withConfigFile(String configFile) {
-        this.configFile = configFile;
-        return this;
-    }
-    
-    public SmartUIConfig withEnvironment(String environment) {
-        this.environment = environment;
-        return this;
-    }
-    
-    public SmartUIConfig withBranch(String branch) {
-        this.branch = branch;
-        return this;
-    }
-    
-    public SmartUIConfig withCommitId(String commitId) {
-        this.commitId = commitId;
-        return this;
-    }
-    
-    public SmartUIConfig withLogLevel(String logLevel) {
-        this.logLevel = logLevel;
-        return this;
-    }
-    
-    public SmartUIConfig withVerbose(boolean verbose) {
-        this.verbose = verbose;
         return this;
     }
     
@@ -134,56 +71,12 @@ public class SmartUIConfig {
         return serverAddress;
     }
     
-    public String getProxyHost() {
-        return proxyHost;
-    }
-    
-    public int getProxyPort() {
-        return proxyPort;
-    }
-    
-    public String getProxyProtocol() {
-        return proxyProtocol;
-    }
-    
-    public boolean isAllowInsecure() {
-        return allowInsecure;
-    }
-    
     public String getProjectToken() {
         return projectToken;
     }
     
     public String getBuildName() {
         return buildName;
-    }
-
-    public boolean isCreateBuild() {
-        return createBuild;
-    }
-    
-    public String getConfigFile() {
-        return configFile;
-    }
-    
-    public String getEnvironment() {
-        return environment;
-    }
-    
-    public String getBranch() {
-        return branch;
-    }
-    
-    public String getCommitId() {
-        return commitId;
-    }
-    
-    public String getLogLevel() {
-        return logLevel;
-    }
-    
-    public boolean isVerbose() {
-        return verbose;
     }
     
     /**
@@ -215,10 +108,6 @@ public class SmartUIConfig {
             errors.add("Timeout must be greater than 0");
         }
         
-        if (proxyHost != null && (proxyPort <= 0 || proxyPort > 65535)) {
-            errors.add("Proxy port must be between 1 and 65535");
-        }
-        
         return errors;
     }
     
@@ -233,19 +122,8 @@ public class SmartUIConfig {
         copy.timeout = this.timeout;
         copy.autoInstall = this.autoInstall;
         copy.serverAddress = this.serverAddress;
-        copy.allowInsecure = this.allowInsecure;
-        copy.proxyHost = this.proxyHost;
-        copy.proxyPort = this.proxyPort;
-        copy.proxyProtocol = this.proxyProtocol;
         copy.projectToken = this.projectToken;
         copy.buildName = this.buildName;
-        copy.createBuild = this.createBuild;
-        copy.configFile = this.configFile;
-        copy.environment = this.environment;
-        copy.branch = this.branch;
-        copy.commitId = this.commitId;
-        copy.logLevel = this.logLevel;
-        copy.verbose = this.verbose;
         return copy;
     }
     
@@ -267,19 +145,8 @@ public class SmartUIConfig {
         if (other.serverAddress != null && !other.serverAddress.equals("http://localhost:49152")) {
             merged.serverAddress = other.serverAddress;
         }
-        if (other.allowInsecure != false) merged.allowInsecure = other.allowInsecure;
-        if (other.proxyHost != null) merged.proxyHost = other.proxyHost;
-        if (other.proxyPort > 0) merged.proxyPort = other.proxyPort;
-        if (other.proxyProtocol != null) merged.proxyProtocol = other.proxyProtocol;
         if (other.projectToken != null) merged.projectToken = other.projectToken;
         if (other.buildName != null) merged.buildName = other.buildName;
-        if (other.createBuild != true) merged.createBuild = other.createBuild;
-        if (other.configFile != null) merged.configFile = other.configFile;
-        if (other.environment != null) merged.environment = other.environment;
-        if (other.branch != null) merged.branch = other.branch;
-        if (other.commitId != null) merged.commitId = other.commitId;
-        if (other.logLevel != null) merged.logLevel = other.logLevel;
-        if (other.verbose != false) merged.verbose = other.verbose;
         
         return merged;
     }
@@ -294,19 +161,8 @@ public class SmartUIConfig {
         map.put("timeout", timeout);
         map.put("autoInstall", autoInstall);
         map.put("serverAddress", serverAddress);
-        map.put("allowInsecure", allowInsecure);
-        map.put("proxyHost", proxyHost);
-        map.put("proxyPort", proxyPort);
-        map.put("proxyProtocol", proxyProtocol);
         map.put("projectToken", projectToken != null ? "***" + projectToken.substring(Math.max(0, projectToken.length() - 4)) : null);
         map.put("buildName", buildName);
-        map.put("createBuild", createBuild);
-        map.put("configFile", configFile);
-        map.put("environment", environment);
-        map.put("branch", branch);
-        map.put("commitId", commitId);
-        map.put("logLevel", logLevel);
-        map.put("verbose", verbose);
         return map;
     }
     
@@ -351,41 +207,6 @@ public class SmartUIConfig {
             config.buildName = envBuildName;
         }
         
-        String envCreateBuild = System.getenv("SMARTUI_CREATE_BUILD");
-        if (envCreateBuild != null) {
-            config.createBuild = Boolean.parseBoolean(envCreateBuild);
-        }
-        
-        String envConfigFile = System.getenv("SMARTUI_CONFIG_FILE");
-        if (envConfigFile != null) {
-            config.configFile = envConfigFile;
-        }
-        
-        String envEnvironment = System.getenv("SMARTUI_ENVIRONMENT");
-        if (envEnvironment != null) {
-            config.environment = envEnvironment;
-        }
-        
-        String envBranch = System.getenv("SMARTUI_BRANCH");
-        if (envBranch != null) {
-            config.branch = envBranch;
-        }
-        
-        String envCommitId = System.getenv("SMARTUI_COMMIT_ID");
-        if (envCommitId != null) {
-            config.commitId = envCommitId;
-        }
-        
-        String envLogLevel = System.getenv("SMARTUI_LOG_LEVEL");
-        if (envLogLevel != null) {
-            config.logLevel = envLogLevel;
-        }
-        
-        String envVerbose = System.getenv("SMARTUI_VERBOSE");
-        if (envVerbose != null) {
-            config.verbose = Boolean.parseBoolean(envVerbose);
-        }
-        
         config.serverAddress = "http://" + config.host + ":" + config.port;
         
         return config;
@@ -398,19 +219,8 @@ public class SmartUIConfig {
                 ", timeout=" + timeout +
                 ", autoInstall=" + autoInstall +
                 ", serverAddress='" + serverAddress + '\'' +
-                ", allowInsecure=" + allowInsecure +
-                ", proxyHost='" + proxyHost + '\'' +
-                ", proxyPort=" + proxyPort +
-                ", proxyProtocol='" + proxyProtocol + '\'' +
                 ", projectToken='" + (projectToken != null ? "***" + projectToken.substring(Math.max(0, projectToken.length() - 4)) : null) + '\'' +
                 ", buildName='" + buildName + '\'' +
-                ", createBuild=" + createBuild +
-                ", configFile='" + configFile + '\'' +
-                ", environment='" + environment + '\'' +
-                ", branch='" + branch + '\'' +
-                ", commitId='" + commitId + '\'' +
-                ", logLevel='" + logLevel + '\'' +
-                ", verbose=" + verbose +
                 '}';
     }
 }
