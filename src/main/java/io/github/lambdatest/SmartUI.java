@@ -273,10 +273,10 @@ public class SmartUI {
         try {
             log.info("Taking snapshot: " + snapshotName);
             
-            if (buildData != null && buildData.getBuildId() != null) {
-                options.put("buildId", buildData.getBuildId());
-                options.put("buildName", buildData.getName());
-            }
+//            if (buildData != null && buildData.getBuildId() != null) {
+//                options.put("buildId", buildData.getBuildId());
+//                options.put("buildName", buildData.getName());
+//            }
             
             options.put("serverAddress", config.getServerAddress());
             
