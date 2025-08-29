@@ -168,21 +168,22 @@ public class SmartUI {
     
     private void waitForServerReady() throws SmartUIException {
         long startTime = System.currentTimeMillis();
-        long timeout = config.getTimeout();
+        long timeout = 20000; 
         
         while (System.currentTimeMillis() - startTime < timeout) {
             if (pingServer()) {
+                log.info("Server is now ready and responding");
                 return;
             }
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1000); 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new SmartUIException("Interrupted while waiting for server", e);
             }
         }
         
-        throw new SmartUIException("Server did not become ready within " + timeout + "ms");
+        throw new SmartUIException("Server did not become ready within 20 seconds");
     }
     
     public void stopServer() throws SmartUIException {
@@ -199,14 +200,8 @@ public class SmartUI {
                 isServerRunning = false;
                 log.info("SmartUI server stopped successfully via CLI");
             } else {
-                // Fallback to stopping server on configured port
-                if (stopServerViaCLI(config.getPort())) {
-                    isServerRunning = false;
-                    log.info("SmartUI server stopped successfully");
-                } else {
-                    log.warning("Server may not have stopped completely");
-                    isServerRunning = false;
-                }
+                log.warning("Server may not have stopped completely");
+                isServerRunning = false;
             }
             
         } catch (Exception e) {
