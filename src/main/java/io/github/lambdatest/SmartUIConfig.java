@@ -8,7 +8,7 @@ public class SmartUIConfig {
     private int port = 49152;
     private String host = "localhost";
     private int timeout = 30000;
-    private boolean autoInstall = true;
+    private boolean autoInstall = false;
     private String serverAddress = "http://localhost:49152";
     
     private String projectToken;
@@ -112,61 +112,6 @@ public class SmartUIConfig {
     }
     
     /**
-     * Create a copy of this configuration
-     * @return A new SmartUIConfig instance with the same values
-     */
-    public SmartUIConfig copy() {
-        SmartUIConfig copy = new SmartUIConfig();
-        copy.port = this.port;
-        copy.host = this.host;
-        copy.timeout = this.timeout;
-        copy.autoInstall = this.autoInstall;
-        copy.serverAddress = this.serverAddress;
-        copy.projectToken = this.projectToken;
-        copy.buildName = this.buildName;
-        return copy;
-    }
-    
-    /**
-     * Merge this configuration with another, with the other taking precedence
-     * @param other The configuration to merge with
-     * @return A new merged configuration
-     */
-    public SmartUIConfig merge(SmartUIConfig other) {
-        if (other == null) {
-            return this.copy();
-        }
-        
-        SmartUIConfig merged = this.copy();
-        
-        if (other.port != 49152) merged.port = other.port;
-        if (other.timeout != 30000) merged.timeout = other.timeout;
-        if (other.autoInstall != true) merged.autoInstall = other.autoInstall;
-        if (other.serverAddress != null && !other.serverAddress.equals("http://localhost:49152")) {
-            merged.serverAddress = other.serverAddress;
-        }
-        if (other.projectToken != null) merged.projectToken = other.projectToken;
-        if (other.buildName != null) merged.buildName = other.buildName;
-        
-        return merged;
-    }
-    
-    /**
-     * Get configuration as a map for easy serialization
-     * @return Map containing all configuration values
-     */
-    public java.util.Map<String, Object> toMap() {
-        java.util.Map<String, Object> map = new java.util.HashMap<>();
-        map.put("port", port);
-        map.put("timeout", timeout);
-        map.put("autoInstall", autoInstall);
-        map.put("serverAddress", serverAddress);
-        map.put("projectToken", projectToken != null ? "***" + projectToken.substring(Math.max(0, projectToken.length() - 4)) : null);
-        map.put("buildName", buildName);
-        return map;
-    }
-    
-    /**
      * Create configuration from environment variables
      * @return A new SmartUIConfig instance populated from environment variables
      */
@@ -181,6 +126,11 @@ public class SmartUIConfig {
             } catch (NumberFormatException e) {
                 // Use default port
             }
+        }
+
+        String serverAddress = System.getenv("SMARTUI_SERVER_ADDRESS");
+        if (serverAddress != null) {
+            config.serverAddress = serverAddress;
         }
         
         String envTimeout = System.getenv("SMARTUI_TIMEOUT");
