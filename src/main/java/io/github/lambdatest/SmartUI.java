@@ -6,6 +6,8 @@ import io.github.lambdatest.utils.LoggerUtil;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +102,7 @@ public class SmartUI {
         }
     }
     
-    private void                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                startServerWithRetry() throws SmartUIException {
+    private void startServerWithRetry() throws SmartUIException {
         int maxRetries = 1;
         Exception lastException = null;
         
@@ -150,8 +152,17 @@ public class SmartUI {
             env.put("PROJECT_TOKEN", config.getProjectToken());
             env.put("SMARTUI_SERVER_ADDRESS", "http://localhost:" + config.getPort());
             
-            processBuilder.command(command);
+            // Log command and environment (token redacted)
+            logCliContext("start", command, env);
             
+            processBuilder.command(command);
+            processBuilder.redirectErrorStream(true);
+            
+            // Launch CLI in background and stream output
+            Process process = processBuilder.start();
+            streamProcessOutput(process, "[CLI start] ");
+            
+            // Give the CLI a moment to spin up the server
             Thread.sleep(2000);
             
             // Verify that the server actually started
@@ -355,10 +366,16 @@ public class SmartUI {
             env.put("PROJECT_TOKEN", config.getProjectToken());
             env.put("SMARTUI_SERVER_ADDRESS", "http://localhost:" + port);
             
-            stopProcessBuilder.directory(new java.io.File(System.getProperty("user.dir")));
+            // Log command and environment (token redacted)
+            logCliContext("stop", stopCommand, env);
             
+            stopProcessBuilder.directory(new java.io.File(System.getProperty("user.dir")));
+            stopProcessBuilder.redirectErrorStream(true);
             stopProcessBuilder.command(stopCommand);
             Process stopProcess = stopProcessBuilder.start();
+            
+            // Stream CLI output while waiting
+            streamProcessOutput(stopProcess, "[CLI stop] ");
             
             if (stopProcess.waitFor(15, TimeUnit.SECONDS)) {
                 int exitCode = stopProcess.exitValue();
@@ -382,6 +399,52 @@ public class SmartUI {
             log.warning("Failed to execute CLI stop command: " + e.getMessage());
             return false;
         }
+    }
+
+    // Helper: log the CLI command and redacted environment
+    private void logCliContext(String action, java.util.List<String> command, Map<String, String> env) {
+        try {
+            StringBuilder cmd = new StringBuilder();
+            for (String part : command) {
+                if (part.contains(" ") || part.contains("\t")) {
+                    cmd.append('"').append(part).append('"');
+                } else {
+                    cmd.append(part);
+                }
+                cmd.append(' ');
+            }
+            String token = env.get("PROJECT_TOKEN");
+            String maskedToken = token == null ? "null" : maskToken(token);
+            String serverAddr = env.get("SMARTUI_SERVER_ADDRESS");
+            log.info("[CLI " + action + "] Command: " + cmd.toString().trim());
+            log.info("[CLI " + action + "] Env SMARTUI_SERVER_ADDRESS=" + serverAddr);
+            log.info("[CLI " + action + "] Env PROJECT_TOKEN=" + maskedToken);
+        } catch (Exception ex) {
+            log.fine("Failed to log CLI context: " + ex.getMessage());
+        }
+    }
+
+    // Helper: mask token for logs
+    private String maskToken(String token) {
+        if (token.length() <= 6) return "******";
+        String suffix = token.substring(Math.max(0, token.length() - 6));
+        return "******" + suffix;
+    }
+
+    // Helper: stream process stdout/stderr to logger
+    private void streamProcessOutput(Process process, String prefix) {
+        Thread t = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    log.info(prefix + line);
+                }
+            } catch (Exception ex) {
+                log.fine("Failed to read CLI output: " + ex.getMessage());
+            }
+        });
+        t.setDaemon(true);
+        t.start();
     }
 }
 

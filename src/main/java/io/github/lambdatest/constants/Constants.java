@@ -47,6 +47,27 @@ public interface Constants {
     public static final String LT_SDK_DEBUG = "LT_SDK_DEBUG";
     public static final String LT_SDK_LOG_LEVEL = "LT_SDK_LOG_LEVEL";
   }
+  
+  //SmartUI environment variables
+  interface SmartUIEnvVars {
+    public static final String SMARTUI_SERVER_ADDRESS = "SMARTUI_SERVER_ADDRESS";
+    public static final String SMARTUI_PORT = "SMARTUI_PORT";
+    public static final String SMARTUI_HOST = "SMARTUI_HOST";
+    public static final String SMARTUI_TIMEOUT = "SMARTUI_TIMEOUT";
+    public static final String SMARTUI_AUTO_INSTALL = "SMARTUI_AUTO_INSTALL";
+    public static final String SMARTUI_BUILD_ID = "SMARTUI_BUILD_ID";
+    public static final String SMARTUI_BUILD_NAME = "SMARTUI_BUILD_NAME";
+    public static final String SMARTUI_CONFIG_FILE = "SMARTUI_CONFIG_FILE";
+    public static final String SMARTUI_ENVIRONMENT = "SMARTUI_ENVIRONMENT";
+    public static final String SMARTUI_BRANCH = "SMARTUI_BRANCH";
+    public static final String SMARTUI_COMMIT_ID = "SMARTUI_COMMIT_ID";
+    public static final String SMARTUI_LOG_LEVEL = "SMARTUI_LOG_LEVEL";
+    public static final String SMARTUI_VERBOSE = "SMARTUI_VERBOSE";
+    public static final String SMARTUI_ALLOW_INSECURE = "SMARTUI_ALLOW_INSECURE";
+    public static final String HTTP_PROXY = "HTTP_PROXY";
+    public static final String HTTPS_PROXY = "HTTPS_PROXY";
+    public static final String NODE_TLS_REJECT_UNAUTHORIZED = "NODE_TLS_REJECT_UNAUTHORIZED";
+  }
 
   //Error constants
   interface Errors {
@@ -72,5 +93,12 @@ public interface Constants {
     public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";
     public static final String DEVICE_NAME_NULL = "Device name is a mandatory parameter.";
+    public static final String INVALID_PORT_NUMBER = "Invalid port number. Must be between 1 and 65535.";
+    public static final String INVALID_TIMEOUT_VALUE = "Invalid timeout value. Must be greater than 0.";
+    public static final String INVALID_PROXY_CONFIGURATION = "Invalid proxy configuration.";
+    public static final String ENVIRONMENT_VARIABLE_SET_FAILED = "Failed to set environment variable: %s";
+    public static final String CONFIGURATION_VALIDATION_FAILED = "Configuration validation failed: %s";
+    public static final String PORT_NOT_AVAILABLE = "Port %d is not available.";
+    public static final String NO_AVAILABLE_PORTS = "No available ports found after %d attempts.";
   }
 }
