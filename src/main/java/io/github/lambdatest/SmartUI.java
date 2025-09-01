@@ -147,6 +147,11 @@ public class SmartUI {
                 command.add("--buildName");
                 command.add(config.getBuildName());
             }
+
+            if (config.getConfigFile() != null && !config.getConfigFile().trim().isEmpty()) {
+                command.add("--config");
+                command.add(config.getConfigFile());
+            }
             
             Map<String, String> env = processBuilder.environment();
             env.put("PROJECT_TOKEN", config.getProjectToken());
@@ -416,7 +421,9 @@ public class SmartUI {
             String token = env.get("PROJECT_TOKEN");
             String maskedToken = token == null ? "null" : maskToken(token);
             String serverAddr = env.get("SMARTUI_SERVER_ADDRESS");
+            String workingDir = System.getProperty("user.dir");
             log.info("[CLI " + action + "] Command: " + cmd.toString().trim());
+            log.info("[CLI " + action + "] Working Directory: " + workingDir);
             log.info("[CLI " + action + "] Env SMARTUI_SERVER_ADDRESS=" + serverAddr);
             log.info("[CLI " + action + "] Env PROJECT_TOKEN=" + maskedToken);
         } catch (Exception ex) {

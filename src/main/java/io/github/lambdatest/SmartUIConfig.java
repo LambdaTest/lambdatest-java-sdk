@@ -13,13 +13,19 @@ public class SmartUIConfig {
     
     private String projectToken;
     private String buildName;
+    private String configFile;
     
     public SmartUIConfig withPort(int port) {
         this.port = port;
         this.serverAddress = "http://" + this.host + ":" + port;
         return this;
     }
-    
+
+    public SmartUIConfig withConfigFile(String file) {
+        this.configFile = file;
+        return this;
+    }
+
     public SmartUIConfig withHost(String host) {
         this.host = host;
         this.serverAddress = "http://" + host + ":" + this.port;
@@ -77,6 +83,10 @@ public class SmartUIConfig {
     
     public String getBuildName() {
         return buildName;
+    }
+
+    public String getConfigFile() {
+        return configFile;
     }
     
     /**
