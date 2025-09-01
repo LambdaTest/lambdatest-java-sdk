@@ -289,7 +289,7 @@ public class SmartUI {
 //                options.put("buildName", buildData.getName());
 //            }
             
-            options.put("serverAddress", config.getServerAddress());
+            //options.put("serverAddress", config.getServerAddress());
             
             SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
             
