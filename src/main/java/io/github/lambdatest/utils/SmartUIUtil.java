@@ -78,7 +78,7 @@ public class SmartUIUtil {
     }
 
     public static String getSmartUIServerAddress() {
-        String smartUiServerAddress = Constants.SmartUIRoutes.SMARTUI_CLIENT_API_URL;
+        String smartUiServerAddress = System.getenv(Constants.SMARTUI_SERVER_ADDRESS);
         if (smartUiServerAddress != null && !smartUiServerAddress.isEmpty()) {
             return smartUiServerAddress;
         } else {
