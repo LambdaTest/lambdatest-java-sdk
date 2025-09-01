@@ -22,7 +22,7 @@ public class SmartUI {
     private boolean isServerRunning = false;
     private BuildData buildData;
     
-    private static final Logger log = LoggerUtil.createLogger("SmartUI");
+    private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
     private static final String SMARTUI_CLI_COMMAND = "smartui";
     private static final String SMARTUI_CLI_INSTALL_COMMAND = "npm install -g @lambdatest/smartui-cli";
     

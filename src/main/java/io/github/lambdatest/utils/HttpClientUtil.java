@@ -172,16 +172,34 @@ public class HttpClientUtil {
         request.setEntity(new StringEntity(data, StandardCharsets.UTF_8));
         request.setHeader("Content-type", "application/json");
 
+        // Log request details (truncate large payloads for readability)
+        try {
+            String preview = data == null ? "null" : (data.length() > 1000 ? data.substring(0, 1000) + "... (truncated)" : data);
+            log.info("HTTP POST " + url);
+            log.fine("POST body: " + preview);
+        } catch (Exception e) {
+            log.fine("Failed logging POST request body: " + e.getMessage());
+        }
+
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             HttpEntity entity = response.getEntity();
             String responseString = entity != null ? EntityUtils.toString(entity) : null;
 
             int statusCode = response.getStatusLine().getStatusCode();
+            // Log response status and body (truncated)
+            try {
+                String respPreview = responseString == null ? "null" : (responseString.length() > 2000 ? responseString.substring(0, 2000) + "... (truncated)" : responseString);
+                log.info("HTTP POST " + url + " -> status " + statusCode);
+                log.fine("POST response: " + respPreview);
+            } catch (Exception e) {
+                log.fine("Failed logging POST response: " + e.getMessage());
+            }
             if (statusCode == HttpStatus.SC_OK) {
                 // Request was successful
                 return responseString;
             } else {
                 // Request failed, attempt to parse error message from response
+                log.warning("POST failed for URL: " + url + ", status: " + statusCode);
                 try {
                     JsonElement element = new JsonParser().parse(responseString);
                     if (element.isJsonObject()) {
