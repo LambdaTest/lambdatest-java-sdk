@@ -13,6 +13,15 @@ public class SmartUIConfig {
     private String projectToken;
     private String buildName;
     private String configFile;
+    private String testType;
+
+    public String getTestType() {
+        return testType;
+    }
+
+    public void setTestType(String testType) {
+        this.testType = testType;
+    }
     
     public SmartUIConfig withPort(int port) {
         this.port = port;

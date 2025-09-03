@@ -104,7 +104,13 @@ public class SmartUI {
             log.info("Taking snapshot: " + snapshotName);
 
             System.setProperty(Constants.SMARTUI_SERVER_ADDRESS, config.getServerAddress());
-            SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
+
+            String testType = config.getTestType();
+            if (testType != null && !testType.trim().isEmpty()){
+                SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options, testType);
+            } else {
+                SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
+            }
 
             log.info("Snapshot captured successfully: " + snapshotName);
 
