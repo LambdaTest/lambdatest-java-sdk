@@ -10,7 +10,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -142,7 +141,6 @@ public class SmartUI {
             command.add("-P");
             command.add(String.valueOf(config.getPort()));
             
-            // Add buildName if specified
             if (config.getBuildName() != null && !config.getBuildName().trim().isEmpty()) {
                 command.add("--buildName");
                 command.add(config.getBuildName());
@@ -157,20 +155,16 @@ public class SmartUI {
             env.put("PROJECT_TOKEN", config.getProjectToken());
             env.put("SMARTUI_SERVER_ADDRESS", "http://localhost:" + config.getPort());
             
-            // Log command and environment (token redacted)
             logCliContext("start", command, env);
             
             processBuilder.command(command);
             processBuilder.redirectErrorStream(true);
             
-            // Launch CLI in background and stream output
             Process process = processBuilder.start();
             streamProcessOutput(process, "[CLI start] ");
             
-            // Give the CLI a moment to spin up the server
             Thread.sleep(2000);
             
-            // Verify that the server actually started
             if (!pingServer()) {
                 log.warning("CLI start command executed, but server is not responding yet");
             } else {
@@ -211,7 +205,6 @@ public class SmartUI {
         try {
             log.info("Stopping SmartUI server...");
 
-            // Use CLI to stop the server on the specific port
             if (stopServerViaCLI(config.getPort())) {
                 isServerRunning = false;
                 log.info("SmartUI server stopped successfully via CLI");
@@ -289,13 +282,6 @@ public class SmartUI {
         try {
             log.info("Taking snapshot: " + snapshotName);
             
-//            if (buildData != null && buildData.getBuildId() != null) {
-//                options.put("buildId", buildData.getBuildId());
-//                options.put("buildName", buildData.getName());
-//            }
-            
-            //options.put("serverAddress", config.getServerAddress());
-            
             SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
             
             log.info("Snapshot captured successfully: " + snapshotName);
@@ -371,7 +357,6 @@ public class SmartUI {
             env.put("PROJECT_TOKEN", config.getProjectToken());
             env.put("SMARTUI_SERVER_ADDRESS", "http://localhost:" + port);
             
-            // Log command and environment (token redacted)
             logCliContext("stop", stopCommand, env);
             
             stopProcessBuilder.directory(new java.io.File(System.getProperty("user.dir")));
@@ -379,24 +364,37 @@ public class SmartUI {
             stopProcessBuilder.command(stopCommand);
             Process stopProcess = stopProcessBuilder.start();
             
-            // Stream CLI output while waiting
-            streamProcessOutput(stopProcess, "[CLI stop] ");
+            StringBuilder output = new StringBuilder();
+            Thread outputThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stopProcess.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        log.info("[CLI stop] " + line);
+                        output.append(line).append("\n");
+                    }
+                } catch (Exception ex) {
+                    log.fine("Failed to read CLI output: " + ex.getMessage());
+                }
+            });
+            outputThread.setDaemon(true);
+            outputThread.start();
             
-            if (stopProcess.waitFor(15, TimeUnit.SECONDS)) {
-                int exitCode = stopProcess.exitValue();
-                if (exitCode == 0) {
-                    // Give the server a moment to shut down
-                    Thread.sleep(2000);
-                    
-                    // Verify server is actually stopped
-                    return !pingServer();
+            int exitCode = stopProcess.waitFor();
+            
+            outputThread.join(1000);
+            
+            String outputString = output.toString();
+            
+            if (exitCode == 0) {
+                if (outputString.contains("Server stopped successfully")) {
+                    log.info("Server stopped successfully");
+                    return true;
                 } else {
-                    log.warning("CLI stop command failed with exit code: " + exitCode);
+                    log.warning("Server couldn't be stopped - unexpected output");
                     return false;
                 }
             } else {
-                log.warning("CLI stop command timed out");
-                stopProcess.destroyForcibly();
+                log.warning("CLI stop command failed with exit code: " + exitCode);
                 return false;
             }
             
@@ -406,7 +404,6 @@ public class SmartUI {
         }
     }
 
-    // Helper: log the CLI command and redacted environment
     private void logCliContext(String action, java.util.List<String> command, Map<String, String> env) {
         try {
             StringBuilder cmd = new StringBuilder();
@@ -431,14 +428,12 @@ public class SmartUI {
         }
     }
 
-    // Helper: mask token for logs
     private String maskToken(String token) {
         if (token.length() <= 6) return "******";
         String suffix = token.substring(Math.max(0, token.length() - 6));
         return "******" + suffix;
     }
 
-    // Helper: stream process stdout/stderr to logger
     private void streamProcessOutput(Process process, String prefix) {
         Thread t = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
