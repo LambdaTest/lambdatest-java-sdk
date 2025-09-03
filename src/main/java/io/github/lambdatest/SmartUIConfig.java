@@ -8,7 +8,7 @@ public class SmartUIConfig {
     private int port = 49152;
     private String host = "localhost";
     private int timeout = 30000;
-    private boolean autoInstall = false;
+    private boolean autoInstall = true;
     private String serverAddress = "http://localhost:49152";
     
     private String projectToken;

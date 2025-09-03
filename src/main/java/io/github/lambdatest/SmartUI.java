@@ -55,9 +55,9 @@ public class SmartUI {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                processBuilder.command("cmd", "/c", "npm", "install", "-g", "@lambdatest/smartui-cli");
+                processBuilder.command("cmd", "/c", "npm", "install", "-g", "@lambdatest/smartui-cli@latest");
             } else {
-                processBuilder.command("npm", "install", "-g", "@lambdatest/smartui-cli");
+                processBuilder.command("npm", "install", "-g", "@lambdatest/smartui-cli@latest");
             }
             
             Process process = processBuilder.start();
@@ -84,7 +84,7 @@ public class SmartUI {
         }
         
         if (!isSmartUICLIInstalled()) {
-            throw new SmartUIException("SmartUI CLI is not installed and auto-installation is disabled");
+            throw new SmartUIException("SmartUI CLI is not installed and auto-installation is disabled, please enable auto-installation or install smartui-cli manually.");
         }
         
         try {
