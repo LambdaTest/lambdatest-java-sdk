@@ -1,7 +1,6 @@
 package io.github.lambdatest;
 
 import io.github.lambdatest.exceptions.SmartUIException;
-import io.github.lambdatest.models.BuildData;
 import io.github.lambdatest.utils.LoggerUtil;
 
 import java.net.HttpURLConnection;
@@ -19,17 +18,103 @@ public class SmartUI {
     private final SmartUIConfig config;
     private Process serverProcess;
     private boolean isServerRunning = false;
-    private BuildData buildData;
-    
+
     private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
     private static final String SMARTUI_CLI_COMMAND = "smartui";
-    private static final String SMARTUI_CLI_INSTALL_COMMAND = "npm install -g @lambdatest/smartui-cli";
-    
+
     public SmartUI(SmartUIConfig config) {
         this.config = config;
         if (config.getProjectToken() == null || config.getProjectToken().trim().isEmpty()) {
             throw new IllegalArgumentException("Project token is required");
         }
+    }
+
+    public void startServer() throws SmartUIException {
+        if (isServerRunning) {
+            log.info("Server is already running");
+            return;
+        }
+
+        if (!isSmartUICLIInstalled()) {
+            log.info("SmartUI CLI is not installed, installing it globally.");
+            installSmartUICLI();
+        }
+
+        try {
+            startServerWithRetry();
+
+            waitForServerReady();
+
+            isServerRunning = true;
+            log.info("SmartUI server started successfully on " + config.getServerAddress());
+
+        } catch (Exception e) {
+            isServerRunning = false;
+            throw new SmartUIException("Failed to start SmartUI server: " + e.getMessage(), e);
+        }
+    }
+
+    public void stopServer() throws SmartUIException {
+        if (!isServerRunning) {
+            log.info("Server is not running");
+            return;
+        }
+
+        try {
+            log.info("Stopping SmartUI server...");
+
+            if (stopServerViaCLI(config.getPort())) {
+                isServerRunning = false;
+                log.info("SmartUI server stopped successfully via CLI");
+            } else {
+                log.warning("Server may not have stopped completely");
+                isServerRunning = false;
+            }
+
+        } catch (Exception e) {
+            log.severe("Error during server shutdown: " + e.getMessage());
+            forceCleanup();
+            throw new SmartUIException("Failed to stop SmartUI server: " + e.getMessage(), e);
+        }
+    }
+
+    public void takeSnapshot(org.openqa.selenium.WebDriver driver, String snapshotName, Map<String, Object> options) throws SmartUIException {
+        if (!isServerRunning) {
+            throw new SmartUIException("Cannot take snapshot: SmartUI server is not running");
+        }
+
+        if (!isServerHealthy()) {
+            throw new SmartUIException("Cannot take snapshot: SmartUI server is not healthy");
+        }
+
+        if (driver == null) {
+            throw new SmartUIException("Cannot take snapshot: WebDriver is null");
+        }
+
+        if (snapshotName == null || snapshotName.trim().isEmpty()) {
+            throw new SmartUIException("Cannot take snapshot: Snapshot name is null or empty");
+        }
+
+        if (options == null) {
+            options = new HashMap<>();
+        }
+
+        try {
+            log.info("Taking snapshot: " + snapshotName);
+
+            SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
+
+            log.info("Snapshot captured successfully: " + snapshotName);
+
+        } catch (Exception e) {
+            String errorMsg = "Failed to take snapshot '" + snapshotName + "': " + e.getMessage();
+            log.severe(errorMsg);
+            throw new SmartUIException(errorMsg, e);
+        }
+    }
+
+    public void takeSnapshot(org.openqa.selenium.WebDriver driver, String snapshotName) throws SmartUIException {
+        takeSnapshot(driver, snapshotName, new HashMap<>());
     }
     
     private boolean isSmartUICLIInstalled() {
@@ -70,34 +155,6 @@ public class SmartUI {
             log.info("SmartUI CLI installed successfully");
         } catch (Exception e) {
             throw new SmartUIException("Failed to install SmartUI CLI: " + e.getMessage(), e);
-        }
-    }
-    
-    public void startServer() throws SmartUIException {
-        if (isServerRunning) {
-            log.info("Server is already running");
-            return;
-        }
-        
-        if (config.isAutoInstall() && !isSmartUICLIInstalled()) {
-            installSmartUICLI();
-        }
-        
-        if (!isSmartUICLIInstalled()) {
-            throw new SmartUIException("SmartUI CLI is not installed and auto-installation is disabled, please enable auto-installation or install smartui-cli manually.");
-        }
-        
-        try {
-            startServerWithRetry();
-            
-            waitForServerReady();
-
-            isServerRunning = true;
-            log.info("SmartUI server started successfully on " + config.getServerAddress());
-            
-        } catch (Exception e) {
-            isServerRunning = false;
-            throw new SmartUIException("Failed to start SmartUI server: " + e.getMessage(), e);
         }
     }
     
@@ -196,31 +253,7 @@ public class SmartUI {
         throw new SmartUIException("Server did not become ready within 20 seconds");
     }
     
-    public void stopServer() throws SmartUIException {
-        if (!isServerRunning) {
-            log.info("Server is not running");
-            return;
-        }
-        
-        try {
-            log.info("Stopping SmartUI server...");
-
-            if (stopServerViaCLI(config.getPort())) {
-                isServerRunning = false;
-                log.info("SmartUI server stopped successfully via CLI");
-            } else {
-                log.warning("Server may not have stopped completely");
-                isServerRunning = false;
-            }
-            
-        } catch (Exception e) {
-            log.severe("Error during server shutdown: " + e.getMessage());
-            forceCleanup();
-            throw new SmartUIException("Failed to stop SmartUI server: " + e.getMessage(), e);
-        }
-    }
-    
-    public boolean pingServer() throws SmartUIException {
+    public boolean pingServer() {
         try {
             URL url = new URL(config.getServerAddress() + "/healthcheck");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -237,65 +270,6 @@ public class SmartUI {
             return false;
         }
     }
-    
-    public boolean isServerRunning() {
-        return isServerRunning;
-    }
-    
-    public BuildData getBuildData() {
-        return buildData;
-    }
-    
-    public String getBuildId() {
-        return buildData != null ? buildData.getBuildId() : null;
-    }
-    
-    public String getBuildName() {
-        return buildData != null ? buildData.getName() : null;
-    }
-    
-    public void takeSnapshot(org.openqa.selenium.WebDriver driver, String snapshotName) throws SmartUIException {
-        takeSnapshot(driver, snapshotName, new HashMap<>());
-    }
-    
-    public void takeSnapshot(org.openqa.selenium.WebDriver driver, String snapshotName, Map<String, Object> options) throws SmartUIException {
-        if (!isServerRunning) {
-            throw new SmartUIException("Cannot take snapshot: SmartUI server is not running");
-        }
-        
-        if (!isServerHealthy()) {
-            throw new SmartUIException("Cannot take snapshot: SmartUI server is not healthy");
-        }
-        
-        if (driver == null) {
-            throw new SmartUIException("Cannot take snapshot: WebDriver is null");
-        }
-        
-        if (snapshotName == null || snapshotName.trim().isEmpty()) {
-            throw new SmartUIException("Cannot take snapshot: Snapshot name is null or empty");
-        }
-        
-        if (options == null) {
-            options = new HashMap<>();
-        }
-        
-        try {
-            log.info("Taking snapshot: " + snapshotName);
-            
-            SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
-            
-            log.info("Snapshot captured successfully: " + snapshotName);
-            
-        } catch (Exception e) {
-            String errorMsg = "Failed to take snapshot '" + snapshotName + "': " + e.getMessage();
-            log.severe(errorMsg);
-            throw new SmartUIException(errorMsg, e);
-        }
-    }
-    
-    public String getServerAddress() {
-        return config.getServerAddress();
-    }
 
     private void forceCleanup() {
         log.warning("Performing forced cleanup...");
@@ -305,7 +279,6 @@ public class SmartUI {
                 serverProcess = null;
             }
             isServerRunning = false;
-            buildData = null;
         } catch (Exception e) {
             log.severe("Error during forced cleanup: " + e.getMessage());
         }
@@ -352,7 +325,6 @@ public class SmartUI {
             stopCommand.add(SMARTUI_CLI_COMMAND);
             stopCommand.add("exec:stop");
             
-            // Set environment variables
             Map<String, String> env = stopProcessBuilder.environment();
             env.put("PROJECT_TOKEN", config.getProjectToken());
             env.put("SMARTUI_SERVER_ADDRESS", "http://localhost:" + port);
@@ -449,4 +421,3 @@ public class SmartUI {
         t.start();
     }
 }
-

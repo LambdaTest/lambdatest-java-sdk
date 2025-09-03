@@ -7,7 +7,6 @@ package io.github.lambdatest;
 public class SmartUIConfig {
     private int port = 49152;
     private String host = "localhost";
-    private int timeout = 30000;
     private boolean autoInstall = true;
     private String serverAddress = "http://localhost:49152";
     
@@ -29,11 +28,6 @@ public class SmartUIConfig {
     public SmartUIConfig withHost(String host) {
         this.host = host;
         this.serverAddress = "http://" + host + ":" + this.port;
-        return this;
-    }
-    
-    public SmartUIConfig withTimeout(int timeout) {
-        this.timeout = timeout;
         return this;
     }
     
@@ -65,10 +59,6 @@ public class SmartUIConfig {
         return host;
     }
     
-    public int getTimeout() {
-        return timeout;
-    }
-    
     public boolean isAutoInstall() {
         return autoInstall;
     }
@@ -95,8 +85,7 @@ public class SmartUIConfig {
      */
     public boolean isValid() {
         return projectToken != null && !projectToken.trim().isEmpty() &&
-               port > 0 && port <= 65535 &&
-               timeout > 0;
+               port > 0 && port <= 65535;
     }
     
     /**
@@ -112,10 +101,6 @@ public class SmartUIConfig {
         
         if (port <= 0 || port > 65535) {
             errors.add("Port must be between 1 and 65535");
-        }
-        
-        if (timeout <= 0) {
-            errors.add("Timeout must be greater than 0");
         }
         
         return errors;
@@ -143,15 +128,6 @@ public class SmartUIConfig {
             config.serverAddress = serverAddress;
         }
         
-        String envTimeout = System.getenv("SMARTUI_TIMEOUT");
-        if (envTimeout != null) {
-            try {
-                config.timeout = Integer.parseInt(envTimeout);
-            } catch (NumberFormatException e) {
-                // Use default timeout
-            }
-        }
-        
         String envAutoInstall = System.getenv("SMARTUI_AUTO_INSTALL");
         if (envAutoInstall != null) {
             config.autoInstall = Boolean.parseBoolean(envAutoInstall);
@@ -176,7 +152,6 @@ public class SmartUIConfig {
     public String toString() {
         return "SmartUIConfig{" +
                 "port=" + port +
-                ", timeout=" + timeout +
                 ", autoInstall=" + autoInstall +
                 ", serverAddress='" + serverAddress + '\'' +
                 ", projectToken='" + (projectToken != null ? "***" + projectToken.substring(Math.max(0, projectToken.length() - 4)) : null) + '\'' +
