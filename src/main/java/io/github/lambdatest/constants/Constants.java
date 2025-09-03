@@ -72,12 +72,5 @@ public interface Constants {
     public static final String PAGE_COUNT_ERROR = "Page Count Value is invalid";
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";
     public static final String DEVICE_NAME_NULL = "Device name is a mandatory parameter.";
-    public static final String INVALID_PORT_NUMBER = "Invalid port number. Must be between 1 and 65535.";
-    public static final String INVALID_TIMEOUT_VALUE = "Invalid timeout value. Must be greater than 0.";
-    public static final String INVALID_PROXY_CONFIGURATION = "Invalid proxy configuration.";
-    public static final String ENVIRONMENT_VARIABLE_SET_FAILED = "Failed to set environment variable: %s";
-    public static final String CONFIGURATION_VALIDATION_FAILED = "Configuration validation failed: %s";
-    public static final String PORT_NOT_AVAILABLE = "Port %d is not available.";
-    public static final String NO_AVAILABLE_PORTS = "No available ports found after %d attempts.";
   }
 }
