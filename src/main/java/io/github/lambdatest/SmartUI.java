@@ -1,5 +1,6 @@
 package io.github.lambdatest;
 
+import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.exceptions.SmartUIException;
 import io.github.lambdatest.utils.LoggerUtil;
 
@@ -102,6 +103,7 @@ public class SmartUI {
         try {
             log.info("Taking snapshot: " + snapshotName);
 
+            System.setProperty(Constants.SMARTUI_SERVER_ADDRESS, config.getServerAddress());
             SmartUISnapshot.smartuiSnapshot(driver, snapshotName, options);
 
             log.info("Snapshot captured successfully: " + snapshotName);

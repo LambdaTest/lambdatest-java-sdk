@@ -81,6 +81,10 @@ public class SmartUIUtil {
         String smartUiServerAddress = System.getenv(Constants.SMARTUI_SERVER_ADDRESS);
         if (smartUiServerAddress != null && !smartUiServerAddress.isEmpty()) {
             return smartUiServerAddress;
+        }
+        smartUiServerAddress = System.getProperty(Constants.SMARTUI_SERVER_ADDRESS);
+        if (smartUiServerAddress != null && !smartUiServerAddress.isEmpty()) {
+            return smartUiServerAddress;
         } else {
             return "http://localhost:49152";
         }
