@@ -177,6 +177,7 @@ public class HttpClientUtil {
             String responseString = entity != null ? EntityUtils.toString(entity) : null;
 
             int statusCode = response.getStatusLine().getStatusCode();
+
             if (statusCode == HttpStatus.SC_OK) {
                 // Request was successful
                 return responseString;

@@ -19,7 +19,7 @@ import java.io.IOException;
 public class SmartUISnapshot {
 
     // Method with options parameter
-    public static void smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options) throws Exception {
+    public static void smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options, String testType) throws Exception {
         if (driver == null) {
             throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
         }
@@ -83,7 +83,7 @@ public class SmartUISnapshot {
 
                 String url = driver.getCurrentUrl();
 
-                String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, "lambdatest-java-sdk");
+                String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, testType);
 
                 // Parse the JSON response into a SnapshotResponse object using Gson
                 SnapshotResponse postSnapResponse = gson.fromJson(ResponseMap, SnapshotResponse.class);
@@ -110,5 +110,9 @@ public class SmartUISnapshot {
     // Overloaded method without options parameter
     public static void smartuiSnapshot(WebDriver driver, String snapshotName) throws Exception {
         smartuiSnapshot(driver, snapshotName, new HashMap<>()); // Pass an empty map for options
+    }
+
+    public static void smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options) throws Exception {
+        smartuiSnapshot(driver, snapshotName, options, "lambdatest-java-sdk");
     }
 }
