@@ -23,6 +23,7 @@ import io.github.lambdatest.constants.Constants;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
@@ -424,6 +425,64 @@ public class HttpClientUtil {
         }
     }
 
+    public String uploadPDFs(String url, List<File> pdfFiles, String projectToken, String buildName) throws IOException {
+        HttpPost uploadRequest = new HttpPost(url);
+        uploadRequest.setHeader("Authorization", "Basic " + projectToken);
+
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setMode(HttpMultipartMode.STRICT);
+
+        builder.addTextBody("projectToken", projectToken);
+
+        if (!buildName.isEmpty() && !buildName.trim().isEmpty()) {
+            builder.addTextBody("buildName", buildName);
+        }
+
+        for (File pdfFile : pdfFiles) {
+            if (pdfFile != null && pdfFile.exists()) {
+                builder.addBinaryBody("pathToFiles", pdfFile, 
+                    ContentType.create("application/octet-stream"), 
+                    pdfFile.getName());
+            }
+        }
+
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            HttpEntity entity = response.getEntity();
+            String responseString = entity != null ? EntityUtils.toString(entity) : null;
+            
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            if (statusCode == HttpStatus.SC_OK) {
+                return responseString;
+            } else {
+                try {
+                    if (Objects.nonNull(responseString)) {
+                        JsonElement element = JsonParser.parseString(responseString);
+                        if (element.isJsonObject()) {
+                            JsonObject jsonResponse = element.getAsJsonObject();
+                            if (jsonResponse.has("error") && jsonResponse.get("error").isJsonObject()) {
+                                JsonObject errorObject = jsonResponse.getAsJsonObject("error");
+                                if (errorObject.has("message")) {
+                                    String errorMessage = errorObject.get("message").getAsString();
+                                    log.severe("Error in PDF upload: " + errorMessage);
+                                }
+                            }
+                        }
+                    }
+                } catch (JsonSyntaxException e) {
+                    log.warning("Failed to parse error response: " + responseString);
+                }
+                throw new IOException("PDF upload failed with status code: " + statusCode + ". Response: " + responseString);
+            }
+        } catch (IOException e) {
+            log.warning("Exception occurred in uploading PDFs: " + e.getMessage());
+            throw new IOException("Failed to upload PDFs", e);
+        }
+    }
+
     public ProjectTokenResponse parseResponse(String responseString) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -431,6 +490,72 @@ public class HttpClientUtil {
         } catch (Exception e) {
             log.severe("Error parsing response: " + e.getMessage());
             return new ProjectTokenResponse();
+        }
+    }
+
+    public String getBuildScreenshotsWithPolling(String url, Map<String, String> headers, int maxRetries) throws IOException, InterruptedException {
+        int attempts = 0;
+        String lastResponse = null;
+        
+        while (attempts < maxRetries) {
+            try {
+                HttpGet request = new HttpGet(url);
+                
+                if (headers != null) {
+                    for (Map.Entry<String, String> entry : headers.entrySet()) {
+                        request.setHeader(entry.getKey(), entry.getValue());
+                    }
+                }
+                
+                try (CloseableHttpResponse response = httpClient.execute(request)) {
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    HttpEntity entity = response.getEntity();
+                    String responseString = entity != null ? EntityUtils.toString(entity) : null;
+
+                    if (statusCode == 200 && responseString != null) {
+                        try {
+                            JsonElement element = JsonParser.parseString(responseString);
+                            if (element.isJsonObject()) {
+                                JsonObject jsonResponse = element.getAsJsonObject();
+                                
+                                if (jsonResponse.has("build") && jsonResponse.get("build").isJsonObject()) {
+                                    JsonObject buildObject = jsonResponse.getAsJsonObject("build");
+                                    if (buildObject.has("build_status")) {
+                                        String buildStatus = buildObject.get("build_status").getAsString();
+
+                                        if (!"running".equals(buildStatus)) {
+                                            return responseString;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (JsonSyntaxException e) {
+                            log.warning("Failed to parse response JSON: " + e.getMessage());
+                        }
+                    }
+                    
+                    lastResponse = responseString;
+                    attempts++;
+                    
+                    if (attempts < maxRetries) {
+                        log.info("Waiting for results...");
+                        Thread.sleep(10000);
+                    }
+                }
+            } catch (Exception e) {
+                log.warning("Exception in build screenshots request attempt " + (attempts + 1) + ": " + e.getMessage());
+                attempts++;
+                if (attempts < maxRetries) {
+                    Thread.sleep(10000);
+                }
+            }
+        }
+        
+        if (lastResponse != null) {
+            log.warning("Max retries reached, returning last response");
+            return lastResponse;
+        } else {
+            throw new IOException("Failed to get build screenshots after " + maxRetries + " attempts");
         }
     }
 }

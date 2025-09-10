@@ -8,6 +8,7 @@ public class SmartUIConfig {
     private int port = 49152;
     private String host = "localhost";
     private boolean autoInstall = true;
+    private boolean fetchResult = false;
     private String serverAddress = "http://localhost:49152";
     
     private String projectToken;
@@ -22,6 +23,16 @@ public class SmartUIConfig {
     public void setTestType(String testType) {
         this.testType = testType;
     }
+
+    public SmartUIConfig withFetchResult(boolean fetchResult) {
+        this.fetchResult = fetchResult;
+        return this;
+    }
+
+    public boolean getFetchResults() {
+        return this.fetchResult;
+    }
+
     
     public SmartUIConfig withPort(int port) {
         this.port = port;

@@ -1,6 +1,7 @@
 package io.github.lambdatest.constants;
 
 import static io.github.lambdatest.constants.Constants.SmartUIRoutes.SMARTUI_CLIENT_API_URL;
+import static io.github.lambdatest.constants.Constants.SmartUIRoutes.SMARTUI_UPLOAD_URL;
 
 public interface Constants {
 
@@ -14,9 +15,15 @@ public interface Constants {
     return (envUrl != null && !envUrl.isEmpty()) ? envUrl : SMARTUI_CLIENT_API_URL;
   }
 
+  public static String getUploadHostUrlFromEnvOrDefault() {
+    String envUrl = System.getenv("SMARTUI_UPLOAD_URL");
+    return (envUrl != null && !envUrl.isEmpty()) ? envUrl : SMARTUI_UPLOAD_URL;
+  }
+
   //SmartUI API routes
   interface SmartUIRoutes {
     public static final String SMARTUI_CLIENT_API_URL = "https://api.lambdatest.com/visualui/1.0";
+    public static final String SMARTUI_UPLOAD_URL = "https://api.lambdatest.com/";
     public static final String SMARTUI_HEALTHCHECK_ROUTE = "/healthcheck";
     public static final String SMARTUI_DOMSERIALIZER_ROUTE = "/domserializer";
     public static final String SMARTUI_SNAPSHOT_ROUTE = "/snapshot";
@@ -24,6 +31,8 @@ public interface Constants {
     public static final String SMARTUI_CREATE_BUILD = "/build";
     public static final String SMARTUI_FINALISE_BUILD_ROUTE = "/build?buildId=";
     public static final String SMARTUI_UPLOAD_SCREENSHOT_ROUTE = "/screenshot";
+    public static final String SMARTUI_UPLOAD_PDF_ROUTE = "/pdf/upload";
+    public static final String SMARTUI_BUILD_SCREENSHOTS_ROUTE = "/smartui/2.0/build/screenshots";
     
   }
 
