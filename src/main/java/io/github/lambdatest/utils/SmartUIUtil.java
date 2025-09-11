@@ -77,6 +77,48 @@ public class SmartUIUtil {
         }
     }
 
+    public UploadPDFResponse postPDFToSmartUI(List<File> pdfFiles, String projectToken, String buildName) throws Exception {
+        UploadPDFResponse uploadResponse;
+        try {
+            if (pdfFiles == null || pdfFiles.isEmpty()) {
+                throw new IllegalArgumentException("PDF files list cannot be null or empty");
+            }
+            
+            if (projectToken == null || projectToken.trim().isEmpty()) {
+                throw new IllegalArgumentException("Project token cannot be null or empty");
+            }
+
+            String hostUrl = Constants.getUploadHostUrlFromEnvOrDefault();
+            String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_UPLOAD_PDF_ROUTE;
+            
+            log.info("Uploading PDFs to SmartUI. Count: " + pdfFiles.size());
+
+            String responseString = httpClient.uploadPDFs(url, pdfFiles, projectToken, buildName);
+            uploadResponse = gson.fromJson(responseString, UploadPDFResponse.class);
+            
+            if (uploadResponse == null) {
+                throw new IllegalStateException("Failed to parse PDF upload response");
+            }
+            
+            if (!uploadResponse.isSuccessful()) {
+                String errorMessage = uploadResponse.getMessage() != null ? 
+                    uploadResponse.getMessage() : "Unknown error occurred";
+                throw new IllegalStateException("PDF upload failed: " + errorMessage);
+            }
+            
+            log.info(uploadResponse.getMessage());
+            log.info("Build ID: " + uploadResponse.getBuildId());
+            log.info("Project: " + uploadResponse.getProjectName());
+            log.info("Build URL: " + uploadResponse.getBuildURL());
+            
+            return uploadResponse;
+        } catch (Exception e) {
+            log.severe("Failed to upload PDFs to SmartUI: " + e.getMessage());
+            throw new Exception("Couldn't upload PDFs to SmartUI because of error: " + e.getMessage());
+        }
+    }
+
+
     public static String getSmartUIServerAddress() {
         String smartUiServerAddress = System.getenv(Constants.SMARTUI_SERVER_ADDRESS);
         if (smartUiServerAddress != null && !smartUiServerAddress.isEmpty()) {
@@ -151,6 +193,66 @@ public class SmartUIUtil {
             httpClient.stopBuild(buildId, headers);
         } catch (Exception e) {
             throw new Exception(Constants.Errors.STOP_BUILD_FAILED + " due to: " + e.getMessage());
+        }
+    }
+
+    public BuildScreenshotsResponse getBuildScreenshots(String projectId, String buildId, String projectToken) throws Exception {
+        return getBuildScreenshots(projectId, buildId, projectToken, false, 60);
+    }
+
+    public BuildScreenshotsResponse getBuildScreenshots(String projectId, String buildId, String projectToken, boolean baseline, int maxRetries) throws Exception {
+        try {
+            if (projectId == null || projectId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Project ID cannot be null or empty");
+            }
+            if (buildId == null || buildId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Build ID cannot be null or empty");
+            }
+            if (projectToken == null || projectToken.trim().isEmpty()) {
+                throw new IllegalArgumentException("Project token cannot be null or empty");
+            }
+
+            String hostUrl = Constants.getUploadHostUrlFromEnvOrDefault();
+            String url = hostUrl + Constants.SmartUIRoutes.SMARTUI_BUILD_SCREENSHOTS_ROUTE + 
+                        "?project_id=" + projectId + 
+                        "&baseline=" + baseline +
+                        "&build_id=" + buildId;
+            
+            String username = System.getenv("LT_USERNAME");
+            String accessKey = System.getenv("LT_ACCESS_KEY");
+            
+            if (username == null || username.trim().isEmpty()) {
+                throw new IllegalArgumentException("LT_USERNAME environment variable is required");
+            }
+            if (accessKey == null || accessKey.trim().isEmpty()) {
+                throw new IllegalArgumentException("LT_ACCESS_KEY environment variable is required");
+            }
+            
+            String credentials = username + ":" + accessKey;
+            String basicAuth = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+            
+            Map<String, String> headers = new HashMap<>();
+            headers.put("accept", "application/json");
+            headers.put("Authorization", "Basic " + basicAuth);
+            
+            log.info("Fetching build status for build: " + buildId);
+
+            String responseString = httpClient.getBuildScreenshotsWithPolling(url, headers, maxRetries);
+            BuildScreenshotsResponse response = gson.fromJson(responseString, BuildScreenshotsResponse.class);
+            
+            if (response == null) {
+                throw new IllegalStateException("Failed to parse build screenshots response");
+            }
+            
+            log.info("Number of screenshots: " + (response.getScreenshots() != null ? response.getScreenshots().size() : 0));
+            if (response.getBuild() != null) {
+                log.info("Build status: " + response.getBuild().getBuildStatus());
+            }
+            
+            return response;
+        } catch (Exception e) {
+            log.severe("Failed to fetch build screenshots: " + e.getMessage());
+            throw e;
         }
     }
 }
