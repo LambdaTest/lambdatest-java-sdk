@@ -34,9 +34,8 @@ public class FormattedResults {
         private String buildName;
         private String projectName;
         private String buildStatus;
+        private String buildUrl;
         private List<PdfResult> pdfs;
-
-        public ResultData() {}
 
         public ResultData(String buildId, String buildName, String projectName, String buildStatus, List<PdfResult> pdfs) {
             this.buildId = buildId;
@@ -44,6 +43,11 @@ public class FormattedResults {
             this.projectName = projectName;
             this.buildStatus = buildStatus;
             this.pdfs = pdfs;
+        }
+
+        public ResultData(String buildId, String projectName) {
+            this.buildId = buildId;
+            this.projectName = projectName;
         }
 
         public String getBuildId() {
@@ -56,6 +60,14 @@ public class FormattedResults {
 
         public String getBuildName() {
             return buildName;
+        }
+
+        public String getBuildUrl() {
+            return buildUrl;
+        }
+
+        public void setBuildUrl(String buildUrl) {
+            this.buildUrl = buildUrl;
         }
 
         public void setBuildName(String buildName) {

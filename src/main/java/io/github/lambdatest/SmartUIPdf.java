@@ -9,6 +9,7 @@ import io.github.lambdatest.models.Screenshot;
 import io.github.lambdatest.utils.LoggerUtil;
 import io.github.lambdatest.utils.SmartUIUtil;
 
+import javax.xml.transform.Result;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,7 +36,7 @@ public class SmartUIPdf {
         this.projectToken = config.getProjectToken();
     }
 
-    public FormattedResults uploadPDF(String path) {
+    public FormattedResults uploadPDF(String path) throws Exception {
         List<File> pdfFiles = new ArrayList<>();
         
         if (path == null || path.trim().isEmpty()) {
@@ -71,11 +72,15 @@ public class SmartUIPdf {
                 return analyzeScreenshots(screenshotsResponse);
             }
 
-        } catch (Exception e) {
-            log.severe(e.toString());
-        }
+            FormattedResults results = new FormattedResults();
+            results.setStatus("success");
+            results.setData(new FormattedResults.ResultData(response.getBuildId(), response.getProjectName()));
 
-        return null;
+            return results;
+
+        } catch (Exception e) {
+            throw new Exception("Failure while uploading PDFs" + e);
+        }
     }
     
     private boolean isPdfFile(File file) {

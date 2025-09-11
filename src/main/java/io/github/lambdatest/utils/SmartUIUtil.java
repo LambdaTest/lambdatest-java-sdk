@@ -200,7 +200,7 @@ public class SmartUIUtil {
         return getBuildScreenshots(projectId, buildId, projectToken, false, 60);
     }
 
-    public BuildScreenshotsResponse  getBuildScreenshots(String projectId, String buildId, String projectToken, boolean baseline, int maxRetries) throws Exception {
+    public BuildScreenshotsResponse getBuildScreenshots(String projectId, String buildId, String projectToken, boolean baseline, int maxRetries) throws Exception {
         try {
             if (projectId == null || projectId.trim().isEmpty()) {
                 throw new IllegalArgumentException("Project ID cannot be null or empty");
@@ -252,7 +252,7 @@ public class SmartUIUtil {
             return response;
         } catch (Exception e) {
             log.severe("Failed to fetch build screenshots: " + e.getMessage());
-            throw new Exception("Couldn't fetch build screenshots because of error: " + e.getMessage());
+            throw e;
         }
     }
 }

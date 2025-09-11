@@ -7,6 +7,7 @@ import io.github.lambdatest.models.UploadSnapshotRequest;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -434,7 +435,7 @@ public class HttpClientUtil {
 
         builder.addTextBody("projectToken", projectToken);
 
-        if (!buildName.isEmpty() && !buildName.trim().isEmpty()) {
+        if (buildName != null && !buildName.isEmpty() && !buildName.trim().isEmpty()) {
             builder.addTextBody("buildName", buildName);
         }
 
@@ -498,55 +499,66 @@ public class HttpClientUtil {
         String lastResponse = null;
         
         while (attempts < maxRetries) {
-            try {
-                HttpGet request = new HttpGet(url);
-                
-                if (headers != null) {
-                    for (Map.Entry<String, String> entry : headers.entrySet()) {
-                        request.setHeader(entry.getKey(), entry.getValue());
-                    }
+            HttpGet request = new HttpGet(url);
+
+            if (headers != null) {
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    request.setHeader(entry.getKey(), entry.getValue());
                 }
-                
-                try (CloseableHttpResponse response = httpClient.execute(request)) {
-                    int statusCode = response.getStatusLine().getStatusCode();
-                    HttpEntity entity = response.getEntity();
-                    String responseString = entity != null ? EntityUtils.toString(entity) : null;
+            }
 
-                    if (statusCode == 200 && responseString != null) {
-                        try {
-                            JsonElement element = JsonParser.parseString(responseString);
-                            if (element.isJsonObject()) {
-                                JsonObject jsonResponse = element.getAsJsonObject();
-                                
-                                if (jsonResponse.has("build") && jsonResponse.get("build").isJsonObject()) {
-                                    JsonObject buildObject = jsonResponse.getAsJsonObject("build");
-                                    if (buildObject.has("build_status")) {
-                                        String buildStatus = buildObject.get("build_status").getAsString();
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                HttpEntity entity = response.getEntity();
+                String responseString = entity != null ? EntityUtils.toString(entity) : null;
 
-                                        if (!"running".equals(buildStatus)) {
-                                            return responseString;
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (JsonSyntaxException e) {
-                            log.warning("Failed to parse response JSON: " + e.getMessage());
-                        }
-                    }
-                    
-                    lastResponse = responseString;
+                lastResponse = responseString;
+
+                if (statusCode == 400) {
                     attempts++;
-                    
                     if (attempts < maxRetries) {
                         log.info("Waiting for results...");
                         Thread.sleep(10000);
                     }
+                    continue;
                 }
-            } catch (Exception e) {
-                log.warning("Exception in build screenshots request attempt " + (attempts + 1) + ": " + e.getMessage());
-                attempts++;
-                if (attempts < maxRetries) {
-                    Thread.sleep(10000);
+                if (statusCode == 401) {
+                    throw new HttpResponseException(statusCode, "Unauthorized: Invalid credentials or token");
+                }
+
+                if (statusCode != 200 || responseString == null) {
+                    return responseString;
+                }
+
+                try {
+                    JsonElement element = JsonParser.parseString(responseString);
+                    if (!element.isJsonObject()) {
+                        return responseString;
+                    }
+
+                    JsonObject jsonResponse = element.getAsJsonObject();
+                    if (!jsonResponse.has("build") || !jsonResponse.get("build").isJsonObject()) {
+                        return responseString;
+                    }
+
+                    JsonObject buildObject = jsonResponse.getAsJsonObject("build");
+                    if (!buildObject.has("build_status")) {
+                        return responseString;
+                    }
+
+                    String buildStatus = buildObject.get("build_status").getAsString();
+                    if (!"running".equals(buildStatus)) {
+                        return responseString;
+                    }
+
+                    attempts++;
+                    if (attempts < maxRetries) {
+                        log.info("Waiting for results...");
+                        Thread.sleep(10000);
+                    }
+                } catch (JsonSyntaxException e) {
+                    log.warning("Failed to parse response JSON: " + e.getMessage());
+                    return responseString;
                 }
             }
         }
