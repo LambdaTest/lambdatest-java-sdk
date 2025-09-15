@@ -85,7 +85,7 @@ public class SmartUISnapshot {
 
 
                 // Parse the JSON response into a SnapshotResponse object using Gson
-                if(options.containsKey("sync")){
+                if(options.containsKey("sync")&&(boolean)options.get("sync")){
                     String contextId = UUID.randomUUID().toString();
                     options.put("contextId", contextId);
                     // Post snapshot first
