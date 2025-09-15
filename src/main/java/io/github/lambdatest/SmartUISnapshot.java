@@ -11,15 +11,15 @@ import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.json.JSONObject;
 import java.util.List;
-import java.io.IOException;
+import java.util.UUID;
+import org.json.JSONObject;
 
 
 public class SmartUISnapshot {
 
     // Method with options parameter
-    public static void smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options, String testType) throws Exception {
+    public static JSONObject smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options, String testType) throws Exception {
         if (driver == null) {
             throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
         }
@@ -83,27 +83,60 @@ public class SmartUISnapshot {
 
                 String url = driver.getCurrentUrl();
 
-                String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, testType);
 
                 // Parse the JSON response into a SnapshotResponse object using Gson
-                SnapshotResponse postSnapResponse = gson.fromJson(ResponseMap, SnapshotResponse.class);
+                if(options.containsKey("sync")){
+                    String contextId = UUID.randomUUID().toString();
+                    options.put("contextId", contextId);
+                    // Post snapshot first
+                    String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, testType);
 
-                List<String> warnings = postSnapResponse.getData().getWarnings();
+                    SnapshotResponse postSnapResponse = gson.fromJson(ResponseMap, SnapshotResponse.class);
 
-                // Check if there are any warnings
-                if (warnings != null && !warnings.isEmpty()) {
-                    for (String warning : warnings) {
-                        log.warning(warning);
+                    List<String> warnings = postSnapResponse.getData().getWarnings();
+
+                    // Check if there are any warnings
+                    if (warnings != null && !warnings.isEmpty()) {
+                        for (String warning : warnings) {
+                            log.warning(warning);
+                        }
                     }
-                }
 
-                log.info("Snapshot captured: " + snapshotName);
+                    log.info("Snapshot captured: " + snapshotName);
+                    
+                    // Get snapshot status
+                    int timeout = (int) options.getOrDefault("timeout", 600);
+                    if(timeout<30 || timeout>900){
+                        log.info("Timeout value must be between 30 and 900 seconds. Using default value of 600 seconds.");
+                        timeout = 600;
+                    }
+                    String statusResponse = smartUIUtils.getSnapshotStatus(contextId, snapshotName, timeout);
+                    return new JSONObject(statusResponse);
+                }else{
+                    String ResponseMap = smartUIUtils.postSnapshot(dom, options, url, snapshotName, testType);
+
+                    SnapshotResponse postSnapResponse = gson.fromJson(ResponseMap, SnapshotResponse.class);
+
+                    List<String> warnings = postSnapResponse.getData().getWarnings();
+
+                    // Check if there are any warnings
+                    if (warnings != null && !warnings.isEmpty()) {
+                        for (String warning : warnings) {
+                            log.warning(warning);
+                        }
+                    }
+
+                    log.info("Snapshot captured: " + snapshotName);
+                    return null;
+                }
+                
             } else {
                 throw new IllegalStateException(Constants.Errors.JAVA_SCRIPT_NOT_SUPPORTED);
             }
 
         } catch (Exception e) {
             log.severe(String.format(Constants.Errors.SMARTUI_SNAPSHOT_FAILED, snapshotName));
+            return null;
         }
     }
 
@@ -112,7 +145,7 @@ public class SmartUISnapshot {
         smartuiSnapshot(driver, snapshotName, new HashMap<>()); // Pass an empty map for options
     }
 
-    public static void smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options) throws Exception {
-        smartuiSnapshot(driver, snapshotName, options, "lambdatest-java-sdk");
+    public static JSONObject smartuiSnapshot(WebDriver driver, String snapshotName, Map<String, Object> options) throws Exception {
+        return smartuiSnapshot(driver, snapshotName, options, "lambdatest-java-sdk");
     }
 }

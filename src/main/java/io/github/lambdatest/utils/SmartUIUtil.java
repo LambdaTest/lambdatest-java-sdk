@@ -255,4 +255,13 @@ public class SmartUIUtil {
             throw e;
         }
     }
+
+    public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws Exception {
+        try {
+            return httpClient.getSnapshotStatus(contextId, snapshotName, timeout);
+        } catch (Exception e) {
+            log.severe("Failed to get snapshot status: " + e.getMessage());
+            throw new Exception(Constants.Errors.SNAPSHOT_STATUS_FAILED + " due to: " + e.getMessage());
+        }
+    }
 }
