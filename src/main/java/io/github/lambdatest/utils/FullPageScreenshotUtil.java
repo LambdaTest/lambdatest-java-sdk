@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 
 public class FullPageScreenshotUtil {
     private static final int DEFAULT_MAX_COUNT = 10;
+    private static final int HARD_MAX_COUNT = 25;
     private static final int SCROLL_DELAY_MS = 200;
     private static final int WEB_SCROLL_PAUSE_MS = 1000;
     private static final int IOS_SCROLL_DURATION_MS = 1500;
@@ -38,7 +39,8 @@ public class FullPageScreenshotUtil {
     private final String testType;
     private final String deviceName;
     private String prevPageSource = "";
-    private int maxCount = DEFAULT_MAX_COUNT;
+    private int defaultPageCount = DEFAULT_MAX_COUNT;
+    private int maxPageCount= HARD_MAX_COUNT;
     private final boolean preciseScroll;
 
     public FullPageScreenshotUtil(WebDriver driver, String saveDirectoryName, String testType, boolean preciseScroll) {
@@ -80,11 +82,13 @@ public class FullPageScreenshotUtil {
 
     private void initializePageCount(int pageCount) {
         if (pageCount <= 0) {
-            pageCount = DEFAULT_MAX_COUNT;
+            return;
         }
-        if (pageCount < maxCount) {
-            maxCount = pageCount;
-        }
+        if (pageCount <= maxPageCount) {
+            defaultPageCount = pageCount;
+        } else{
+            defaultPageCount = maxPageCount;
+        } 
     }
 
     private boolean hasAnySelectors(Map<String, List<String>> ignoreSelectors, Map<String, List<String>> selectSelectors) {
@@ -128,7 +132,7 @@ public class FullPageScreenshotUtil {
         int chunkCount = 0;
         boolean isLastScroll = false;
 
-        while (!isLastScroll && chunkCount < maxCount) {
+        while (!isLastScroll && chunkCount < defaultPageCount) {
             File screenshotFile = captureAndSaveScreenshot(chunkCount);
             screenshotDir.add(screenshotFile);
 
