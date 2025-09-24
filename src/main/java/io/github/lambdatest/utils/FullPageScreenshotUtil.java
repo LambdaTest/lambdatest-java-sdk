@@ -16,8 +16,8 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public class FullPageScreenshotUtil {
-    private static final int DEFAULT_PAGE_COUNT = 10;
-    private static final int MAX_PAGE_COUNT = 25;
+    private static final int DEFAULT_PAGE_COUNT = 20;
+    private static final int MAX_PAGE_COUNT = 30;
     private static final int SCROLL_DELAY_MS = 200;
     private static final int WEB_SCROLL_PAUSE_MS = 1000;
     private static final int IOS_SCROLL_DURATION_MS = 1500;
