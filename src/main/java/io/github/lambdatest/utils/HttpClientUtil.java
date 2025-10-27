@@ -23,6 +23,7 @@ import io.github.lambdatest.constants.Constants;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -573,10 +574,12 @@ public class HttpClientUtil {
 
     public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws IOException {
         try {
-            String url = SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
-                        "?contextId=" + contextId + 
-                        "&snapshotName=" + snapshotName +
-                        "&pollTimeout=" + timeout;
+            String trimmedSnapshotName = snapshotName.trim();
+            String url = SmartUIUtil.getSmartUIServerAddress() + 
+             Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
+             "?contextId=" + URLEncoder.encode(contextId, StandardCharsets.UTF_8) + 
+             "&snapshotName=" + URLEncoder.encode(trimmedSnapshotName, StandardCharsets.UTF_8) +
+             "&pollTimeout=" + timeout;
             
             HttpGet request = new HttpGet(url);
             request.setHeader("Content-Type", "application/json");
@@ -589,7 +592,11 @@ public class HttpClientUtil {
                 String responseString = entity != null ? EntityUtils.toString(entity) : null;
                 if (statusCode == HttpStatus.SC_OK) {
                     return responseString;
-                } else {
+                }
+                else if(statusCode == HttpStatus.SC_ACCEPTED) {
+                    return responseString;
+                }
+                else {
                     // Try to extract error message
                     try {
                         if (responseString != null) {
