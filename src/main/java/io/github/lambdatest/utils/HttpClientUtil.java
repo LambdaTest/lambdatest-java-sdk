@@ -23,6 +23,7 @@ import io.github.lambdatest.constants.Constants;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -575,7 +576,7 @@ public class HttpClientUtil {
         try {
             String url = SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
                         "?contextId=" + contextId + 
-                        "&snapshotName=" + snapshotName +
+                        "&snapshotName=" + URLEncoder.encode(snapshotName, StandardCharsets.UTF_8.toString()) +
                         "&pollTimeout=" + timeout;
             
             HttpGet request = new HttpGet(url);
@@ -589,7 +590,11 @@ public class HttpClientUtil {
                 String responseString = entity != null ? EntityUtils.toString(entity) : null;
                 if (statusCode == HttpStatus.SC_OK) {
                     return responseString;
-                } else {
+                }
+                else if(statusCode == HttpStatus.SC_ACCEPTED) {
+                    return responseString;
+                }
+                else {
                     // Try to extract error message
                     try {
                         if (responseString != null) {
