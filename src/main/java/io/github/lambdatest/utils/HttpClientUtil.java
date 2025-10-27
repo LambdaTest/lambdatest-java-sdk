@@ -574,10 +574,12 @@ public class HttpClientUtil {
 
     public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws IOException {
         try {
-            String url = SmartUIUtil.getSmartUIServerAddress() + Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
-                        "?contextId=" + contextId + 
-                        "&snapshotName=" + URLEncoder.encode(snapshotName, StandardCharsets.UTF_8.toString()) +
-                        "&pollTimeout=" + timeout;
+            String trimmedSnapshotName = snapshotName.trim();
+            String url = SmartUIUtil.getSmartUIServerAddress() + 
+             Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
+             "?contextId=" + URLEncoder.encode(contextId, StandardCharsets.UTF_8) + 
+             "&snapshotName=" + URLEncoder.encode(trimmedSnapshotName, StandardCharsets.UTF_8) +
+             "&pollTimeout=" + timeout;
             
             HttpGet request = new HttpGet(url);
             request.setHeader("Content-Type", "application/json");
