@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'io.github.lambdatest'
-version = '1.0.20'
+version = '1.0.21'
 description = 'lambdatest-java-sdk'
 
 repositories {
@@ -82,7 +82,7 @@ afterEvaluate {
             mavenJava(MavenPublication) {
                 groupId = 'io.github.lambdatest'
                 artifactId = 'lambdatest-java-sdk'
-                version = '1.0.20'
+                version = '1.0.21'
 
                 pom {
                     name.set('LambdaTest Java SDK')
