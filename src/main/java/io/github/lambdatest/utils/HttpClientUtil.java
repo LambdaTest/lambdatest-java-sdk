@@ -607,7 +607,7 @@ public class HttpClientUtil {
                                     JsonObject errorObject = jsonResponse.getAsJsonObject("error");
                                     if (errorObject.has("message")) {
                                         String errorMessage = errorObject.get("message").getAsString();
-                                        log.severe("Error in get snapshot status: " + errorMessage);
+                                        throw new IOException(errorMessage);
                                     }
                                 }
                             }
@@ -615,12 +615,11 @@ public class HttpClientUtil {
                     } catch (JsonSyntaxException e) {
                         log.warning("Failed to parse error response: " + responseString);
                     }
-                    throw new IOException("Get snapshot status failed with status code: " + statusCode + ". Response: " + responseString);
+                    throw new IOException(responseString);
                 }
             }
         } catch (Exception e) {
-            log.severe("Exception in getSnapshotStatus: " + e.getMessage());
-            throw new IOException("Failed to get snapshot status: " + e.getMessage(), e);
+            throw new IOException(e.getMessage());
         }
     }
 }

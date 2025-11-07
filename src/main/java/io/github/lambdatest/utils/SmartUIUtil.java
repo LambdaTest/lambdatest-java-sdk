@@ -258,10 +258,15 @@ public class SmartUIUtil {
 
     public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws Exception {
         try {
-            return httpClient.getSnapshotStatus(contextId, snapshotName, timeout);
+            String snapshotStatus = httpClient.getSnapshotStatus(contextId, snapshotName, timeout);
+            log.info("Got snapshot status for snapshotName: " + snapshotName);
+            return snapshotStatus;
         } catch (Exception e) {
-            log.severe("Failed to get snapshot status: " + e.getMessage());
-            throw new Exception(Constants.Errors.SNAPSHOT_STATUS_FAILED + " due to: " + e.getMessage());
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unknown error occurred";
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", errorMessage);
+            log.severe("Failed to get snapshot status due to: " + errorResponse.toString());
+            return gson.toJson(errorResponse);
         }
     }
 }
