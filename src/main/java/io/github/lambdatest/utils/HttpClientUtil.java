@@ -23,6 +23,7 @@ import io.github.lambdatest.constants.Constants;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -568,6 +569,57 @@ public class HttpClientUtil {
             return lastResponse;
         } else {
             throw new IOException("Failed to get build screenshots after " + maxRetries + " attempts");
+        }
+    }
+
+    public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws IOException {
+        try {
+            String trimmedSnapshotName = snapshotName.trim();
+            String url = SmartUIUtil.getSmartUIServerAddress() + 
+             Constants.SmartUIRoutes.SMARTUI_SNAPSHOT_STATUS_ROUTE + 
+             "?contextId=" + URLEncoder.encode(contextId, StandardCharsets.UTF_8) + 
+             "&snapshotName=" + URLEncoder.encode(trimmedSnapshotName, StandardCharsets.UTF_8) +
+             "&pollTimeout=" + timeout;
+            
+            HttpGet request = new HttpGet(url);
+            request.setHeader("Content-Type", "application/json");
+            
+            log.info("Fetching snapshot status for snapshotName: " + snapshotName);
+            
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                HttpEntity entity = response.getEntity();
+                String responseString = entity != null ? EntityUtils.toString(entity) : null;
+                if (statusCode == HttpStatus.SC_OK) {
+                    return responseString;
+                }
+                else if(statusCode == HttpStatus.SC_ACCEPTED) {
+                    return responseString;
+                }
+                else {
+                    // Try to extract error message
+                    try {
+                        if (responseString != null) {
+                            JsonElement element = JsonParser.parseString(responseString);
+                            if (element.isJsonObject()) {
+                                JsonObject jsonResponse = element.getAsJsonObject();
+                                if (jsonResponse.has("error") && jsonResponse.get("error").isJsonObject()) {
+                                    JsonObject errorObject = jsonResponse.getAsJsonObject("error");
+                                    if (errorObject.has("message")) {
+                                        String errorMessage = errorObject.get("message").getAsString();
+                                        throw new IOException(errorMessage);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (JsonSyntaxException e) {
+                        log.warning("Failed to parse error response: " + responseString);
+                    }
+                    throw new IOException(responseString);
+                }
+            }
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
         }
     }
 }
