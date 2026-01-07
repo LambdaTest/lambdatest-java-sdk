@@ -12,6 +12,8 @@ import io.github.lambdatest.utils.SmartUIUtil;
 import javax.xml.transform.Result;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,12 +24,14 @@ public class SmartUIPdf {
     public final String buildName;
     public final boolean fetchResults;
     public final String projectToken;
+    public final String[] pdfNames;
     private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public SmartUIPdf(SmartUIConfig config) {
         this.smartUIUtils = new SmartUIUtil();
         this.buildName = config.getBuildName();
         this.fetchResults = config.getFetchResults();
+        this.pdfNames = config.getPdfNames();
 
         if (config.getProjectToken() == null || config.getProjectToken().trim().isEmpty()) {
             throw new IllegalArgumentException("Project token is required");
@@ -61,11 +65,13 @@ public class SmartUIPdf {
                     }
                 }
             }
+            // Sort files alphabetically by filename to ensure consistent ordering
+            Collections.sort(pdfFiles, Comparator.comparing(File::getName));
             log.info("Found " + pdfFiles.size() + " PDF files in directory: " + file.getAbsolutePath());
         }
 
         try {
-            UploadPDFResponse response = smartUIUtils.postPDFToSmartUI(pdfFiles, this.projectToken, this.buildName);
+            UploadPDFResponse response = smartUIUtils.postPDFToSmartUI(pdfFiles, this.projectToken, this.buildName, this.pdfNames);
 
             if (this.fetchResults) {
                 BuildScreenshotsResponse screenshotsResponse = smartUIUtils.getBuildScreenshots(response.getProjectId(), response.getBuildId(), this.projectToken);

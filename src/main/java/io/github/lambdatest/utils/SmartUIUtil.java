@@ -77,7 +77,7 @@ public class SmartUIUtil {
         }
     }
 
-    public UploadPDFResponse postPDFToSmartUI(List<File> pdfFiles, String projectToken, String buildName) throws Exception {
+    public UploadPDFResponse postPDFToSmartUI(List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames) throws Exception {
         UploadPDFResponse uploadResponse;
         try {
             if (pdfFiles == null || pdfFiles.isEmpty()) {
@@ -93,7 +93,7 @@ public class SmartUIUtil {
             
             log.info("Uploading PDFs to SmartUI. Count: " + pdfFiles.size());
 
-            String responseString = httpClient.uploadPDFs(url, pdfFiles, projectToken, buildName);
+            String responseString = httpClient.uploadPDFs(url, pdfFiles, projectToken, buildName, pdfNames);
             uploadResponse = gson.fromJson(responseString, UploadPDFResponse.class);
             
             if (uploadResponse == null) {
