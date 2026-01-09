@@ -15,6 +15,7 @@ public class SmartUIConfig {
     private String buildName;
     private String configFile;
     private String testType;
+    private String[] pdfNames;
 
     public String getTestType() {
         return testType;
@@ -70,6 +71,11 @@ public class SmartUIConfig {
         this.buildName = buildName;
         return this;
     }
+
+    public SmartUIConfig withPdfNames(String[] pdfNames) {
+        this.pdfNames = pdfNames;
+        return this;
+    }
     
     public int getPort() {
         return port;
@@ -97,6 +103,10 @@ public class SmartUIConfig {
 
     public String getConfigFile() {
         return configFile;
+    }
+
+    public String[] getPdfNames() {
+        return pdfNames;
     }
     
     /**

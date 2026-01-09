@@ -427,7 +427,7 @@ public class HttpClientUtil {
         }
     }
 
-    public String uploadPDFs(String url, List<File> pdfFiles, String projectToken, String buildName) throws IOException {
+    public String uploadPDFs(String url, List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames) throws IOException {
         HttpPost uploadRequest = new HttpPost(url);
         uploadRequest.setHeader("Authorization", "Basic " + projectToken);
 
@@ -435,12 +435,15 @@ public class HttpClientUtil {
         builder.setMode(HttpMultipartMode.STRICT);
 
         builder.addTextBody("projectToken", projectToken);
-
+        if (pdfNames != null && pdfNames.length > 0) {
+            builder.addTextBody("pdfNames", String.join(",", pdfNames));
+        }
         if (buildName != null && !buildName.isEmpty() && !buildName.trim().isEmpty()) {
             builder.addTextBody("buildName", buildName);
         }
 
         for (File pdfFile : pdfFiles) {
+            log.info("Adding PDF file: " + pdfFile.getName());
             if (pdfFile != null && pdfFile.exists()) {
                 builder.addBinaryBody("pathToFiles", pdfFile, 
                     ContentType.create("application/octet-stream"), 
