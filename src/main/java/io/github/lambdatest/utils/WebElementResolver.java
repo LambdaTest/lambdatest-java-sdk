@@ -12,44 +12,48 @@ import java.util.logging.Logger;
 
 /**
  * Resolves WebElement objects in ignoreDOM/selectDOM options to CSS selectors
- * before JSON serialization. This enables users to pass WebElement objects directly
+ * before JSON serialization. This enables users to pass WebElement objects
+ * directly
  * instead of maintaining CSS selector strings manually.
  */
 public class WebElementResolver {
 
     private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
-    private static final String CSS_SELECTOR_SCRIPT =
-        "var el = arguments[0];" +
-        "if (!el) return null;" +
-        "if (el.id) return el.id;" +
-        "var path = [];" +
-        "while (el && el.nodeType === 1) {" +
-        "  var selector = el.nodeName.toLowerCase();" +
-        "  if (el.id) { path.unshift('#' + el.id); break; }" +
-        "  var sib = el, nth = 1;" +
-        "  while (sib = sib.previousElementSibling) {" +
-        "    if (sib.nodeName === el.nodeName) nth++;" +
-        "  }" +
-        "  selector += ':nth-of-type(' + nth + ')';" +
-        "  path.unshift(selector);" +
-        "  el = el.parentNode;" +
-        "}" +
-        "return path.join(' > ');";
+    private static final String CSS_SELECTOR_SCRIPT = "var el = arguments[0];" +
+            "if (!el) return null;" +
+            "if (el.id) return el.id;" +
+            "var path = [];" +
+            "while (el && el.nodeType === 1) {" +
+            "  var selector = el.nodeName.toLowerCase();" +
+            "  if (el.id) { path.unshift('#' + el.id); break; }" +
+            "  var sib = el, nth = 1;" +
+            "  while (sib = sib.previousElementSibling) {" +
+            "    if (sib.nodeName === el.nodeName) nth++;" +
+            "  }" +
+            "  selector += ':nth-of-type(' + nth + ')';" +
+            "  path.unshift(selector);" +
+            "  el = el.parentNode;" +
+            "}" +
+            "return path.join(' > ');";
 
     private static final String ID_SCRIPT = "return arguments[0].id || null;";
 
     /**
-     * Scans the options map for element, ignoreDOM and selectDOM entries containing WebElement
+     * Scans the options map for element, ignoreDOM and selectDOM entries containing
+     * WebElement
      * objects, resolves them to CSS selectors, and updates the map in-place.
      *
      * Supports:
-     * - "element" option: WebElement for single element screenshot (resolves to {id: "..."} or {cssSelector: "..."})
-     * - "ignoreDOM"/"selectDOM": "elements" key with List of WebElement objects, or mixed arrays
+     * - "element" option: WebElement for single element screenshot (resolves to
+     * {id: "..."} or {cssSelector: "..."})
+     * - "ignoreDOM"/"selectDOM": "elements" key with List of WebElement objects, or
+     * mixed arrays
      */
     @SuppressWarnings("unchecked")
     public static void resolveWebElements(JavascriptExecutor jsExecutor, Map<String, Object> options) {
-        if (options == null) return;
+        if (options == null)
+            return;
 
         resolveElementOption(jsExecutor, options);
         resolveDOMOption(jsExecutor, options, "ignoreDOM");
@@ -58,44 +62,33 @@ public class WebElementResolver {
 
     /**
      * Handles the "element" option for single element screenshots.
-     * If the value is a WebElement, resolves it to {id: "..."} or {cssSelector: "..."}.
+     * If the value is a WebElement, resolves it to {id: "..."} or {cssSelector:
+     * "..."}.
      * If it's a Map containing a WebElement value, resolves that value.
      */
     @SuppressWarnings("unchecked")
     private static void resolveElementOption(JavascriptExecutor jsExecutor, Map<String, Object> options) {
         Object elementOption = options.get("element");
-        if (elementOption == null) return;
+        if (elementOption == null)
+            return;
 
-        // Case 1: User passed a WebElement directly — options.put("element", webElement)
+        // Case 1: User passed a WebElement directly — options.put("element",
+        // webElement)
         if (elementOption instanceof WebElement) {
             Map<String, String> resolved = resolveToSelectorMap(jsExecutor, (WebElement) elementOption);
             if (resolved != null) {
                 options.put("element", resolved);
             } else {
-                options.remove("element");
+                log.warning("Failed to resolve WebElement for element screenshot");
             }
             return;
         }
 
-        // Case 2: User passed a Map with a WebElement value — e.g. element.put("id", webElement)
-        if (elementOption instanceof Map) {
-            Map<String, Object> elementMap = (Map<String, Object>) elementOption;
-            for (Map.Entry<String, Object> entry : elementMap.entrySet()) {
-                if (entry.getValue() instanceof WebElement) {
-                    Map<String, String> resolved = resolveToSelectorMap(jsExecutor, (WebElement) entry.getValue());
-                    if (resolved != null) {
-                        options.put("element", resolved);
-                    } else {
-                        options.remove("element");
-                    }
-                    return;
-                }
-            }
-        }
     }
 
     /**
-     * Resolves a single WebElement to a Map with either {id: "value"} or {cssSelector: "value"}.
+     * Resolves a single WebElement to a Map with either {id: "value"} or
+     * {cssSelector: "value"}.
      */
     private static Map<String, String> resolveToSelectorMap(JavascriptExecutor jsExecutor, WebElement element) {
         try {
@@ -123,7 +116,8 @@ public class WebElementResolver {
     @SuppressWarnings("unchecked")
     private static void resolveDOMOption(JavascriptExecutor jsExecutor, Map<String, Object> options, String key) {
         Object domOption = options.get(key);
-        if (domOption == null || !(domOption instanceof Map)) return;
+        if (domOption == null || !(domOption instanceof Map))
+            return;
 
         Map<String, Object> domMap = (Map<String, Object>) domOption;
 
@@ -139,9 +133,10 @@ public class WebElementResolver {
         }
 
         // Handle mixed arrays in existing keys (cssSelector, id, class, xpath)
-        for (String selectorKey : new String[]{"cssSelector", "id", "class", "xpath"}) {
+        for (String selectorKey : new String[] { "cssSelector", "id", "class", "xpath" }) {
             Object value = domMap.get(selectorKey);
-            if (!(value instanceof List)) continue;
+            if (!(value instanceof List))
+                continue;
 
             List<?> list = (List<?>) value;
             boolean hasWebElements = false;
@@ -151,7 +146,8 @@ public class WebElementResolver {
                     break;
                 }
             }
-            if (!hasWebElements) continue;
+            if (!hasWebElements)
+                continue;
 
             List<String> strings = new ArrayList<>();
             for (Object item : list) {
@@ -166,9 +162,7 @@ public class WebElementResolver {
         }
 
         // Clean up empty lists
-        domMap.entrySet().removeIf(entry ->
-            entry.getValue() instanceof List && ((List<?>) entry.getValue()).isEmpty()
-        );
+        domMap.entrySet().removeIf(entry -> entry.getValue() instanceof List && ((List<?>) entry.getValue()).isEmpty());
     }
 
     @SuppressWarnings("unchecked")
@@ -187,7 +181,8 @@ public class WebElementResolver {
             // Fall back to generating a unique CSS selector
             String cssSelector = (String) jsExecutor.executeScript(CSS_SELECTOR_SCRIPT, element);
             if (cssSelector != null && !cssSelector.isEmpty()) {
-                List<String> cssList = (List<String>) domMap.computeIfAbsent("cssSelector", k -> new ArrayList<String>());
+                List<String> cssList = (List<String>) domMap.computeIfAbsent("cssSelector",
+                        k -> new ArrayList<String>());
                 if (!cssList.contains(cssSelector)) {
                     cssList.add(cssSelector);
                 }
