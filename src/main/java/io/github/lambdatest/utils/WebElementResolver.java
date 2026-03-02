@@ -69,9 +69,11 @@ public class WebElementResolver {
     /**
      * Handles the "element" option for single element screenshots.
      * If the value is a WebElement, resolves it to {id: "..."} or
-     * {cssSelector: "..."}. Non-WebElement values (e.g. Map with string
-     * selectors) are left unchanged.
+     * {cssSelector: "..."}. If it's a Map with string selectors (id, class,
+     * cssSelector, xpath), validates the element exists on the page and logs
+     * a warning if not found. Non-WebElement/non-Map values are left unchanged.
      */
+    @SuppressWarnings("unchecked")
     private static void resolveElementOption(JavascriptExecutor jsExecutor, Map<String, Object> options) {
         Object elementOption = options.get("element");
         if (elementOption == null)
@@ -84,6 +86,48 @@ public class WebElementResolver {
             } else {
                 log.warning("Failed to resolve WebElement for element screenshot");
             }
+            return;
+        }
+
+        // Validate Map-based element selectors exist on the page
+        if (elementOption instanceof Map) {
+            Map<String, String> elementMap = (Map<String, String>) elementOption;
+            String selector = null;
+
+            if (elementMap.containsKey("id")) {
+                selector = "#" + elementMap.get("id");
+            } else if (elementMap.containsKey("class")) {
+                selector = "." + elementMap.get("class");
+            } else if (elementMap.containsKey("cssSelector")) {
+                selector = elementMap.get("cssSelector");
+            } else if (elementMap.containsKey("xpath")) {
+                selector = elementMap.get("xpath");
+            }
+
+            if (selector != null) {
+                validateElementExists(jsExecutor, selector, selector.equals(elementMap.get("xpath")));
+            }
+        }
+    }
+
+    private static final String VALIDATE_CSS_SCRIPT = "return document.querySelectorAll(arguments[0]).length > 0;";
+    private static final String VALIDATE_XPATH_SCRIPT =
+            "var result = document.evaluate(arguments[0], document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);" +
+            "return result.snapshotLength > 0;";
+
+    /**
+     * Validates that an element matching the given selector exists on the page.
+     * Logs a warning if not found but does not block execution.
+     */
+    private static void validateElementExists(JavascriptExecutor jsExecutor, String selector, boolean isXpath) {
+        try {
+            String script = isXpath ? VALIDATE_XPATH_SCRIPT : VALIDATE_CSS_SCRIPT;
+            Boolean found = (Boolean) jsExecutor.executeScript(script, selector);
+            if (found == null || !found) {
+                log.warning("Element not found on page for selector: " + selector);
+            }
+        } catch (Exception e) {
+            log.warning("Failed to validate element selector '" + selector + "': " + e.getMessage());
         }
     }
 
