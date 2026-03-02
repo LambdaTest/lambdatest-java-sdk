@@ -132,11 +132,13 @@ public class WebElementResolver {
     }
 
     /**
-     * Resolves a single WebElement to a Map with either {id: "value"} or
-     * {cssSelector: "value"} using a single browser round-trip.
+     * Resolves a WebElement to its selector type ("id" or "css") and value
+     * using a single browser round-trip. Returns a two-element String array
+     * [selectorKey, value] where selectorKey is "id" or "cssSelector",
+     * or null if resolution fails.
      */
     @SuppressWarnings("unchecked")
-    private static Map<String, String> resolveToSelectorMap(JavascriptExecutor jsExecutor, WebElement element) {
+    private static String[] resolveElement(JavascriptExecutor jsExecutor, WebElement element, String context) {
         try {
             Map<String, Object> result = (Map<String, Object>) jsExecutor.executeScript(RESOLVE_SELECTOR_SCRIPT, element);
             if (result == null) return null;
@@ -145,44 +147,41 @@ public class WebElementResolver {
             String value = (String) result.get("value");
             if (value == null || value.isEmpty()) return null;
 
-            Map<String, String> selectorMap = new HashMap<>();
-            if ("id".equals(type)) {
-                selectorMap.put("id", value);
-            } else {
-                selectorMap.put("cssSelector", value);
-            }
-            return selectorMap;
+            String selectorKey = "id".equals(type) ? "id" : "cssSelector";
+            return new String[] { selectorKey, value };
         } catch (StaleElementReferenceException e) {
-            log.warning("Skipping stale WebElement for element screenshot: element is no longer attached to the DOM");
+            log.warning("Skipping stale WebElement in " + context + ": element is no longer attached to the DOM");
         } catch (Exception e) {
-            log.warning("Failed to resolve WebElement for element screenshot: " + e.getMessage());
+            log.warning("Failed to resolve WebElement in " + context + ": " + e.getMessage());
         }
         return null;
     }
 
     /**
+     * Resolves a single WebElement to a Map with either {id: "value"} or
+     * {cssSelector: "value"}.
+     */
+    private static Map<String, String> resolveToSelectorMap(JavascriptExecutor jsExecutor, WebElement element) {
+        String[] resolved = resolveElement(jsExecutor, element, "element");
+        if (resolved == null) return null;
+
+        Map<String, String> selectorMap = new HashMap<>();
+        selectorMap.put(resolved[0], resolved[1]);
+        return selectorMap;
+    }
+
+    /**
      * Resolves a WebElement and adds it to the appropriate key (id or
-     * cssSelector) in the domMap using a single browser round-trip.
+     * cssSelector) in the domMap.
      */
     @SuppressWarnings("unchecked")
     private static void resolveAndAdd(JavascriptExecutor jsExecutor, WebElement element, Map<String, Object> domMap, String optionKey) {
-        try {
-            Map<String, Object> result = (Map<String, Object>) jsExecutor.executeScript(RESOLVE_SELECTOR_SCRIPT, element);
-            if (result == null) return;
+        String[] resolved = resolveElement(jsExecutor, element, optionKey);
+        if (resolved == null) return;
 
-            String type = (String) result.get("type");
-            String value = (String) result.get("value");
-            if (value == null || value.isEmpty()) return;
-
-            String key = "id".equals(type) ? "id" : "cssSelector";
-            List<String> list = (List<String>) domMap.computeIfAbsent(key, k -> new ArrayList<String>());
-            if (!list.contains(value)) {
-                list.add(value);
-            }
-        } catch (StaleElementReferenceException e) {
-            log.warning("Skipping stale WebElement in " + optionKey + ": element is no longer attached to the DOM");
-        } catch (Exception e) {
-            log.warning("Failed to resolve WebElement in " + optionKey + ": " + e.getMessage());
+        List<String> list = (List<String>) domMap.computeIfAbsent(resolved[0], k -> new ArrayList<String>());
+        if (!list.contains(resolved[1])) {
+            list.add(resolved[1]);
         }
     }
 
