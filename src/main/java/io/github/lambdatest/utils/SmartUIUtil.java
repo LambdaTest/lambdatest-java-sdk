@@ -256,6 +256,24 @@ public class SmartUIUtil {
         }
     }
 
+    /**
+     * Fetches SmartUI results for a specific session.
+     * The CLI server resolves buildId and projectToken from its context.
+     * @param sessionId The session ID to fetch results for (null for build-level results)
+     * @return JSON string of SmartUI results with screenshots grouped by name and summary
+     */
+    public String getSmartUIResults(String sessionId) throws Exception {
+        try {
+            String results = httpClient.getSmartUIResults(sessionId);
+            log.info("Fetched SmartUI results for sessionId: " + sessionId);
+            return results;
+        } catch (Exception e) {
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unknown error occurred";
+            log.severe("Failed to fetch SmartUI results: " + errorMessage);
+            throw new Exception(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + errorMessage, e);
+        }
+    }
+
     public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws Exception {
         try {
             String snapshotStatus = httpClient.getSnapshotStatus(contextId, snapshotName, timeout);
