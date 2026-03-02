@@ -3,6 +3,7 @@ package io.github.lambdatest;
 import org.openqa.selenium.WebDriver;
 import io.github.lambdatest.utils.LoggerUtil;
 import io.github.lambdatest.utils.SmartUIUtil;
+import io.github.lambdatest.utils.WebElementResolver;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.ResponseData;
 import io.github.lambdatest.models.SnapshotResponse;
@@ -64,6 +65,9 @@ public class SmartUISnapshot {
                 if (!sessionId.isEmpty()) {
                     options.put("sessionId", sessionId);
                 }
+
+                // Resolve any WebElement objects in ignoreDOM/selectDOM to CSS selectors
+                WebElementResolver.resolveWebElements(jsExecutor, options);
 
                 // Convert the options map to JSON string
                 String jsonOptions = gson.toJson(options);
