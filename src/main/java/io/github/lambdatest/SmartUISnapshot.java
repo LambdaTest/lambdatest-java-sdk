@@ -66,8 +66,12 @@ public class SmartUISnapshot {
                     options.put("sessionId", sessionId);
                 }
 
-                // Resolve any WebElement objects in ignoreDOM/selectDOM to CSS selectors
-                WebElementResolver.resolveWebElements(jsExecutor, options);
+                // Resolve any WebElement objects in element/ignoreDOM/selectDOM to CSS selectors
+                try {
+                    WebElementResolver.resolveWebElements(jsExecutor, options);
+                } catch (Exception e) {
+                    log.warning("Failed to resolve WebElement options: " + e.getMessage());
+                }
 
                 // Convert the options map to JSON string
                 String jsonOptions = gson.toJson(options);
