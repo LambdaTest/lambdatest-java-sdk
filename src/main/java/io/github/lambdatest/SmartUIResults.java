@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 public class SmartUIResults {
 
     private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
+    private static final SmartUIUtil smartUIUtils = new SmartUIUtil();
 
     /**
      * Fetches SmartUI visual comparison results for the session associated with the given WebDriver.
@@ -36,8 +37,6 @@ public class SmartUIResults {
         if (driver == null) {
             throw new IllegalArgumentException(Constants.Errors.SELENIUM_DRIVER_NULL);
         }
-
-        SmartUIUtil smartUIUtils = new SmartUIUtil();
 
         if (!smartUIUtils.isSmartUIRunning()) {
             throw new IllegalStateException(Constants.Errors.SMARTUI_NOT_RUNNING);
@@ -77,8 +76,6 @@ public class SmartUIResults {
      * @throws Exception if the SmartUI server is not running or the request fails
      */
     public static JSONObject smartuiResults() throws Exception {
-        SmartUIUtil smartUIUtils = new SmartUIUtil();
-
         if (!smartUIUtils.isSmartUIRunning()) {
             throw new IllegalStateException(Constants.Errors.SMARTUI_NOT_RUNNING);
         }
