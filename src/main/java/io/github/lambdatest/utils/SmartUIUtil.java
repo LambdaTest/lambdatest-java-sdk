@@ -268,9 +268,8 @@ public class SmartUIUtil {
             log.info("Fetched SmartUI results for sessionId: " + sessionId);
             return results;
         } catch (Exception e) {
-            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unknown error occurred";
-            log.severe("Failed to fetch SmartUI results: " + errorMessage);
-            throw new Exception(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + errorMessage, e);
+            log.severe("Failed to fetch SmartUI results: " + e.getMessage());
+            throw e;
         }
     }
 

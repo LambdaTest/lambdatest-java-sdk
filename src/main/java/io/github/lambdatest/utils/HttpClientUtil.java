@@ -599,7 +599,7 @@ public class HttpClientUtil {
                 }
             }
         } catch (Exception e) {
-            throw new IOException(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + e.getMessage());
+            throw new IOException(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + e.getMessage(), e);
         }
     }
 

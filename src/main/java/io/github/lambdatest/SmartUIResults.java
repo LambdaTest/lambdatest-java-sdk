@@ -44,11 +44,12 @@ public class SmartUIResults {
         }
 
         try {
-            // Extract sessionId from the driver
-            String sessionId = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId().toString();
-            if (sessionId == null || sessionId.isEmpty()) {
+            // Extract sessionId from the driver (null-safe)
+            org.openqa.selenium.remote.SessionId sid = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId();
+            if (sid == null) {
                 throw new IllegalStateException("Unable to get sessionId from the driver");
             }
+            String sessionId = sid.toString();
 
             log.info("Fetching SmartUI results for sessionId: " + sessionId);
 
@@ -59,11 +60,9 @@ public class SmartUIResults {
             return new JSONObject(resultsResponse);
 
         } catch (ClassCastException e) {
-            log.severe("Driver is not an instance of RemoteWebDriver");
             throw new IllegalArgumentException("Driver must be an instance of RemoteWebDriver to extract sessionId", e);
         } catch (Exception e) {
-            log.severe("Failed to fetch SmartUI results: " + e.getMessage());
-            throw new Exception(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -94,8 +93,7 @@ public class SmartUIResults {
             return new JSONObject(resultsResponse);
 
         } catch (Exception e) {
-            log.severe("Failed to fetch SmartUI results: " + e.getMessage());
-            throw new Exception(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + e.getMessage(), e);
+            throw e;
         }
     }
 }
