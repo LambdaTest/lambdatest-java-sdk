@@ -3,6 +3,7 @@ package io.github.lambdatest;
 import org.openqa.selenium.WebDriver;
 import io.github.lambdatest.utils.LoggerUtil;
 import io.github.lambdatest.utils.SmartUIUtil;
+import io.github.lambdatest.utils.WebElementResolver;
 import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.ResponseData;
 import io.github.lambdatest.models.SnapshotResponse;
@@ -63,6 +64,13 @@ public class SmartUISnapshot {
                 String sessionId = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId().toString();
                 if (!sessionId.isEmpty()) {
                     options.put("sessionId", sessionId);
+                }
+
+                // Resolve any WebElement objects in element/ignoreDOM/selectDOM to CSS selectors
+                try {
+                    WebElementResolver.resolveWebElements(jsExecutor, options);
+                } catch (Exception e) {
+                    log.warning("Failed to resolve WebElement options: " + e.getMessage());
                 }
 
                 // Convert the options map to JSON string
