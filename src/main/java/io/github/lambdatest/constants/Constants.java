@@ -34,6 +34,7 @@ public interface Constants {
     public static final String SMARTUI_UPLOAD_PDF_ROUTE = "/pdf/upload";
     public static final String SMARTUI_BUILD_SCREENSHOTS_ROUTE = "/smartui/2.0/build/screenshots";
     public static final String SMARTUI_SNAPSHOT_STATUS_ROUTE = "/snapshot/status";
+    public static final String SMARTUI_RESULTS_ROUTE = "/smartui/results";
   }
 
   //Request methods
@@ -82,5 +83,6 @@ public interface Constants {
     public static final String NULL_OPTIONS_OBJECT = "Options object is null or missing in request.";
     public static final String DEVICE_NAME_NULL = "Device name is a mandatory parameter.";
     public static final String SNAPSHOT_STATUS_FAILED = "Get snapshot status failed";
+    public static final String SMARTUI_RESULTS_FAILED = "Failed to fetch SmartUI results";
   }
 }

@@ -575,6 +575,34 @@ public class HttpClientUtil {
         }
     }
 
+    public String getSmartUIResults(String sessionId) throws IOException {
+        try {
+            String url = SmartUIUtil.getSmartUIServerAddress() +
+                    Constants.SmartUIRoutes.SMARTUI_RESULTS_ROUTE;
+            if (sessionId != null && !sessionId.isEmpty()) {
+                url += "?sessionId=" + URLEncoder.encode(sessionId, StandardCharsets.UTF_8);
+            }
+
+            HttpGet request = new HttpGet(url);
+            request.setHeader("Content-Type", "application/json");
+
+            log.info("Fetching SmartUI results from: " + url);
+
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                HttpEntity entity = response.getEntity();
+                String responseString = entity != null ? EntityUtils.toString(entity) : null;
+                if (statusCode == HttpStatus.SC_OK) {
+                    return responseString;
+                } else {
+                    throw new IOException("SmartUI results request failed with status code: " + statusCode + ". Response: " + responseString);
+                }
+            }
+        } catch (Exception e) {
+            throw new IOException(Constants.Errors.SMARTUI_RESULTS_FAILED + ": " + e.getMessage(), e);
+        }
+    }
+
     public String getSnapshotStatus(String contextId, String snapshotName, int timeout) throws IOException {
         try {
             String trimmedSnapshotName = snapshotName.trim();
