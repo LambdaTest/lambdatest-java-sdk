@@ -428,6 +428,11 @@ public class HttpClientUtil {
     }
 
     public String uploadPDFs(String url, List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames) throws IOException {
+        return uploadPDFs(url, pdfFiles, projectToken, buildName, pdfNames, null, null, null);
+    }
+
+    public String uploadPDFs(String url, List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames,
+                             Double approvalThreshold, Double rejectionThreshold, String thresholdsJson) throws IOException {
         HttpPost uploadRequest = new HttpPost(url);
         uploadRequest.setHeader("Authorization", "Basic " + projectToken);
 
@@ -440,6 +445,15 @@ public class HttpClientUtil {
         }
         if (buildName != null && !buildName.isEmpty() && !buildName.trim().isEmpty()) {
             builder.addTextBody("buildName", buildName);
+        }
+        if (approvalThreshold != null) {
+            builder.addTextBody("approvalThreshold", approvalThreshold.toString());
+        }
+        if (rejectionThreshold != null) {
+            builder.addTextBody("rejectionThreshold", rejectionThreshold.toString());
+        }
+        if (thresholdsJson != null && !thresholdsJson.isEmpty()) {
+            builder.addTextBody("thresholds", thresholdsJson, ContentType.APPLICATION_JSON);
         }
 
         for (File pdfFile : pdfFiles) {

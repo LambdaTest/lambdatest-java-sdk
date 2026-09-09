@@ -5,6 +5,7 @@ import io.github.lambdatest.models.UploadPDFResponse;
 import io.github.lambdatest.models.FormattedResults;
 import io.github.lambdatest.models.PdfResult;
 import io.github.lambdatest.models.PdfPage;
+import io.github.lambdatest.models.PdfThreshold;
 import io.github.lambdatest.models.Screenshot;
 import io.github.lambdatest.utils.LoggerUtil;
 import io.github.lambdatest.utils.SmartUIUtil;
@@ -25,6 +26,9 @@ public class SmartUIPdf {
     public final boolean fetchResults;
     public final String projectToken;
     public final String[] pdfNames;
+    public final Double approvalThreshold;
+    public final Double rejectionThreshold;
+    public final Map<String, PdfThreshold> pdfThresholds;
     private static final Logger log = LoggerUtil.createLogger("lambdatest-java-sdk");
 
     public SmartUIPdf(SmartUIConfig config) {
@@ -32,6 +36,9 @@ public class SmartUIPdf {
         this.buildName = config.getBuildName();
         this.fetchResults = config.getFetchResults();
         this.pdfNames = config.getPdfNames();
+        this.approvalThreshold = config.getApprovalThreshold();
+        this.rejectionThreshold = config.getRejectionThreshold();
+        this.pdfThresholds = config.getPdfThresholds();
 
         if (config.getProjectToken() == null || config.getProjectToken().trim().isEmpty()) {
             throw new IllegalArgumentException("Project token is required");
@@ -71,7 +78,8 @@ public class SmartUIPdf {
         }
 
         try {
-            UploadPDFResponse response = smartUIUtils.postPDFToSmartUI(pdfFiles, this.projectToken, this.buildName, this.pdfNames);
+            UploadPDFResponse response = smartUIUtils.postPDFToSmartUI(pdfFiles, this.projectToken, this.buildName, this.pdfNames,
+                    this.approvalThreshold, this.rejectionThreshold, this.pdfThresholds);
 
             if (this.fetchResults) {
                 BuildScreenshotsResponse screenshotsResponse = smartUIUtils.getBuildScreenshots(response.getProjectId(), response.getBuildId(), this.projectToken);
