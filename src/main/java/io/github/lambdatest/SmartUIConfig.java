@@ -84,13 +84,14 @@ public class SmartUIConfig {
         return this;
     }
 
-    public SmartUIConfig withApprovalThreshold(Double approvalThreshold) {
-        this.approvalThreshold = approvalThreshold;
+    // Number so int, long, float and double literals are all accepted; null leaves the project default
+    public SmartUIConfig withApprovalThreshold(Number approvalThreshold) {
+        this.approvalThreshold = approvalThreshold == null ? null : approvalThreshold.doubleValue();
         return this;
     }
 
-    public SmartUIConfig withRejectionThreshold(Double rejectionThreshold) {
-        this.rejectionThreshold = rejectionThreshold;
+    public SmartUIConfig withRejectionThreshold(Number rejectionThreshold) {
+        this.rejectionThreshold = rejectionThreshold == null ? null : rejectionThreshold.doubleValue();
         return this;
     }
 

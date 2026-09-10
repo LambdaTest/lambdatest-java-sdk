@@ -7,16 +7,17 @@ public class PdfThreshold {
 
     public PdfThreshold() {}
 
-    public PdfThreshold(Double approval, Double rejection) {
-        this.approval = approval;
-        this.rejection = rejection;
+    // Number so callers can pass int, long, float or double literals alike
+    public PdfThreshold(Number approval, Number rejection) {
+        this.approval = toDouble(approval);
+        this.rejection = toDouble(rejection);
     }
 
-    public static PdfThreshold approval(double approval) {
+    public static PdfThreshold approval(Number approval) {
         return new PdfThreshold(approval, null);
     }
 
-    public static PdfThreshold rejection(double rejection) {
+    public static PdfThreshold rejection(Number rejection) {
         return new PdfThreshold(null, rejection);
     }
 
@@ -24,15 +25,19 @@ public class PdfThreshold {
         return approval;
     }
 
-    public void setApproval(Double approval) {
-        this.approval = approval;
+    public void setApproval(Number approval) {
+        this.approval = toDouble(approval);
     }
 
     public Double getRejection() {
         return rejection;
     }
 
-    public void setRejection(Double rejection) {
-        this.rejection = rejection;
+    public void setRejection(Number rejection) {
+        this.rejection = toDouble(rejection);
+    }
+
+    static Double toDouble(Number value) {
+        return value == null ? null : value.doubleValue();
     }
 }
