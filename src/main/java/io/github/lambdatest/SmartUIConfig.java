@@ -1,5 +1,9 @@
 package io.github.lambdatest;
 
+import io.github.lambdatest.models.PdfThreshold;
+
+import java.util.Map;
+
 /**
  * Configuration class for SmartUI operations
  * Includes essential SmartUI CLI configuration options
@@ -16,6 +20,9 @@ public class SmartUIConfig {
     private String configFile;
     private String testType;
     private String[] pdfNames;
+    private Double approvalThreshold;
+    private Double rejectionThreshold;
+    private Map<String, PdfThreshold> pdfThresholds;
 
     public String getTestType() {
         return testType;
@@ -76,6 +83,23 @@ public class SmartUIConfig {
         this.pdfNames = pdfNames;
         return this;
     }
+
+    // Number so int, long, float and double literals are all accepted; null leaves the project default
+    public SmartUIConfig withApprovalThreshold(Number approvalThreshold) {
+        this.approvalThreshold = approvalThreshold == null ? null : approvalThreshold.doubleValue();
+        return this;
+    }
+
+    public SmartUIConfig withRejectionThreshold(Number rejectionThreshold) {
+        this.rejectionThreshold = rejectionThreshold == null ? null : rejectionThreshold.doubleValue();
+        return this;
+    }
+
+    // keys are the PDF names as uploaded (file name, or the matching pdfNames entry)
+    public SmartUIConfig withPdfThresholds(Map<String, PdfThreshold> pdfThresholds) {
+        this.pdfThresholds = pdfThresholds;
+        return this;
+    }
     
     public int getPort() {
         return port;
@@ -107,6 +131,18 @@ public class SmartUIConfig {
 
     public String[] getPdfNames() {
         return pdfNames;
+    }
+
+    public Double getApprovalThreshold() {
+        return approvalThreshold;
+    }
+
+    public Double getRejectionThreshold() {
+        return rejectionThreshold;
+    }
+
+    public Map<String, PdfThreshold> getPdfThresholds() {
+        return pdfThresholds;
     }
     
     /**

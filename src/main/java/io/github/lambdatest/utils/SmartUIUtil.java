@@ -78,6 +78,12 @@ public class SmartUIUtil {
     }
 
     public UploadPDFResponse postPDFToSmartUI(List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames) throws Exception {
+        return postPDFToSmartUI(pdfFiles, projectToken, buildName, pdfNames, null, null, null);
+    }
+
+    public UploadPDFResponse postPDFToSmartUI(List<File> pdfFiles, String projectToken, String buildName, String[] pdfNames,
+                                              Double approvalThreshold, Double rejectionThreshold,
+                                              Map<String, PdfThreshold> pdfThresholds) throws Exception {
         UploadPDFResponse uploadResponse;
         try {
             if (pdfFiles == null || pdfFiles.isEmpty()) {
@@ -93,7 +99,10 @@ public class SmartUIUtil {
             
             log.info("Uploading PDFs to SmartUI. Count: " + pdfFiles.size());
 
-            String responseString = httpClient.uploadPDFs(url, pdfFiles, projectToken, buildName, pdfNames);
+            // gson drops null sides, so an unset approval/rejection never reaches the server as 0
+            String thresholdsJson = (pdfThresholds == null || pdfThresholds.isEmpty()) ? null : gson.toJson(pdfThresholds);
+            String responseString = httpClient.uploadPDFs(url, pdfFiles, projectToken, buildName, pdfNames,
+                    approvalThreshold, rejectionThreshold, thresholdsJson);
             uploadResponse = gson.fromJson(responseString, UploadPDFResponse.class);
             
             if (uploadResponse == null) {
