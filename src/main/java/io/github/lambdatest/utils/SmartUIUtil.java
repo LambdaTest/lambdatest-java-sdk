@@ -7,6 +7,10 @@ import java.util.logging.Logger;
 import io.github.lambdatest.models.*;
 import com.google.gson.Gson;
 import io.github.lambdatest.constants.Constants;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WrapsDriver;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.support.decorators.Decorated;
 
 
 public class SmartUIUtil {
@@ -28,6 +32,24 @@ public class SmartUIUtil {
 
     public SmartUIUtil(String proxyProtocol, String proxyHost, int proxyPort, boolean allowInsecure) throws Exception {
         this.httpClient = new HttpClientUtil(proxyProtocol, proxyHost, proxyPort, allowInsecure);
+    }
+
+    // Selenium decorators (EventFiringDecorator) hand back a proxy that is not a RemoteWebDriver; unwrap until the real one appears
+    public static RemoteWebDriver unwrapRemoteWebDriver(WebDriver driver) {
+        Object current = driver;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            if (current instanceof RemoteWebDriver) {
+                return (RemoteWebDriver) current;
+            }
+            if (current instanceof WrapsDriver) {
+                current = ((WrapsDriver) current).getWrappedDriver();
+            } else if (current instanceof Decorated) {
+                current = ((Decorated<?>) current).getOriginal();
+            } else {
+                return null;
+            }
+        }
+        return null;
     }
 
     public boolean isSmartUIRunning() {
