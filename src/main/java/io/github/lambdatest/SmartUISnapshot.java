@@ -8,6 +8,9 @@ import io.github.lambdatest.constants.Constants;
 import io.github.lambdatest.models.ResponseData;
 import io.github.lambdatest.models.SnapshotResponse;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WrapsDriver;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.SessionId;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,8 +64,8 @@ public class SmartUISnapshot {
                 ((JavascriptExecutor) driver).executeScript(domString);
 
                 // Append sessionId to options
-                String sessionId = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId().toString();
-                if (!sessionId.isEmpty()) {
+                String sessionId = getSessionId(driver);
+                if (sessionId != null && !sessionId.isEmpty()) {
                     options.put("sessionId", sessionId);
                 }
 
@@ -143,9 +146,22 @@ public class SmartUISnapshot {
             }
 
         } catch (Exception e) {
-            log.severe(String.format(Constants.Errors.SMARTUI_SNAPSHOT_FAILED, snapshotName));
+            log.severe(String.format(Constants.Errors.SMARTUI_SNAPSHOT_FAILED, snapshotName) + ": " + e);
             return null;
         }
+    }
+
+    // Returns the driver's sessionId, unwrapping decorated drivers; null when the driver is not remote.
+    private static String getSessionId(WebDriver driver) {
+        WebDriver target = driver;
+        while (!(target instanceof RemoteWebDriver) && target instanceof WrapsDriver) {
+            target = ((WrapsDriver) target).getWrappedDriver();
+        }
+        if (!(target instanceof RemoteWebDriver)) {
+            return null;
+        }
+        SessionId sessionId = ((RemoteWebDriver) target).getSessionId();
+        return sessionId == null ? null : sessionId.toString();
     }
 
     // Overloaded method without options parameter
