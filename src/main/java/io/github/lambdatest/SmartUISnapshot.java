@@ -61,9 +61,11 @@ public class SmartUISnapshot {
                 ((JavascriptExecutor) driver).executeScript(domString);
 
                 // Append sessionId to options
-                String sessionId = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId().toString();
-                if (!sessionId.isEmpty()) {
-                    options.put("sessionId", sessionId);
+                org.openqa.selenium.remote.RemoteWebDriver remoteDriver = SmartUIUtil.unwrapRemoteWebDriver(driver);
+                if (remoteDriver != null && remoteDriver.getSessionId() != null) {
+                    options.put("sessionId", remoteDriver.getSessionId().toString());
+                } else {
+                    log.fine("Driver is not a RemoteWebDriver; snapshot sent without sessionId");
                 }
 
                 // Resolve any WebElement objects in element/ignoreDOM/selectDOM to CSS selectors
@@ -143,7 +145,7 @@ public class SmartUISnapshot {
             }
 
         } catch (Exception e) {
-            log.severe(String.format(Constants.Errors.SMARTUI_SNAPSHOT_FAILED, snapshotName));
+            log.severe(Constants.Errors.SMARTUI_SNAPSHOT_FAILED + " for '" + snapshotName + "': " + e);
             return null;
         }
     }

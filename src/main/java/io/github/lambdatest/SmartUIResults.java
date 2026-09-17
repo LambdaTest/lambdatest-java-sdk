@@ -44,7 +44,11 @@ public class SmartUIResults {
 
         try {
             // Extract sessionId from the driver (null-safe)
-            org.openqa.selenium.remote.SessionId sid = ((org.openqa.selenium.remote.RemoteWebDriver) driver).getSessionId();
+            org.openqa.selenium.remote.RemoteWebDriver remoteDriver = SmartUIUtil.unwrapRemoteWebDriver(driver);
+            if (remoteDriver == null) {
+                throw new IllegalArgumentException("Driver must be a RemoteWebDriver, or wrap one, to extract sessionId");
+            }
+            org.openqa.selenium.remote.SessionId sid = remoteDriver.getSessionId();
             if (sid == null) {
                 throw new IllegalStateException("Unable to get sessionId from the driver");
             }
